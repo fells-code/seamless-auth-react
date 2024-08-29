@@ -1,11 +1,12 @@
 import resolve from "@rollup/plugin-node-resolve";
 import commonjs from "@rollup/plugin-commonjs";
 import babel from "@rollup/plugin-babel";
+import typescript from "@rollup/plugin-typescript";
 import { terser } from "rollup-plugin-terser";
 import { nodeResolve } from "@rollup/plugin-node-resolve";
 
 export default {
-  input: "src/index.js", // Entry point of your library
+  input: "src/index.ts",
   output: [
     {
       file: "dist/index.cjs.js",
@@ -22,12 +23,13 @@ export default {
     resolve(),
     commonjs(),
     nodeResolve({
-      extensions: [".js", ".jsx"],
+      extensions: [".ts", ".tsx"],
     }),
+    typescript(),
     babel({
       babelHelpers: "bundled",
       presets: ["@babel/preset-react"],
-      extensions: [".js", ".jsx"],
+      extensions: [".ts", ".tsx"],
     }),
     terser(),
   ],
