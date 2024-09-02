@@ -18,7 +18,7 @@ describe("PasswordRecovery Component", () => {
       target: { value: "test@example.com" },
     });
 
-    fireEvent.click(screen.getByText(/submit/i));
+    fireEvent.click(screen.getByText(/Send Recovery Email/i));
     expect(mockOnRecover).toHaveBeenCalledWith("test@example.com");
   });
 
