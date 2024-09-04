@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 
-interface PasswordRecoveryProps {
+export interface PasswordRecoveryProps {
   onRecover: (email: string) => void;
   onBackToLogin: () => void;
 }

@@ -11,9 +11,6 @@ describe("Register Component", () => {
       <Register onRegister={mockOnRegister} onBackToLogin={mockOnBackToLogin} />
     );
 
-    fireEvent.change(screen.getByLabelText(/username/i), {
-      target: { value: "newuser" },
-    });
     fireEvent.change(screen.getByLabelText(/email/i), {
       target: { value: "newuser@example.com" },
     });
@@ -23,7 +20,6 @@ describe("Register Component", () => {
 
     fireEvent.click(screen.getByText(/submit/i));
     expect(mockOnRegister).toHaveBeenCalledWith(
-      "newuser",
       "newuser@example.com",
       "newpassword"
     );

@@ -16,7 +16,7 @@ describe("Login Component", () => {
       />
     );
 
-    fireEvent.change(screen.getByLabelText(/username/i), {
+    fireEvent.change(screen.getByLabelText(/email/i), {
       target: { value: "admin" },
     });
     fireEvent.change(screen.getByLabelText(/password/i), {

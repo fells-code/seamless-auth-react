@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 
-interface LoginProps {
+export interface LoginProps {
   onLogin: (username: string, password: string) => void;
   onForgotPassword: () => void;
   onRegister: () => void;
@@ -11,12 +11,12 @@ const Login: React.FC<LoginProps> = ({
   onForgotPassword,
   onRegister,
 }) => {
-  const [username, setUsername] = useState<string>("");
+  const [email, setEmail] = useState<string>("");
   const [password, setPassword] = useState<string>("");
 
   const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    onLogin(username, password);
+    onLogin(email, password);
   };
 
   return (
@@ -25,14 +25,14 @@ const Login: React.FC<LoginProps> = ({
         <h2 className="text-2xl font-bold mb-6 text-center">Login</h2>
         <form onSubmit={handleSubmit}>
           <div className="mb-4">
-            <label htmlFor="username" className="block text-gray-700">
-              Username
+            <label htmlFor="email" className="block text-gray-700">
+              Email
             </label>
             <input
-              id="username"
+              id="email"
               type="text"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
               className="w-full p-2 border border-gray-300 rounded mt-1"
               required
             />

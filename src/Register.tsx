@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 
-interface RegisterProps {
-  onRegister: (username: string, email: string, password: string) => void;
+export interface RegisterProps {
+  onRegister: (email: string, password: string) => void;
   onBackToLogin: () => void;
 }
 
@@ -12,7 +12,7 @@ const Register: React.FC<RegisterProps> = ({ onRegister, onBackToLogin }) => {
 
   const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    onRegister(username, email, password);
+    onRegister(email, password);
   };
 
   return (
@@ -20,19 +20,6 @@ const Register: React.FC<RegisterProps> = ({ onRegister, onBackToLogin }) => {
       <div className="bg-white p-8 rounded shadow-md w-full max-w-md">
         <h2 className="text-2xl font-bold mb-6 text-center">Register</h2>
         <form onSubmit={handleSubmit}>
-          <div className="mb-4">
-            <label htmlFor="username" className="block text-gray-700">
-              Username
-            </label>
-            <input
-              id="username"
-              type="text"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              className="w-full p-2 border border-gray-300 rounded mt-1"
-              required
-            />
-          </div>
           <div className="mb-4">
             <label htmlFor="email" className="block text-gray-700">
               Email

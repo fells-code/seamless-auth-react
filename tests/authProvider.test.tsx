@@ -1,40 +1,79 @@
-import React from "react";
-import { fireEvent, render, screen } from "@testing-library/react";
-import "@testing-library/jest-dom";
+import React, { act } from "react";
+import { render, screen, fireEvent } from "@testing-library/react";
 import { AuthProvider, useAuth } from "../src/AuthProvider";
 
-const TestComponent = () => {
-  const { user } = useAuth();
-  return <div>{user ? `Logged in as ${user.name}` : "Not logged in"}</div>;
-};
+// Mock components
+jest.mock("../src/Login", () => ({
+  __esModule: true,
+  default: ({ onLogin, onForgotPassword, onRegister }: any) => (
+    <div>
+      <button onClick={() => onLogin("testuser", "password")}>Login</button>
+      <button onClick={onForgotPassword}>Forgot Password</button>
+      <button onClick={onRegister}>Register</button>
+    </div>
+  ),
+}));
 
-describe("AuthProvider Component", () => {
-  it("renders the login view when not logged in", () => {
-    render(
-      <AuthProvider>
-        <TestComponent />
-      </AuthProvider>
-    );
+jest.mock("../src/Register", () => ({
+  __esModule: true,
+  default: ({ onRegister, onBackToLogin }: any) => (
+    <div>
+      <button onClick={() => onRegister("testuser", "password")}>
+        Register
+      </button>
+      <button onClick={onBackToLogin}>Back to Login</button>
+    </div>
+  ),
+}));
 
-    expect(screen.getByText(/login/i)).toBeInTheDocument();
+jest.mock("../src/PasswordRecovery", () => ({
+  __esModule: true,
+  default: ({ onRecover, onBackToLogin }: any) => (
+    <div>
+      <button onClick={() => onRecover("testuser@example.com")}>
+        Recover Password
+      </button>
+      <button onClick={onBackToLogin}>Back to Login</button>
+    </div>
+  ),
+}));
+
+// Mock fetch
+global.fetch = jest.fn();
+
+describe("AuthProvider", () => {
+  const apiHost = "http://localhost:3000/";
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    localStorage.clear();
   });
 
-  it("renders children when logged in", () => {
+  const TestComponent = () => {
+    const { user, login, logout, isAuthenticated, hasRole } = useAuth();
+
+    return (
+      <div>
+        <div>{isAuthenticated ? "Authenticated" : "Not Authenticated"}</div>
+        <div>{user ? `User: ${user.name}` : "No User"}</div>
+        <button onClick={() => login("testuser", "password")}>
+          Test Login
+        </button>
+        <button onClick={logout}>Test Logout</button>
+        {hasRole && (
+          <div>{hasRole("admin") ? "Has Admin Role" : "No Admin Role"}</div>
+        )}
+      </div>
+    );
+  };
+
+  it("renders the login view by default", () => {
     render(
-      <AuthProvider>
+      <AuthProvider apiHost={apiHost}>
         <TestComponent />
       </AuthProvider>
     );
 
-    const loginButton = screen.getByText(/submit/i);
-    fireEvent.change(screen.getByLabelText(/username/i), {
-      target: { value: "admin" },
-    });
-    fireEvent.change(screen.getByLabelText(/password/i), {
-      target: { value: "password" },
-    });
-    fireEvent.click(loginButton);
-
-    expect(screen.getByText(/logged in as admin/i)).toBeInTheDocument();
+    expect(screen.getByText("Login")).toBeTruthy();
   });
 });

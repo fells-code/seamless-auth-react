@@ -15,7 +15,6 @@ interface AuthContextType {
   user: { name: string } | null;
   login: (username: string, password: string) => void;
   logout: () => void;
-  loading: boolean;
   isAuthenticated: boolean;
   hasRole: (role: string) => boolean | undefined;
 }
@@ -54,32 +53,46 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({
   );
   const [currentView, setCurrentView] = useState<AuthView>(AuthView.LOGIN);
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
-  const [loading, setLoading] = useState<boolean>(true);
 
-  // useEffect(() => {
-  //   const checkSession = async () => {
-  //     try {
-  //       const response = await fetch("/api/check-session");
-  //       if (response.ok) {
-  //         const userData = await response.json();
-  //         setUser(userData);
-  //       }
-  //     } catch (error) {
-  //       console.error("Failed to check session:", error);
-  //     } finally {
-  //       setLoading(false);
-  //     }
-  //   };
+  const validateToken = async () => {
+    try {
+      const token = localStorage.getItem("authToken");
+      if (token) {
+        const response = await fetch(`${apiHost}api/auth/user`, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
 
-  //   checkSession();
-  // }, []);
+        if (response.status === 403) {
+          localStorage.removeItem("authToken");
+        }
+
+        const result = await response.json();
+        setUser(result);
+      }
+    } catch (error) {
+      console.error("Error retrieving user information:", error);
+      localStorage.removeItem("authToken");
+    }
+  };
+
+  useEffect(() => {
+    validateToken();
+  }, [apiHost]);
 
   // Example login function
-  const login = async (username: string, password: string) => {
+  const login = async (email: string, password: string) => {
     try {
-      const response = await fetch(`${apiHost}auth/login`, {
+      const response = await fetch(`${apiHost}api/auth/login`, {
         method: "POST",
-        body: JSON.stringify({ username, password }),
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          email: email,
+          password: password,
+        }),
       });
 
       if (!response.ok) {
@@ -87,10 +100,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({
       }
 
       const result = await response.json();
-      console.log(result);
 
-      setUser(result.user);
-      setIsAuthenticated(true);
+      localStorage.setItem("authToken", result.token);
+      validateToken();
     } catch (error) {
       console.error("Login failed", error);
     }
@@ -99,6 +111,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({
   const logout = () => {
     setUser(null);
     setIsAuthenticated(false);
+    localStorage.removeItem("authToken");
   };
 
   const register = async (email: string, password: string) => {
@@ -151,7 +164,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({
     <AuthContext.Provider
       value={{
         user,
-        loading,
         login,
         logout,
         isAuthenticated,
