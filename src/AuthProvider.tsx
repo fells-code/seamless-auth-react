@@ -5,6 +5,7 @@ import React, {
   useEffect,
   ReactNode,
 } from "react";
+import { fetchWithAuth } from "./fetchWithAuth";
 import Login from "./Login";
 import Register from "./Register";
 import PasswordRecovery from "./PasswordRecovery";
@@ -56,24 +57,17 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({
 
   const validateToken = async () => {
     try {
-      const token = localStorage.getItem("authToken");
-      if (token) {
-        const response = await fetch(`${apiHost}api/auth/user`, {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        });
+      const response = await fetchWithAuth(`${apiHost}api/auth/user`);
 
-        if (response.status === 403) {
-          localStorage.removeItem("authToken");
-        }
-
-        const result = await response.json();
-        setUser(result);
+      if (response.ok) {
+        const user = await response.json();
+        setUser(user);
+      } else {
+        throw new Error("Token validation failed");
       }
     } catch (error) {
-      console.error("Error retrieving user information:", error);
-      localStorage.removeItem("authToken");
+      console.error("Error validating token:", error);
+      logout();
     }
   };
 
@@ -81,7 +75,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({
     validateToken();
   }, [apiHost]);
 
-  // Example login function
   const login = async (email: string, password: string) => {
     try {
       const response = await fetch(`${apiHost}api/auth/login`, {
@@ -112,12 +105,27 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({
     setUser(null);
     setIsAuthenticated(false);
     localStorage.removeItem("authToken");
+    localStorage.removeItem("refreshToken");
   };
 
   const register = async (email: string, password: string) => {
     try {
-      // await axios.post("/register", { email, password });
-      // Optionally, you can auto-login after registration
+      const response = await fetch(`${apiHost}api/auth/register`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          email: email,
+          password: password,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Response status: ${response.status}`);
+      } else {
+        login(email, password);
+      }
     } catch (error) {
       console.error("Registration failed", error);
     }
