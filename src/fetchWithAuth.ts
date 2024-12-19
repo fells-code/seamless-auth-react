@@ -1,5 +1,6 @@
 export const fetchWithAuth = async (
   input: RequestInfo,
+  apiHost: string,
   init?: RequestInit
 ): Promise<Response> => {
   const authToken = localStorage.getItem("authToken");
@@ -14,24 +15,23 @@ export const fetchWithAuth = async (
 
   let response = await fetch(input, requestInit);
 
-  if (response.status === 401) {
+  if (response.status === 403) {
     // Attempt to refresh the token
+    console.log("Attempting to refresh token...");
     const refreshToken = localStorage.getItem("refreshToken");
+    console.log("Refresh token...", refreshToken);
 
     if (!refreshToken) {
       throw new Error("No refresh token available. Please log in again.");
     }
 
-    const refreshResponse = await fetch(
-      `${process.env.API_HOST}/api/auth/refresh-token`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ refreshToken }),
-      }
-    );
+    const refreshResponse = await fetch(`${apiHost}api/auth/refresh-token`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ refreshToken }),
+    });
 
     if (refreshResponse.ok) {
       const refreshData = await refreshResponse.json();

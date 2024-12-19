@@ -11,6 +11,7 @@ import Register from "./Register";
 import PasswordRecovery from "./PasswordRecovery";
 
 import "./index.css";
+import ResetPassword from "./ResetPassword";
 
 interface AuthContextType {
   user: { name: string } | null;
@@ -26,6 +27,7 @@ enum AuthView {
   LOGIN = "LOGIN",
   REGISTER = "REGISTER",
   RECOVER = "RECOVER",
+  RESET = "RESET",
 }
 
 /**
@@ -49,6 +51,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({
   children,
   apiHost,
 }) => {
+  const resetToken = ""; // TODO: Find the url params
   const [user, setUser] = useState<{ name: string; roles: string[] } | null>(
     null
   );
@@ -57,7 +60,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({
 
   const validateToken = async () => {
     try {
-      const response = await fetchWithAuth(`${apiHost}api/auth/user`);
+      const response = await fetchWithAuth(`${apiHost}api/auth/user`, apiHost);
 
       if (response.ok) {
         const user = await response.json();
@@ -95,13 +98,27 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({
       const result = await response.json();
 
       localStorage.setItem("authToken", result.token);
+      localStorage.setItem("refreshToken", result.refreshToken);
       validateToken();
     } catch (error) {
       console.error("Login failed", error);
+      logout();
     }
   };
 
-  const logout = () => {
+  const logout = async () => {
+    if (user) {
+      await fetch(`${apiHost}api/auth/logout`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          email: user.name,
+        }),
+      });
+    }
+
     setUser(null);
     setIsAuthenticated(false);
     localStorage.removeItem("authToken");
@@ -131,10 +148,35 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({
     }
   };
 
-  const recoverPassword = (email: string) => {
-    // Implement your password recovery logic here
-    alert(`Password recovery email sent to: ${email}`);
+  const recoverPassword = async (email: string) => {
+    try {
+      await fetch(`${apiHost}api/auth/forgot-password`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ email }),
+      });
+      alert("Password reset email sent.");
+    } catch (error) {
+      console.error("Failed to send password reset email:", error);
+    }
     setCurrentView(AuthView.LOGIN);
+  };
+
+  const resetPassword = async (password: string) => {
+    try {
+      await fetch(`${apiHost}api/auth/reset-password`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ resetToken, password }),
+      });
+      alert("Password has been reset.");
+    } catch (error) {
+      console.error("Failed to reset password:", error);
+    }
   };
 
   const hasRole = (role: string) => user?.roles?.includes(role);
@@ -163,6 +205,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({
             onBackToLogin={() => setCurrentView(AuthView.LOGIN)}
           />
         );
+      case AuthView.RESET:
+        return <ResetPassword onResetPassword={resetPassword} />;
       default:
         return null;
     }
