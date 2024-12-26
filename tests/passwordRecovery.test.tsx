@@ -11,6 +11,7 @@ describe("PasswordRecovery Component", () => {
       <PasswordRecovery
         onRecover={mockOnRecover}
         onBackToLogin={mockOnBackToLogin}
+        error=""
       />
     );
 
@@ -28,6 +29,7 @@ describe("PasswordRecovery Component", () => {
       <PasswordRecovery
         onRecover={jest.fn()}
         onBackToLogin={mockOnBackToLogin}
+        error=""
       />
     );
 

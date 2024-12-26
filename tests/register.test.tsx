@@ -1,4 +1,3 @@
-import React from "react";
 import { render, screen, fireEvent } from "@testing-library/react";
 import Register from "../src/Register";
 
@@ -8,7 +7,11 @@ describe("Register Component", () => {
     const mockOnBackToLogin = jest.fn();
 
     render(
-      <Register onRegister={mockOnRegister} onBackToLogin={mockOnBackToLogin} />
+      <Register
+        onRegister={mockOnRegister}
+        onBackToLogin={mockOnBackToLogin}
+        error=""
+      />
     );
 
     fireEvent.change(screen.getByLabelText(/email/i), {
@@ -28,7 +31,11 @@ describe("Register Component", () => {
   it("calls onBackToLogin when back to login button is clicked", () => {
     const mockOnBackToLogin = jest.fn();
     render(
-      <Register onRegister={jest.fn()} onBackToLogin={mockOnBackToLogin} />
+      <Register
+        onRegister={jest.fn()}
+        onBackToLogin={mockOnBackToLogin}
+        error=""
+      />
     );
 
     fireEvent.click(screen.getByText(/back to login/i));

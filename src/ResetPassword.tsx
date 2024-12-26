@@ -2,9 +2,13 @@ import React, { useState } from "react";
 
 export interface ResetPasswordProps {
   onResetPassword: (password: string) => void;
+  error: string;
 }
 
-const ResetPassword: React.FC<ResetPasswordProps> = ({ onResetPassword }) => {
+const ResetPassword: React.FC<ResetPasswordProps> = ({
+  onResetPassword,
+  error,
+}) => {
   const [newPassword, setNewPassword] = useState<string>("");
   const [confirmPassword, setConfirmPassword] = useState<string>("");
 
@@ -57,6 +61,7 @@ const ResetPassword: React.FC<ResetPasswordProps> = ({ onResetPassword }) => {
           >
             Submit
           </button>
+          <div>{error}</div>
         </form>
       </div>
     </div>

@@ -10,6 +10,10 @@
     "src/",
     "README.md"
   ],
+  "engines": {
+    "npm": ">=9.0.0 <11.0.0",
+    "node": ">=20.0.0 <21.0.0"
+  },
   "scripts": {
     "test": "jest",
     "build": "rollup -c",
@@ -26,8 +30,8 @@
   },
   "homepage": "https://github.com/fells-code/drop-auth#readme",
   "peerDependencies": {
-    "react": "^17.0.0 || ^18.0.0",
-    "react-dom": "^17.0.0 || ^18.0.0"
+    "react": "^18.0.0",
+    "react-dom": "^18.0.0"
   },
   "devDependencies": {
     "@babel/cli": "^7.24.8",
@@ -37,6 +41,7 @@
     "@rollup/plugin-babel": "^6.0.4",
     "@rollup/plugin-commonjs": "^26.0.1",
     "@rollup/plugin-node-resolve": "^15.2.3",
+    "@rollup/plugin-terser": "^0.4.4",
     "@rollup/plugin-typescript": "^11.1.6",
     "@testing-library/jest-dom": "^6.5.0",
     "@testing-library/react": "^16.0.1",
@@ -49,11 +54,10 @@
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "rollup": "^2.79.1",
+    "rollup-plugin-postcss": "^4.0.2",
     "ts-jest": "^29.2.5",
     "tslib": "^2.7.0",
-    "typescript": "^5.5.4",
-    "@rollup/plugin-terser": "^0.4.4",
-    "rollup-plugin-postcss": "^4.0.2"
+    "typescript": "^5.5.4"
   },
   "dependencies": {
     "autoprefixer": "^10.4.20",

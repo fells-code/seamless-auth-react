@@ -13,6 +13,7 @@ describe("Login Component", () => {
         onLogin={mockOnLogin}
         onForgotPassword={mockOnForgotPassword}
         onRegister={mockOnRegister}
+        error=""
       />
     );
 
@@ -34,6 +35,7 @@ describe("Login Component", () => {
         onLogin={jest.fn()}
         onForgotPassword={mockOnForgotPassword}
         onRegister={jest.fn()}
+        error=""
       />
     );
 
@@ -48,6 +50,7 @@ describe("Login Component", () => {
         onLogin={jest.fn()}
         onForgotPassword={jest.fn()}
         onRegister={mockOnRegister}
+        error=""
       />
     );
 

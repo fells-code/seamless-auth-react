@@ -3,6 +3,7 @@ import React, { useState } from "react";
 export interface PasswordRecoveryProps {
   onRecover: (email: string) => void;
   onBackToLogin: () => void;
+  error: string;
 }
 
 const PasswordRecovery: React.FC<PasswordRecoveryProps> = ({

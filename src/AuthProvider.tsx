@@ -57,6 +57,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({
   );
   const [currentView, setCurrentView] = useState<AuthView>(AuthView.LOGIN);
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
+  const [error, setError] = useState<string>("");
 
   const validateToken = async () => {
     try {
@@ -75,8 +76,27 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({
   };
 
   useEffect(() => {
-    validateToken();
+    const authToken = localStorage.getItem("authToken");
+
+    if (authToken) {
+      validateToken();
+    }
   }, [apiHost]);
+
+  useEffect(() => {
+    const route = window.location.pathname;
+
+    if (route === "/reset-password") {
+      const queryString = window.location.search;
+      const urlParams = new URLSearchParams(queryString);
+
+      const resetToken = urlParams.get("token");
+
+      if (resetToken) {
+        setCurrentView(AuthView.RESET);
+      }
+    }
+  }, []);
 
   const login = async (email: string, password: string) => {
     try {
@@ -138,13 +158,22 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({
         }),
       });
 
+      if (response.status === 409) {
+        setError(
+          "An account with this email already exists. Please log in or use a different email."
+        );
+        return;
+      }
+
       if (!response.ok) {
-        throw new Error(`Response status: ${response.status}`);
+        setError("An error occured.");
+        return;
       } else {
         login(email, password);
       }
     } catch (error) {
       console.error("Registration failed", error);
+      setError("An error occured.");
     }
   };
 
@@ -189,6 +218,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({
             onLogin={login}
             onForgotPassword={() => setCurrentView(AuthView.RECOVER)}
             onRegister={() => setCurrentView(AuthView.REGISTER)}
+            error={error}
           />
         );
       case AuthView.RECOVER:
@@ -196,17 +226,23 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({
           <PasswordRecovery
             onRecover={recoverPassword}
             onBackToLogin={() => setCurrentView(AuthView.LOGIN)}
+            error={error}
           />
         );
       case AuthView.REGISTER:
         return (
           <Register
             onRegister={register}
-            onBackToLogin={() => setCurrentView(AuthView.LOGIN)}
+            onBackToLogin={() => {
+              setCurrentView(AuthView.LOGIN);
+              setError("");
+            }}
+            error={error}
           />
         );
       case AuthView.RESET:
-        return <ResetPassword onResetPassword={resetPassword} />;
+        return <ResetPassword onResetPassword={resetPassword} error={error} />;
+
       default:
         return null;
     }

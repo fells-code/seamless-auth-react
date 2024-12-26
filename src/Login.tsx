@@ -4,6 +4,7 @@ export interface LoginProps {
   onLogin: (username: string, password: string) => void;
   onForgotPassword: () => void;
   onRegister: () => void;
+  error: string;
 }
 
 const Login: React.FC<LoginProps> = ({

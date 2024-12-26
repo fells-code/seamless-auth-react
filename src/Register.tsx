@@ -3,10 +3,14 @@ import React, { useState } from "react";
 export interface RegisterProps {
   onRegister: (email: string, password: string) => void;
   onBackToLogin: () => void;
+  error: string;
 }
 
-const Register: React.FC<RegisterProps> = ({ onRegister, onBackToLogin }) => {
-  const [username, setUsername] = useState("");
+const Register: React.FC<RegisterProps> = ({
+  onRegister,
+  onBackToLogin,
+  error,
+}) => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
 
@@ -52,6 +56,7 @@ const Register: React.FC<RegisterProps> = ({ onRegister, onBackToLogin }) => {
           >
             Submit
           </button>
+          <div>{error}</div>
         </form>
         <button
           onClick={onBackToLogin}

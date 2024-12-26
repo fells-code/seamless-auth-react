@@ -17,9 +17,7 @@ export const fetchWithAuth = async (
 
   if (response.status === 403) {
     // Attempt to refresh the token
-    console.log("Attempting to refresh token...");
     const refreshToken = localStorage.getItem("refreshToken");
-    console.log("Refresh token...", refreshToken);
 
     if (!refreshToken) {
       throw new Error("No refresh token available. Please log in again.");
