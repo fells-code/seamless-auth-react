@@ -17,6 +17,7 @@ interface AuthContextType {
   user: { name: string } | null;
   login: (username: string, password: string) => void;
   logout: () => void;
+  deleteUser: () => void;
   isAuthenticated: boolean;
   hasRole: (role: string) => boolean | undefined;
 }
@@ -51,12 +52,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({
   children,
   apiHost,
 }) => {
-  const resetToken = ""; // TODO: Find the url params
   const [user, setUser] = useState<{ name: string; roles: string[] } | null>(
     null
   );
   const [currentView, setCurrentView] = useState<AuthView>(AuthView.LOGIN);
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
+  const [resetToken, setResetToken] = useState<string | null>(null);
   const [error, setError] = useState<string>("");
 
   const validateToken = async () => {
@@ -90,10 +91,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({
       const queryString = window.location.search;
       const urlParams = new URLSearchParams(queryString);
 
-      const resetToken = urlParams.get("token");
-
-      if (resetToken) {
-        setCurrentView(AuthView.RESET);
+      if (urlParams.get("token")) {
+        setResetToken(urlParams.get("token"));
+        window.location.replace(window.location.origin);
       }
     }
   }, []);
@@ -203,8 +203,30 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({
         body: JSON.stringify({ resetToken, password }),
       });
       alert("Password has been reset.");
+      setCurrentView(AuthView.LOGIN);
     } catch (error) {
       console.error("Failed to reset password:", error);
+    }
+  };
+
+  const deleteUser = async () => {
+    try {
+      const response = await fetchWithAuth(
+        `${apiHost}api/auth/delete`,
+        apiHost,
+        {
+          method: "delete",
+        }
+      );
+
+      if (response.ok) {
+        setUser(null);
+        window.location.replace(window.location.origin);
+      } else {
+        throw new Error("Could not delete user.");
+      }
+    } catch (error) {
+      console.error("Something went wrong deleting user:", error);
     }
   };
 
@@ -254,6 +276,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({
         user,
         login,
         logout,
+        deleteUser,
         isAuthenticated,
         hasRole,
       }}
