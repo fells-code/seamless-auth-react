@@ -11,6 +11,7 @@ const Login: React.FC<LoginProps> = ({
   onLogin,
   onForgotPassword,
   onRegister,
+  error,
 }) => {
   const [email, setEmail] = useState<string>("");
   const [password, setPassword] = useState<string>("");
@@ -72,6 +73,7 @@ const Login: React.FC<LoginProps> = ({
             Register
           </button>
         </div>
+        <div>{error}</div>
       </div>
     </div>
   );

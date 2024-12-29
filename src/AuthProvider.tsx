@@ -87,13 +87,20 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({
   useEffect(() => {
     const route = window.location.pathname;
 
-    if (route === "/reset-password") {
+    if (route === "/reset-password" || route === "/verify") {
       const queryString = window.location.search;
       const urlParams = new URLSearchParams(queryString);
 
       if (urlParams.get("token")) {
-        setResetToken(urlParams.get("token"));
-        window.location.replace(window.location.origin);
+        if (route === "/reset-password") {
+          setResetToken(urlParams.get("token"));
+        }
+
+        if (route === "/verify") {
+          verify(urlParams.get("token"));
+        }
+        // TODO: Clear the path and query items after everything is complete
+        //window.location.replace(window.location.origin);
       }
     }
   }, []);
@@ -112,7 +119,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({
       });
 
       if (!response.ok) {
-        throw new Error(`Response status: ${response.status}`);
+        setError("Incorrect username or password");
+        return;
       }
 
       const result = await response.json();
@@ -168,12 +176,31 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({
       if (!response.ok) {
         setError("An error occured.");
         return;
-      } else {
-        login(email, password);
       }
     } catch (error) {
       console.error("Registration failed", error);
       setError("An error occured.");
+    }
+  };
+
+  const verify = async (verificationToken: string | null) => {
+    try {
+      const result = await fetch(`${apiHost}api/auth/verify`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ verificationToken }),
+      });
+
+      if (!result.ok) {
+        setError("Verification failed.");
+        // TODO: Do I need to do this?
+        window.location.replace(window.location.origin);
+      }
+    } catch (error) {
+      console.error("Failed to verify user:", error);
+      setError("Verification failed.");
     }
   };
 
@@ -239,7 +266,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({
           <Login
             onLogin={login}
             onForgotPassword={() => setCurrentView(AuthView.RECOVER)}
-            onRegister={() => setCurrentView(AuthView.REGISTER)}
+            onRegister={() => {
+              setError("");
+              setCurrentView(AuthView.REGISTER);
+            }}
             error={error}
           />
         );
