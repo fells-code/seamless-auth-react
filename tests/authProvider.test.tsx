@@ -55,7 +55,7 @@ describe("AuthProvider", () => {
     return (
       <div>
         <div>{isAuthenticated ? "Authenticated" : "Not Authenticated"}</div>
-        <div>{user ? `User: ${user.name}` : "No User"}</div>
+        <div>{user ? `User: ${user.email}` : "No User"}</div>
         <button onClick={() => login("testuser", "password")}>
           Test Login
         </button>

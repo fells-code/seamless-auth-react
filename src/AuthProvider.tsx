@@ -14,7 +14,7 @@ import "./index.css";
 import ResetPassword from "./ResetPassword";
 
 interface AuthContextType {
-  user: { name: string } | null;
+  user: { email: string } | null;
   login: (username: string, password: string) => void;
   logout: () => void;
   deleteUser: () => void;
@@ -52,13 +52,14 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({
   children,
   apiHost,
 }) => {
-  const [user, setUser] = useState<{ name: string; roles: string[] } | null>(
+  const [user, setUser] = useState<{ email: string; roles?: string[] } | null>(
     null
   );
   const [currentView, setCurrentView] = useState<AuthView>(AuthView.LOGIN);
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
   const [resetToken, setResetToken] = useState<string | null>(null);
   const [error, setError] = useState<string>("");
+  const [message, setMessage] = useState<string>("");
 
   const validateToken = async () => {
     try {
@@ -99,8 +100,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({
         if (route === "/verify") {
           verify(urlParams.get("token"));
         }
-        // TODO: Clear the path and query items after everything is complete
-        //window.location.replace(window.location.origin);
       }
     }
   }, []);
@@ -136,21 +135,25 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({
 
   const logout = async () => {
     if (user) {
-      await fetch(`${apiHost}api/auth/logout`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          email: user.name,
-        }),
-      });
+      try {
+        await fetch(`${apiHost}api/auth/logout`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            email: user.email,
+          }),
+        });
+      } catch (error) {
+        console.error("Error in logout", error);
+      } finally {
+        setIsAuthenticated(false);
+        localStorage.removeItem("authToken");
+        localStorage.removeItem("refreshToken");
+        setUser(null);
+      }
     }
-
-    setUser(null);
-    setIsAuthenticated(false);
-    localStorage.removeItem("authToken");
-    localStorage.removeItem("refreshToken");
   };
 
   const register = async (email: string, password: string) => {
@@ -177,6 +180,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({
         setError("An error occured.");
         return;
       }
+      setMessage(`Verfication email sent to ${email}`);
     } catch (error) {
       console.error("Registration failed", error);
       setError("An error occured.");
@@ -185,7 +189,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({
 
   const verify = async (verificationToken: string | null) => {
     try {
-      const result = await fetch(`${apiHost}api/auth/verify`, {
+      const response = await fetch(`${apiHost}api/auth/verify`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -193,11 +197,21 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({
         body: JSON.stringify({ verificationToken }),
       });
 
-      if (!result.ok) {
+      if (!response.ok) {
         setError("Verification failed.");
-        // TODO: Do I need to do this?
+        setCurrentView(AuthView.LOGIN);
         window.location.replace(window.location.origin);
+
+        return;
       }
+
+      const result = await response.json();
+
+      localStorage.setItem("authToken", result.token);
+      localStorage.setItem("refreshToken", result.refreshToken);
+
+      window.location.replace(window.location.origin);
+      validateToken();
     } catch (error) {
       console.error("Failed to verify user:", error);
       setError("Verification failed.");
@@ -289,6 +303,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({
               setCurrentView(AuthView.LOGIN);
               setError("");
             }}
+            message={message}
             error={error}
           />
         );

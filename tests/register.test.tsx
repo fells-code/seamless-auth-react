@@ -11,6 +11,7 @@ describe("Register Component", () => {
         onRegister={mockOnRegister}
         onBackToLogin={mockOnBackToLogin}
         error=""
+        message=""
       />
     );
 
@@ -35,6 +36,7 @@ describe("Register Component", () => {
         onRegister={jest.fn()}
         onBackToLogin={mockOnBackToLogin}
         error=""
+        message=""
       />
     );
 

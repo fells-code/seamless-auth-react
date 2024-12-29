@@ -4,12 +4,14 @@ export interface RegisterProps {
   onRegister: (email: string, password: string) => void;
   onBackToLogin: () => void;
   error: string;
+  message: string;
 }
 
 const Register: React.FC<RegisterProps> = ({
   onRegister,
   onBackToLogin,
   error,
+  message,
 }) => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -57,6 +59,7 @@ const Register: React.FC<RegisterProps> = ({
             Submit
           </button>
           <div>{error}</div>
+          <div>{message}</div>
         </form>
         <button
           onClick={onBackToLogin}
