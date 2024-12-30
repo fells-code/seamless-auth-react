@@ -4,24 +4,24 @@
 
 ## Documentation
 
-- [Quickstart](https://fellscode.com/docs/drop-auth/quickstart) - Learn to add Authentication to a React application in less than 5 mins.
+- [Quickstart](https://fellscode.com/docs/seamless-auth-react/quickstart) - Learn to add Authentication to a React application in less than 5 mins.
 
-- [FAQs](https://fellscode/faq/drop-auth) - frequently asked questions about the Drop Auth.
+- [FAQs](https://fellscode/faq/seamless-auth-react) - frequently asked questions about the Drop Auth.
 
-- [Docs site](https://www.fellscode.com/docs/drop-auth) - Documentation on how drop auth really works.
+- [Docs site](https://www.fellscode.com/docs/seamless-auth-react) - Documentation on how drop auth really works.
 
 ## Getting Started
 
 Using [npm](https://npmjs.org/)
 
 ```bash
-npm install fellscode-drop-auth
+npm install seamless-auth-react
 ```
 
 Using [yarn](https://yarnpkg.com/)
 
 ```bash
-yarn add fellscode-drop-auth
+yarn add seamless-auth-react
 ```
 
 <summary></summary>
@@ -36,9 +36,9 @@ import ReactDOM from "react-dom/client";
 import "./index.css";
 import App from "./App";
 import reportWebVitals from "./reportWebVitals";
-import { AuthProvider } from "fellscode-drop-auth";
+import { AuthProvider } from "seamless-auth-react";
 
-const apiHost = "https://api.fellscode.com/drop-auth/";
+const apiHost = "https://api.fellscode.com/seamless-auth-react/";
 
 const root = ReactDOM.createRoot(document.getElementById("root"));
 root.render(
@@ -53,7 +53,7 @@ root.render(
 Use the `useAuth` hook to access user information, authentication, and user management routines such as logout from any component.
 
 ```jsx
-import { useAuth } from "fellscode-drop-auth";
+import { useAuth } from "seamless-auth-react";
 
 function App() {
   const { user, logout } = useAuth();
@@ -82,4 +82,4 @@ export default App;
 
 ### Raise an issue
 
-To provide feedback or report a bug, please [raise an issue on our issue tracker](https://github.com/fells-code/drop-auth/issues).
+To provide feedback or report a bug, please [raise an issue on our issue tracker](https://github.com/fells-code/seamless-auth-react/issues).

@@ -9,9 +9,8 @@ import { fetchWithAuth } from "./fetchWithAuth";
 import Login from "./Login";
 import Register from "./Register";
 import PasswordRecovery from "./PasswordRecovery";
-
-import "./index.css";
 import ResetPassword from "./ResetPassword";
+import "./index.css";
 
 interface AuthContextType {
   user: { email: string } | null;
@@ -69,7 +68,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({
         const user = await response.json();
         setUser(user);
       } else {
-        throw new Error("Token validation failed");
+        logout();
       }
     } catch (error) {
       console.error("Error validating token:", error);

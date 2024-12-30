@@ -1,10 +1,9 @@
-import resolve from "@rollup/plugin-node-resolve";
+import resolve, { nodeResolve } from "@rollup/plugin-node-resolve";
 import commonjs from "@rollup/plugin-commonjs";
 import babel from "@rollup/plugin-babel";
 import typescript from "@rollup/plugin-typescript";
 import postcss from "rollup-plugin-postcss";
 
-import { nodeResolve } from "@rollup/plugin-node-resolve";
 import terser from "@rollup/plugin-terser";
 
 export default {
