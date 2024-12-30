@@ -1,4 +1,4 @@
-# Drop Auth - DIY for Authentication and Authorization
+# Seamless Auth - Authentication and authorization for teams who need to get in front of users fast
 
 📚 [Documentation](#documentation) - 🚀 [Getting Started](#getting-started) - 💬 [Feedback](#feedback)
 
