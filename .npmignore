@@ -1,0 +1,12 @@
+.vscode
+coverage
+tests
+.babelrc
+.gitignore
+eslint.config.mjs
+jest.config.jest
+package-lock.json
+rollup.config.js
+tailwind.config.js
+tsconfig.json
+node_modules
