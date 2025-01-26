@@ -1,14 +1,14 @@
-# Seamless Auth - Authentication and authorization for teams who need to get in front of users fast
+# Seamless Auth - Authentication and authorization for teams who want to get in front of users fast
 
 📚 [Documentation](#documentation) - 🚀 [Getting Started](#getting-started) - 💬 [Feedback](#feedback)
 
 ## Documentation
 
-- [Quickstart](https://fellscode.com/docs/seamless-auth-react/quickstart) - Learn to add Authentication to a React application in less than 5 mins.
+- [Quickstart](https://seamlessauth.com/docs/seamless-auth-react/quickstart) - Learn to add Authentication to a React application in less than 5 mins.
 
-- [FAQs](https://fellscode/faq/seamless-auth-react) - frequently asked questions about the Drop Auth.
+- [FAQs](https://seamlessauth.com/faq/seamless-auth-react) - frequently asked questions about the Seamless Auth.
 
-- [Docs site](https://www.fellscode.com/docs/seamless-auth-react) - Documentation on how drop auth really works.
+- [Docs site](https://www.seamlessauth.com/how-it-works/seamless-auth-react) - Documentation on how Seamless auth really works.
 
 ## Getting Started
 
@@ -38,7 +38,8 @@ import App from "./App";
 import reportWebVitals from "./reportWebVitals";
 import { AuthProvider } from "seamless-auth-react";
 
-const apiHost = "https://api.fellscode.com/seamless-auth-react/";
+// Best practice is to use your own backend server to proxy your Auth server an actual proxy server
+const apiHost = "https://<your-seamless-auth-server-url>";
 
 const root = ReactDOM.createRoot(document.getElementById("root"));
 root.render(
@@ -77,6 +78,16 @@ function App() {
 
 export default App;
 ```
+
+## Avaliable Features from useAuth
+
+#### User - The information about your Seamless Auth user
+
+#### login - Programatically call login
+
+#### logout - Programmatically call logout
+
+#### register - Programmatically call register
 
 ## Feedback
 
