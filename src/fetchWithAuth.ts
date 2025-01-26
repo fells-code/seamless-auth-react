@@ -23,7 +23,7 @@ export const fetchWithAuth = async (
       throw new Error("No refresh token available. Please log in again.");
     }
 
-    const refreshResponse = await fetch(`${apiHost}api/auth/refresh-token`, {
+    const refreshResponse = await fetch(`${apiHost}auth/refresh-token`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",

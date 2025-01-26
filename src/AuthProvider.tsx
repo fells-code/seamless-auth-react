@@ -62,7 +62,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({
 
   const validateToken = async () => {
     try {
-      const response = await fetchWithAuth(`${apiHost}api/auth/user`, apiHost);
+      const response = await fetchWithAuth(`${apiHost}auth/user`, apiHost);
 
       if (response.ok) {
         const user = await response.json();
@@ -104,8 +104,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({
   }, []);
 
   const login = async (email: string, password: string) => {
+    console.log("Calling API route ", `${apiHost}auth/login`);
     try {
-      const response = await fetch(`${apiHost}api/auth/login`, {
+      const response = await fetch(`${apiHost}auth/login`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -135,7 +136,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({
   const logout = async () => {
     if (user) {
       try {
-        await fetch(`${apiHost}api/auth/logout`, {
+        await fetch(`${apiHost}auth/logout`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -157,7 +158,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({
 
   const register = async (email: string, password: string) => {
     try {
-      const response = await fetch(`${apiHost}api/auth/register`, {
+      const response = await fetch(`${apiHost}auth/register`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -188,7 +189,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({
 
   const verify = async (verificationToken: string | null) => {
     try {
-      const response = await fetch(`${apiHost}api/auth/verify`, {
+      const response = await fetch(`${apiHost}auth/verify`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -219,7 +220,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({
 
   const recoverPassword = async (email: string) => {
     try {
-      await fetch(`${apiHost}api/auth/forgot-password`, {
+      await fetch(`${apiHost}auth/forgot-password`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -235,7 +236,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({
 
   const resetPassword = async (password: string) => {
     try {
-      await fetch(`${apiHost}api/auth/reset-password`, {
+      await fetch(`${apiHost}auth/reset-password`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -251,13 +252,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({
 
   const deleteUser = async () => {
     try {
-      const response = await fetchWithAuth(
-        `${apiHost}api/auth/delete`,
-        apiHost,
-        {
-          method: "delete",
-        }
-      );
+      const response = await fetchWithAuth(`${apiHost}auth/delete`, apiHost, {
+        method: "delete",
+      });
 
       if (response.ok) {
         setUser(null);
