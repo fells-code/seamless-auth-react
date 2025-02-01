@@ -1,79 +1,101 @@
-import React, { act } from "react";
-import { render, screen, fireEvent } from "@testing-library/react";
+import React from "react";
+import "@testing-library/jest-dom";
+import { render, screen, waitFor, fireEvent } from "@testing-library/react";
 import { AuthProvider, useAuth } from "../src/AuthProvider";
 
-// Mock components
-jest.mock("../src/Login", () => ({
-  __esModule: true,
-  default: ({ onLogin, onForgotPassword, onRegister }: any) => (
-    <div>
-      <button onClick={() => onLogin("testuser", "password")}>Login</button>
-      <button onClick={onForgotPassword}>Forgot Password</button>
-      <button onClick={onRegister}>Register</button>
-    </div>
-  ),
-}));
-
-jest.mock("../src/Register", () => ({
-  __esModule: true,
-  default: ({ onRegister, onBackToLogin }: any) => (
-    <div>
-      <button onClick={() => onRegister("testuser", "password")}>
-        Register
-      </button>
-      <button onClick={onBackToLogin}>Back to Login</button>
-    </div>
-  ),
-}));
-
-jest.mock("../src/PasswordRecovery", () => ({
-  __esModule: true,
-  default: ({ onRecover, onBackToLogin }: any) => (
-    <div>
-      <button onClick={() => onRecover("testuser@example.com")}>
-        Recover Password
-      </button>
-      <button onClick={onBackToLogin}>Back to Login</button>
-    </div>
-  ),
-}));
-
-// Mock fetch
+// Mock fetch responses
 global.fetch = jest.fn();
 
-describe("AuthProvider", () => {
-  const apiHost = "http://localhost:3000/";
+const mockApiHost = "https://example.com/";
 
+const MockChildComponent = () => {
+  const { user, isAuthenticated, logout, hasRole } = useAuth();
+
+  return (
+    <div>
+      {isAuthenticated ? (
+        <>
+          <p data-testid="user-email">{user?.email}</p>
+          <button onClick={logout}>Logout</button>
+          <p data-testid="role-check">{hasRole("admin") ? "Admin" : "User"}</p>
+        </>
+      ) : (
+        <p data-testid="unauthenticated">Not Authenticated</p>
+      )}
+    </div>
+  );
+};
+
+describe("AuthProvider", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     localStorage.clear();
   });
 
-  const TestComponent = () => {
-    const { user, login, logout, isAuthenticated, hasRole } = useAuth();
-
-    return (
-      <div>
-        <div>{isAuthenticated ? "Authenticated" : "Not Authenticated"}</div>
-        <div>{user ? `User: ${user.email}` : "No User"}</div>
-        <button onClick={() => login("testuser", "password")}>
-          Test Login
-        </button>
-        <button onClick={logout}>Test Logout</button>
-        {hasRole && (
-          <div>{hasRole("admin") ? "Has Admin Role" : "No Admin Role"}</div>
-        )}
-      </div>
-    );
-  };
-
-  it("renders the login view by default", () => {
+  it("renders the login page when unauthenticated", () => {
     render(
-      <AuthProvider apiHost={apiHost}>
-        <TestComponent />
+      <AuthProvider apiHost={mockApiHost}>
+        <MockChildComponent />
       </AuthProvider>
     );
 
-    expect(screen.getByText("Login")).toBeTruthy();
+    expect(screen.getByText(/Login/i)).toBeInTheDocument();
+  });
+
+  it("validates token and sets user on mount if token exists", async () => {
+    localStorage.setItem("authToken", "valid-token");
+
+    (fetch as jest.Mock).mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ email: "user@example.com", roles: ["admin"] }),
+    });
+
+    render(
+      <AuthProvider apiHost={mockApiHost}>
+        <MockChildComponent />
+      </AuthProvider>
+    );
+
+    await waitFor(() =>
+      expect(screen.getByTestId("user-email")).toHaveTextContent(
+        "user@example.com"
+      )
+    );
+    expect(screen.getByTestId("role-check")).toHaveTextContent("Admin");
+  });
+
+  it("logs out the user and clears tokens", async () => {
+    localStorage.setItem("authToken", "valid-token");
+
+    (fetch as jest.Mock).mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ email: "user@example.com" }),
+    });
+
+    render(
+      <AuthProvider apiHost={mockApiHost}>
+        <MockChildComponent />
+      </AuthProvider>
+    );
+
+    await waitFor(() => screen.getByTestId("user-email"));
+
+    fireEvent.click(screen.getByText(/logout/i));
+
+    await waitFor(() => expect(localStorage.getItem("authToken")).toBeNull());
+  });
+
+  it("handles invalid tokens by logging out", async () => {
+    localStorage.setItem("authToken", "invalid-token");
+
+    (fetch as jest.Mock).mockResolvedValueOnce({ ok: false });
+
+    render(
+      <AuthProvider apiHost={mockApiHost}>
+        <MockChildComponent />
+      </AuthProvider>
+    );
+
+    await waitFor(() => expect(localStorage.getItem("authToken")).toBeNull());
   });
 });

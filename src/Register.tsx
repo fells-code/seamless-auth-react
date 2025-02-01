@@ -1,24 +1,53 @@
 import React, { useState } from "react";
+import { useNavigate } from "react-router-dom";
 
 export interface RegisterProps {
-  onRegister: (email: string, password: string) => void;
-  onBackToLogin: () => void;
-  error: string;
-  message: string;
+  apiHost: string;
 }
 
-const Register: React.FC<RegisterProps> = ({
-  onRegister,
-  onBackToLogin,
-  error,
-  message,
-}) => {
+const Register: React.FC<RegisterProps> = ({ apiHost }) => {
+  const navigate = useNavigate();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [message, setMessage] = useState("");
+
+  const register = async (email: string, password: string) => {
+    try {
+      const response = await fetch(`${apiHost}auth/register`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          email: email,
+          password: password,
+        }),
+      });
+
+      if (response.status === 409) {
+        setMessage(
+          "An account with this email already exists. Please log in or use a different email."
+        );
+        return;
+      }
+
+      if (!response.ok) {
+        setMessage("Registeration failed occured.");
+        return;
+      }
+
+      setMessage(`Verfication email sent to ${email}`);
+    } catch (error) {
+      console.error("Registration failed", error);
+      setMessage(
+        "An unexpected error occured while attempting to register. Try again."
+      );
+    }
+  };
 
   const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    onRegister(email, password);
+    register(email, password);
   };
 
   return (
@@ -58,11 +87,10 @@ const Register: React.FC<RegisterProps> = ({
           >
             Submit
           </button>
-          <div>{error}</div>
           <div>{message}</div>
         </form>
         <button
-          onClick={onBackToLogin}
+          onClick={() => navigate("/login")}
           className="mt-4 text-blue-500 hover:underline w-full text-center"
         >
           Back to Login

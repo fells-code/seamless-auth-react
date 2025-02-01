@@ -1,39 +1,123 @@
 import React from "react";
-import { render, screen, fireEvent } from "@testing-library/react";
+import "@testing-library/jest-dom";
+import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { MemoryRouter } from "react-router-dom";
 import PasswordRecovery from "../src/PasswordRecovery";
 
+const mockNavigate = jest.fn();
+jest.mock("react-router-dom", () => ({
+  ...jest.requireActual("react-router-dom"),
+  useNavigate: () => mockNavigate,
+}));
+
 describe("PasswordRecovery Component", () => {
-  it("renders correctly and handles password recovery", () => {
-    const mockOnRecover = jest.fn();
-    const mockOnBackToLogin = jest.fn();
+  const apiHost = "https://example.com/";
 
-    render(
-      <PasswordRecovery
-        onRecover={mockOnRecover}
-        onBackToLogin={mockOnBackToLogin}
-        error=""
-      />
-    );
-
-    fireEvent.change(screen.getByLabelText(/email/i), {
-      target: { value: "test@example.com" },
-    });
-
-    fireEvent.click(screen.getByText(/Send Recovery Email/i));
-    expect(mockOnRecover).toHaveBeenCalledWith("test@example.com");
+  beforeEach(() => {
+    jest.clearAllMocks();
   });
 
-  it("calls onBackToLogin when back to login button is clicked", () => {
-    const mockOnBackToLogin = jest.fn();
+  it("renders the password recovery form correctly", () => {
     render(
-      <PasswordRecovery
-        onRecover={jest.fn()}
-        onBackToLogin={mockOnBackToLogin}
-        error=""
-      />
+      <MemoryRouter>
+        <PasswordRecovery apiHost={apiHost} />
+      </MemoryRouter>
     );
 
-    fireEvent.click(screen.getByText(/back to login/i));
-    expect(mockOnBackToLogin).toHaveBeenCalled();
+    expect(screen.getByLabelText(/email/i)).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /send recovery email/i })
+    ).toBeInTheDocument();
+    expect(screen.getByText(/back to login/i)).toBeInTheDocument();
+  });
+
+  it("updates email state on input change", () => {
+    render(
+      <MemoryRouter>
+        <PasswordRecovery apiHost={apiHost} />
+      </MemoryRouter>
+    );
+
+    const emailInput = screen.getByLabelText(/email/i) as HTMLInputElement;
+    fireEvent.change(emailInput, { target: { value: "test@example.com" } });
+
+    expect(emailInput.value).toBe("test@example.com");
+  });
+
+  it("calls recoverPassword function on form submission", async () => {
+    global.fetch = jest.fn(() => Promise.resolve({ ok: true })) as jest.Mock;
+
+    window.alert = jest.fn(); // Mock alert
+
+    render(
+      <MemoryRouter>
+        <PasswordRecovery apiHost={apiHost} />
+      </MemoryRouter>
+    );
+
+    const emailInput = screen.getByLabelText(/email/i);
+    const submitButton = screen.getByRole("button", {
+      name: /send recovery email/i,
+    });
+
+    fireEvent.change(emailInput, { target: { value: "test@example.com" } });
+    fireEvent.click(submitButton);
+
+    await waitFor(() => {
+      expect(global.fetch).toHaveBeenCalledWith(
+        `${apiHost}auth/forgot-password`,
+        expect.objectContaining({
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email: "test@example.com" }),
+        })
+      );
+
+      expect(window.alert).toHaveBeenCalledWith("Password reset email sent.");
+      expect(mockNavigate).toHaveBeenCalledWith("/login");
+    });
+  });
+
+  it("handles API errors gracefully", async () => {
+    global.fetch = jest.fn(() =>
+      Promise.reject(new Error("Network Error"))
+    ) as jest.Mock;
+
+    jest.spyOn(console, "error").mockImplementation(() => {});
+
+    render(
+      <MemoryRouter>
+        <PasswordRecovery apiHost={apiHost} />
+      </MemoryRouter>
+    );
+
+    const emailInput = screen.getByLabelText(/email/i);
+    const submitButton = screen.getByRole("button", {
+      name: /send recovery email/i,
+    });
+
+    fireEvent.change(emailInput, { target: { value: "test@example.com" } });
+    fireEvent.click(submitButton);
+
+    await waitFor(() => {
+      expect(console.error).toHaveBeenCalledWith(
+        "Failed to send password reset email:",
+        expect.any(Error)
+      );
+      expect(mockNavigate).toHaveBeenCalledWith("/login");
+    });
+  });
+
+  it("navigates to /login when clicking 'Back to Login'", () => {
+    render(
+      <MemoryRouter>
+        <PasswordRecovery apiHost={apiHost} />
+      </MemoryRouter>
+    );
+
+    const backButton = screen.getByText(/back to login/i);
+    fireEvent.click(backButton);
+
+    expect(mockNavigate).toHaveBeenCalledWith("/login");
   });
 });

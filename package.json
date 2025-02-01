@@ -16,6 +16,7 @@
   },
   "scripts": {
     "test": "jest",
+    "test-build": "rollup -c",
     "build": "jest && eslint ./src/ && rollup -c",
     "check-npm-build": "npm pack --dry-run",
     "lint": "eslint ./src/"
@@ -32,7 +33,8 @@
   "homepage": "https://github.com/fells-code/seamless-auth-react#readme",
   "peerDependencies": {
     "react": "^18.0.0",
-    "react-dom": "^18.0.0"
+    "react-dom": "^18.0.0",
+    "react-router-dom": "^6.0.0"
   },
   "devDependencies": {
     "@babel/cli": "^7.24.8",
@@ -45,7 +47,7 @@
     "@rollup/plugin-node-resolve": "^15.2.3",
     "@rollup/plugin-terser": "^0.4.4",
     "@rollup/plugin-typescript": "^11.1.6",
-    "@testing-library/jest-dom": "^6.5.0",
+    "@testing-library/jest-dom": "^6.6.3",
     "@testing-library/react": "^16.0.1",
     "@types/jest": "^29.5.12",
     "@types/react": "^18.3.4",

@@ -1,20 +1,33 @@
 import React, { useState } from "react";
+import { useNavigate } from "react-router-dom";
 
 export interface PasswordRecoveryProps {
-  onRecover: (email: string) => void;
-  onBackToLogin: () => void;
-  error: string;
+  apiHost: string;
 }
 
-const PasswordRecovery: React.FC<PasswordRecoveryProps> = ({
-  onRecover,
-  onBackToLogin,
-}) => {
+const PasswordRecovery: React.FC<PasswordRecoveryProps> = ({ apiHost }) => {
+  const navigate = useNavigate();
   const [email, setEmail] = useState("");
+
+  const recoverPassword = async (email: string) => {
+    try {
+      await fetch(`${apiHost}auth/forgot-password`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ email }),
+      });
+      alert("Password reset email sent.");
+    } catch (error) {
+      console.error("Failed to send password reset email:", error);
+    }
+    navigate("/login");
+  };
 
   const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    onRecover(email);
+    recoverPassword(email);
   };
 
   return (
@@ -45,7 +58,7 @@ const PasswordRecovery: React.FC<PasswordRecoveryProps> = ({
           </button>
         </form>
         <button
-          onClick={onBackToLogin}
+          onClick={() => navigate("/login")}
           className="mt-4 text-blue-500 hover:underline w-full text-center"
         >
           Back to Login

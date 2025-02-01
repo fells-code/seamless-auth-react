@@ -1,24 +1,53 @@
 import React, { useState } from "react";
+import { useNavigate } from "react-router-dom";
 
 export interface LoginProps {
-  onLogin: (username: string, password: string) => void;
-  onForgotPassword: () => void;
-  onRegister: () => void;
-  error: string;
+  apiHost: string;
+  error?: string;
 }
 
-const Login: React.FC<LoginProps> = ({
-  onLogin,
-  onForgotPassword,
-  onRegister,
-  error,
-}) => {
+const Login: React.FC<LoginProps> = ({ apiHost, error }) => {
+  const navigate = useNavigate();
   const [email, setEmail] = useState<string>("");
   const [password, setPassword] = useState<string>("");
+  const [formErrors, setFormErrors] = useState<string>("");
+
+  const login = async (email: string, password: string) => {
+    try {
+      const response = await fetch(`${apiHost}auth/login`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          email: email,
+          password: password,
+        }),
+      });
+
+      if (!response.ok) {
+        setFormErrors(
+          "Login failed. Try again. If the problem persists, try resetting your password"
+        );
+        return;
+      }
+
+      const result = await response.json();
+
+      localStorage.setItem("authToken", result.token);
+      localStorage.setItem("refreshToken", result.refreshToken);
+      navigate("/");
+    } catch (err) {
+      console.error("Unexpected login error", err);
+      setFormErrors(
+        "An unexpected error occured. Try again. If the problem persists, try resetting your password"
+      );
+    }
+  };
 
   const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    onLogin(email, password);
+    login(email, password);
   };
 
   return (
@@ -61,19 +90,20 @@ const Login: React.FC<LoginProps> = ({
         </form>
         <div className="flex justify-between items-center mt-4">
           <button
-            onClick={onForgotPassword}
+            onClick={() => navigate("/password")}
             className="text-sm text-blue-500 hover:underline"
           >
             Forgot Password?
           </button>
           <button
-            onClick={onRegister}
+            onClick={() => navigate("/register")}
             className="text-sm text-blue-500 hover:underline"
           >
             Register
           </button>
         </div>
         <div>{error}</div>
+        <div>{formErrors}</div>
       </div>
     </div>
   );
