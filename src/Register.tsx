@@ -32,13 +32,12 @@ const Register: React.FC<RegisterProps> = ({ apiHost }) => {
       }
 
       if (!response.ok) {
-        setMessage("Registeration failed occured.");
+        setMessage("Registeration failure occured.");
         return;
       }
 
       setMessage(`Verfication email sent to ${email}`);
-    } catch (error) {
-      console.error("Registration failed", error);
+    } catch {
       setMessage(
         "An unexpected error occured while attempting to register. Try again."
       );

@@ -3,10 +3,11 @@ import { useNavigate } from "react-router-dom";
 
 export interface LoginProps {
   apiHost: string;
+  setLoading: (bool: boolean) => void;
   error?: string;
 }
 
-const Login: React.FC<LoginProps> = ({ apiHost, error }) => {
+const Login: React.FC<LoginProps> = ({ setLoading, apiHost, error }) => {
   const navigate = useNavigate();
   const [email, setEmail] = useState<string>("");
   const [password, setPassword] = useState<string>("");
@@ -36,7 +37,7 @@ const Login: React.FC<LoginProps> = ({ apiHost, error }) => {
 
       localStorage.setItem("authToken", result.token);
       localStorage.setItem("refreshToken", result.refreshToken);
-      navigate("/");
+      setLoading(true);
     } catch (err) {
       console.error("Unexpected login error", err);
       setFormErrors(
@@ -83,7 +84,8 @@ const Login: React.FC<LoginProps> = ({ apiHost, error }) => {
           </div>
           <button
             type="submit"
-            className="w-full bg-blue-500 text-white p-2 rounded hover:bg-blue-600"
+            className={`w-full bg-blue-500 text-white p-2 rounded hover:bg-blue-600 disabled:bg-gray-400 cursor-not-allowed p-2 rounded`}
+            disabled={!password || !email}
           >
             Submit
           </button>

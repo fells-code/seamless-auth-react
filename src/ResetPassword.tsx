@@ -31,7 +31,6 @@ const ResetPassword: React.FC<ResetPasswordProps> = ({ apiHost }) => {
         if (!response.ok) {
           setError("Password reset failed.");
         }
-        alert("Password has been reset.");
         navigate("/login");
       } catch (error) {
         console.error("Failed to reset password:", error);
@@ -63,7 +62,7 @@ const ResetPassword: React.FC<ResetPasswordProps> = ({ apiHost }) => {
   };
 
   useEffect(() => {
-    if (newPassword && confirmPassword && newPassword === confirmPassword) {
+    if (newPassword && confirmPassword) {
       setDisabled(false);
     }
   }, [newPassword, confirmPassword]);
@@ -89,11 +88,11 @@ const ResetPassword: React.FC<ResetPasswordProps> = ({ apiHost }) => {
             />
           </div>
           <div className="mb-6">
-            <label htmlFor="password" className="block text-gray-700">
+            <label htmlFor="confirmPassword" className="block text-gray-700">
               Confirm Password
             </label>
             <input
-              id="password"
+              id="confirmPassword"
               type="password"
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
@@ -104,7 +103,7 @@ const ResetPassword: React.FC<ResetPasswordProps> = ({ apiHost }) => {
           <button
             disabled={disabled}
             type="submit"
-            className="w-full bg-blue-500 text-white p-2 rounded hover:bg-blue-600"
+            className={`w-full bg-blue-500 text-white p-2 rounded hover:bg-blue-600 disabled:bg-gray-400 cursor-not-allowed p-2 rounded`}
           >
             Submit
           </button>

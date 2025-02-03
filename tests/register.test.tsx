@@ -28,7 +28,12 @@ describe("Register Component", () => {
 
   it("renders correctly", () => {
     render(
-      <BrowserRouter>
+      <BrowserRouter
+        future={{
+          v7_startTransition: true,
+          v7_relativeSplatPath: true,
+        }}
+      >
         <Register apiHost={mockApiHost} />
       </BrowserRouter>
     );
@@ -42,7 +47,12 @@ describe("Register Component", () => {
 
   it("handles user input correctly", async () => {
     render(
-      <BrowserRouter>
+      <BrowserRouter
+        future={{
+          v7_startTransition: true,
+          v7_relativeSplatPath: true,
+        }}
+      >
         <Register apiHost={mockApiHost} />
       </BrowserRouter>
     );
@@ -65,7 +75,12 @@ describe("Register Component", () => {
     (fetch as jest.Mock).mockResolvedValueOnce({ ok: true });
 
     render(
-      <BrowserRouter>
+      <BrowserRouter
+        future={{
+          v7_startTransition: true,
+          v7_relativeSplatPath: true,
+        }}
+      >
         <Register apiHost={mockApiHost} />
       </BrowserRouter>
     );
@@ -96,11 +111,16 @@ describe("Register Component", () => {
     });
   });
 
-  it("shows an error message when registration fails", async () => {
+  it("shows 'An account with this email already exists' when 409 recieved", async () => {
     (fetch as jest.Mock).mockResolvedValueOnce({ ok: false, status: 409 });
 
     render(
-      <BrowserRouter>
+      <BrowserRouter
+        future={{
+          v7_startTransition: true,
+          v7_relativeSplatPath: true,
+        }}
+      >
         <Register apiHost={mockApiHost} />
       </BrowserRouter>
     );
@@ -121,9 +141,76 @@ describe("Register Component", () => {
     ).toBeInTheDocument();
   });
 
+  it("shows an error message when registration fails", async () => {
+    (fetch as jest.Mock).mockResolvedValueOnce({ ok: false });
+
+    render(
+      <BrowserRouter
+        future={{
+          v7_startTransition: true,
+          v7_relativeSplatPath: true,
+        }}
+      >
+        <Register apiHost={mockApiHost} />
+      </BrowserRouter>
+    );
+
+    fireEvent.change(screen.getByLabelText(/Email/i), {
+      target: { value: "existinguser@example.com" },
+    });
+    fireEvent.change(screen.getByLabelText(/Password/i), {
+      target: { value: "password123" },
+    });
+
+    await waitFor(() => {
+      fireEvent.click(screen.getByText(/Submit/i));
+    });
+
+    expect(
+      screen.queryByText(/Registeration failure occured/i)
+    ).toBeInTheDocument();
+  });
+
+  it("catches unexpected registration failures", async () => {
+    (fetch as jest.Mock).mockRejectedValue(new Error("Network error"));
+
+    render(
+      <BrowserRouter
+        future={{
+          v7_startTransition: true,
+          v7_relativeSplatPath: true,
+        }}
+      >
+        <Register apiHost={mockApiHost} />
+      </BrowserRouter>
+    );
+
+    fireEvent.change(screen.getByLabelText(/Email/i), {
+      target: { value: "existinguser@example.com" },
+    });
+    fireEvent.change(screen.getByLabelText(/Password/i), {
+      target: { value: "password123" },
+    });
+
+    await waitFor(() => {
+      fireEvent.click(screen.getByText(/Submit/i));
+    });
+
+    expect(
+      screen.queryByText(
+        /An unexpected error occured while attempting to register/i
+      )
+    ).toBeInTheDocument();
+  });
+
   it("redirects to login when 'Back to Login' is clicked", () => {
     render(
-      <BrowserRouter>
+      <BrowserRouter
+        future={{
+          v7_startTransition: true,
+          v7_relativeSplatPath: true,
+        }}
+      >
         <Register apiHost={mockApiHost} />
       </BrowserRouter>
     );

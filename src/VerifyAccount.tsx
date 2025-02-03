@@ -37,8 +37,7 @@ const VerifyAccount: React.FC<ResetPasswordProps> = ({ apiHost }) => {
       localStorage.setItem("refreshToken", result.refreshToken);
 
       navigate("/");
-    } catch (error) {
-      console.error("Failed to verify user:", error);
+    } catch {
       navigate("/login", {
         state: {
           error:

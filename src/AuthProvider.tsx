@@ -18,6 +18,7 @@ import {
   Routes,
 } from "react-router-dom";
 import VerifyAccount from "./VerifyAccount";
+import LoadingSpinner from "./LoadingSpinner";
 
 interface AuthContextType {
   user: { email: string } | null;
@@ -54,6 +55,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({
     null
   );
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
+  const [loading, setLoading] = useState<boolean>(true);
 
   const validateToken = async () => {
     try {
@@ -66,19 +68,17 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({
       } else {
         logout();
       }
-    } catch (error) {
-      console.error("Error validating token:", error);
+    } catch {
       logout();
+    } finally {
+      setLoading(false);
     }
   };
 
   useEffect(() => {
-    const authToken = localStorage.getItem("authToken");
-
-    if (authToken) {
-      validateToken();
-    }
-  }, []);
+    validateToken();
+    setLoading(false);
+  }, [loading]);
 
   const logout = async () => {
     if (user) {
@@ -92,8 +92,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({
             email: user.email,
           }),
         });
-      } catch (error) {
-        console.error("Error in logout", error);
+      } catch {
+        console.error("Error in logout");
       } finally {
         setIsAuthenticated(false);
         setUser(null);
@@ -112,16 +112,26 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({
 
       if (response.ok) {
         setUser(null);
+        setIsAuthenticated(false);
         window.location.replace(window.location.origin);
       } else {
         throw new Error("Could not delete user.");
       }
     } catch (error) {
       console.error("Something went wrong deleting user:", error);
+      throw new Error("Could not delete user.");
     }
   };
 
   const hasRole = (role: string) => user?.roles?.includes(role);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-100">
+        <LoadingSpinner />;
+      </div>
+    );
+  }
 
   return (
     <AuthContext.Provider
@@ -135,6 +145,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({
     >
       <Router
         future={{
+          v7_startTransition: true,
           v7_relativeSplatPath: true,
         }}
       >
@@ -143,7 +154,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({
             <Route path="*" element={children} />
           ) : (
             <>
-              <Route path="/login" element={<Login apiHost={apiHost} />} />
+              <Route
+                path="/login"
+                element={<Login setLoading={setLoading} apiHost={apiHost} />}
+              />
               <Route
                 path="/register"
                 element={<Register apiHost={apiHost} />}

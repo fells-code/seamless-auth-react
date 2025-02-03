@@ -19,7 +19,12 @@ describe("PasswordRecovery Component", () => {
 
   it("renders the password recovery form correctly", () => {
     render(
-      <MemoryRouter>
+      <MemoryRouter
+        future={{
+          v7_startTransition: true,
+          v7_relativeSplatPath: true,
+        }}
+      >
         <PasswordRecovery apiHost={apiHost} />
       </MemoryRouter>
     );
@@ -33,7 +38,12 @@ describe("PasswordRecovery Component", () => {
 
   it("updates email state on input change", () => {
     render(
-      <MemoryRouter>
+      <MemoryRouter
+        future={{
+          v7_startTransition: true,
+          v7_relativeSplatPath: true,
+        }}
+      >
         <PasswordRecovery apiHost={apiHost} />
       </MemoryRouter>
     );
@@ -50,7 +60,12 @@ describe("PasswordRecovery Component", () => {
     window.alert = jest.fn(); // Mock alert
 
     render(
-      <MemoryRouter>
+      <MemoryRouter
+        future={{
+          v7_startTransition: true,
+          v7_relativeSplatPath: true,
+        }}
+      >
         <PasswordRecovery apiHost={apiHost} />
       </MemoryRouter>
     );
@@ -86,7 +101,12 @@ describe("PasswordRecovery Component", () => {
     jest.spyOn(console, "error").mockImplementation(() => {});
 
     render(
-      <MemoryRouter>
+      <MemoryRouter
+        future={{
+          v7_startTransition: true,
+          v7_relativeSplatPath: true,
+        }}
+      >
         <PasswordRecovery apiHost={apiHost} />
       </MemoryRouter>
     );
@@ -110,7 +130,12 @@ describe("PasswordRecovery Component", () => {
 
   it("navigates to /login when clicking 'Back to Login'", () => {
     render(
-      <MemoryRouter>
+      <MemoryRouter
+        future={{
+          v7_startTransition: true,
+          v7_relativeSplatPath: true,
+        }}
+      >
         <PasswordRecovery apiHost={apiHost} />
       </MemoryRouter>
     );

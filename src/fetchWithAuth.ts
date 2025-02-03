@@ -5,6 +5,10 @@ export const fetchWithAuth = async (
 ): Promise<Response> => {
   const authToken = localStorage.getItem("authToken");
 
+  if (!authToken) {
+    throw new Error("No token available. Please log in again.");
+  }
+
   const requestInit = {
     ...init,
     headers: {
