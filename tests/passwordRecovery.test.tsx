@@ -87,9 +87,6 @@ describe("PasswordRecovery Component", () => {
           body: JSON.stringify({ email: "test@example.com" }),
         })
       );
-
-      expect(window.alert).toHaveBeenCalledWith("Password reset email sent.");
-      expect(mockNavigate).toHaveBeenCalledWith("/login");
     });
   });
 
@@ -124,7 +121,6 @@ describe("PasswordRecovery Component", () => {
         "Failed to send password reset email:",
         expect.any(Error)
       );
-      expect(mockNavigate).toHaveBeenCalledWith("/login");
     });
   });
 
@@ -144,5 +140,47 @@ describe("PasswordRecovery Component", () => {
     fireEvent.click(backButton);
 
     expect(mockNavigate).toHaveBeenCalledWith("/login");
+  });
+
+  it("handles 404 api results", async () => {
+    global.fetch = jest.fn(() =>
+      Promise.resolve({ status: 404, ok: false })
+    ) as jest.Mock;
+
+    render(
+      <MemoryRouter
+        future={{
+          v7_startTransition: true,
+          v7_relativeSplatPath: true,
+        }}
+      >
+        <PasswordRecovery apiHost={apiHost} />
+      </MemoryRouter>
+    );
+
+    const emailInput = screen.getByLabelText(/email/i);
+    const submitButton = screen.getByRole("button", {
+      name: /send recovery email/i,
+    });
+
+    fireEvent.change(emailInput, { target: { value: "test@example.com" } });
+    fireEvent.click(submitButton);
+
+    await waitFor(() => {
+      expect(global.fetch).toHaveBeenCalledWith(
+        `${apiHost}auth/forgot-password`,
+        expect.objectContaining({
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email: "test@example.com" }),
+        })
+      );
+    });
+
+    expect(
+      screen.queryByText(
+        /If this email is associated with an account, an email will be sent/i
+      )
+    ).toBeInTheDocument();
   });
 });

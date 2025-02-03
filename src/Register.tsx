@@ -25,9 +25,7 @@ const Register: React.FC<RegisterProps> = ({ apiHost }) => {
       });
 
       if (response.status === 409) {
-        setMessage(
-          "An account with this email already exists. Please log in or use a different email."
-        );
+        setMessage("Email already in use.");
         return;
       }
 
@@ -82,7 +80,8 @@ const Register: React.FC<RegisterProps> = ({ apiHost }) => {
           </div>
           <button
             type="submit"
-            className="w-full bg-blue-500 text-white p-2 rounded hover:bg-blue-600"
+            disabled={!email || !password}
+            className="w-full bg-blue-500 text-white p-2 rounded hover:bg-blue-600 disabled:bg-gray-400 cursor-not-allowed p-2 rounded"
           >
             Submit
           </button>

@@ -8,21 +8,35 @@ export interface PasswordRecoveryProps {
 const PasswordRecovery: React.FC<PasswordRecoveryProps> = ({ apiHost }) => {
   const navigate = useNavigate();
   const [email, setEmail] = useState("");
+  const [error, setError] = useState("");
 
   const recoverPassword = async (email: string) => {
     try {
-      await fetch(`${apiHost}auth/forgot-password`, {
+      const response = await fetch(`${apiHost}auth/forgot-password`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({ email }),
       });
-      alert("Password reset email sent.");
+
+      if (response.status === 404) {
+        setError(
+          "If this email is associated with an account, an email will be sent."
+        );
+      }
+
+      if (!response.ok) {
+        setError(
+          "If this email is associated with an account, an email will be sent."
+        );
+      }
     } catch (error) {
       console.error("Failed to send password reset email:", error);
+      setError(
+        "If this email is associated with an account, an email will be sent."
+      );
     }
-    navigate("/login");
   };
 
   const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
@@ -52,7 +66,8 @@ const PasswordRecovery: React.FC<PasswordRecoveryProps> = ({ apiHost }) => {
           </div>
           <button
             type="submit"
-            className="w-full bg-blue-500 text-white p-2 rounded hover:bg-blue-600"
+            disabled={!email}
+            className="w-full bg-blue-500 text-white p-2 rounded hover:bg-blue-600 disabled:bg-gray-400 cursor-not-allowed p-2 rounded"
           >
             Send Recovery Email
           </button>
@@ -63,6 +78,7 @@ const PasswordRecovery: React.FC<PasswordRecoveryProps> = ({ apiHost }) => {
         >
           Back to Login
         </button>
+        <div className="mt-4">{error}</div>
       </div>
     </div>
   );

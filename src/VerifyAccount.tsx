@@ -1,12 +1,17 @@
 import React, { useEffect } from "react";
-import LoadingSpinner from "./LoadingSpinner";
 import { useNavigate } from "react-router-dom";
+
+import LoadingSpinner from "./LoadingSpinner";
 
 export interface ResetPasswordProps {
   apiHost: string;
+  setLoading(value: boolean): void;
 }
 
-const VerifyAccount: React.FC<ResetPasswordProps> = ({ apiHost }) => {
+const VerifyAccount: React.FC<ResetPasswordProps> = ({
+  apiHost,
+  setLoading,
+}) => {
   const navigate = useNavigate();
   const queryString = window.location.search;
   const urlParams = new URLSearchParams(queryString);
@@ -36,7 +41,7 @@ const VerifyAccount: React.FC<ResetPasswordProps> = ({ apiHost }) => {
       localStorage.setItem("authToken", result.token);
       localStorage.setItem("refreshToken", result.refreshToken);
 
-      navigate("/");
+      setLoading(true);
     } catch {
       navigate("/login", {
         state: {

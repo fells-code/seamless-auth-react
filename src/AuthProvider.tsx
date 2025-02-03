@@ -1,24 +1,26 @@
+import "./index.css";
+
 import React, {
   createContext,
-  useContext,
-  useState,
-  useEffect,
   ReactNode,
+  useContext,
+  useEffect,
+  useState,
 } from "react";
-import { fetchWithAuth } from "./fetchWithAuth";
-import Login from "./Login";
-import Register from "./Register";
-import PasswordRecovery from "./PasswordRecovery";
-import ResetPassword from "./ResetPassword";
-import "./index.css";
 import {
+  BrowserRouter as Router,
   Navigate,
   Route,
-  BrowserRouter as Router,
   Routes,
 } from "react-router-dom";
-import VerifyAccount from "./VerifyAccount";
+
+import { fetchWithAuth } from "./fetchWithAuth";
 import LoadingSpinner from "./LoadingSpinner";
+import Login from "./Login";
+import PasswordRecovery from "./PasswordRecovery";
+import Register from "./Register";
+import ResetPassword from "./ResetPassword";
+import VerifyAccount from "./VerifyAccount";
 
 interface AuthContextType {
   user: { email: string } | null;
@@ -172,7 +174,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({
               />
               <Route
                 path="/verify"
-                element={<VerifyAccount apiHost={apiHost} />}
+                element={
+                  <VerifyAccount setLoading={setLoading} apiHost={apiHost} />
+                }
               />
               <Route path="*" element={<Navigate to="/login" replace />} />
             </>

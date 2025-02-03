@@ -104,7 +104,7 @@ const Login: React.FC<LoginProps> = ({ setLoading, apiHost, error }) => {
             Register
           </button>
         </div>
-        <div>{error}</div>
+        <div className="mt-4">{error}</div>
         <div>{formErrors}</div>
       </div>
     </div>

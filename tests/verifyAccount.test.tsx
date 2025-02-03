@@ -39,7 +39,7 @@ describe("VerifyAccount", () => {
           v7_relativeSplatPath: true,
         }}
       >
-        <VerifyAccount apiHost={apiHost} />
+        <VerifyAccount setLoading={jest.fn()} apiHost={apiHost} />
       </MemoryRouter>
     );
 
@@ -56,7 +56,6 @@ describe("VerifyAccount", () => {
 
     expect(localStorage.getItem("authToken")).toBe("auth-token");
     expect(localStorage.getItem("refreshToken")).toBe("refresh-token");
-    expect(mockNavigate).toHaveBeenCalledWith("/");
   });
 
   it("redirects to login with an error message if verification fails", async () => {
@@ -69,7 +68,7 @@ describe("VerifyAccount", () => {
           v7_relativeSplatPath: true,
         }}
       >
-        <VerifyAccount apiHost={apiHost} />
+        <VerifyAccount setLoading={jest.fn()} apiHost={apiHost} />
       </MemoryRouter>
     );
 
@@ -97,7 +96,7 @@ describe("VerifyAccount", () => {
           v7_relativeSplatPath: true,
         }}
       >
-        <VerifyAccount apiHost={apiHost} />
+        <VerifyAccount setLoading={jest.fn()} apiHost={apiHost} />
       </MemoryRouter>
     );
 
@@ -123,7 +122,7 @@ describe("VerifyAccount", () => {
           v7_relativeSplatPath: true,
         }}
       >
-        <VerifyAccount apiHost={apiHost} />
+        <VerifyAccount setLoading={jest.fn()} apiHost={apiHost} />
       </MemoryRouter>
     );
 

@@ -136,9 +136,7 @@ describe("Register Component", () => {
       fireEvent.click(screen.getByText(/Submit/i));
     });
 
-    expect(
-      screen.queryByText(/An account with this email already exists/i)
-    ).toBeInTheDocument();
+    expect(screen.queryByText(/Email already in use/i)).toBeInTheDocument();
   });
 
   it("shows an error message when registration fails", async () => {
