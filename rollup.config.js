@@ -1,10 +1,11 @@
-import resolve, { nodeResolve } from "@rollup/plugin-node-resolve";
-import commonjs from "@rollup/plugin-commonjs";
+/* eslint-disable no-undef */
+/* eslint-disable @typescript-eslint/no-require-imports */
 import babel from "@rollup/plugin-babel";
+import commonjs from "@rollup/plugin-commonjs";
+import resolve, { nodeResolve } from "@rollup/plugin-node-resolve";
+import terser from "@rollup/plugin-terser";
 import typescript from "@rollup/plugin-typescript";
 import postcss from "rollup-plugin-postcss";
-
-import terser from "@rollup/plugin-terser";
 
 export default {
   input: "src/index.ts",
