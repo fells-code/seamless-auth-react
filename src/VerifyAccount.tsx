@@ -8,10 +8,7 @@ export interface ResetPasswordProps {
   setLoading(value: boolean): void;
 }
 
-const VerifyAccount: React.FC<ResetPasswordProps> = ({
-  apiHost,
-  setLoading,
-}) => {
+const VerifyAccount: React.FC<ResetPasswordProps> = ({ apiHost }) => {
   const navigate = useNavigate();
   const queryString = window.location.search;
   const urlParams = new URLSearchParams(queryString);
@@ -40,8 +37,6 @@ const VerifyAccount: React.FC<ResetPasswordProps> = ({
 
       localStorage.setItem("authToken", result.token);
       localStorage.setItem("refreshToken", result.refreshToken);
-
-      setLoading(true);
     } catch {
       navigate("/login", {
         state: {

@@ -10,7 +10,7 @@ export default tseslint.config(
   tseslint.configs.recommended,
   jsdoc.configs["flat/recommended"],
   {
-    files: ["**/*.{js,jsx,mjs,cjs,ts,tsx}"],
+    files: ["**/src/**/*.{js,jsx,mjs,cjs,ts,tsx}"],
     plugins: {
       react,
     },
@@ -30,7 +30,7 @@ export default tseslint.config(
     },
   },
   {
-    files: ["**/*.{js,mjs,cjs,ts,jsx,tsx}"],
+    files: ["src/**/*.{js,mjs,cjs,ts,jsx,tsx}"],
     languageOptions: { globals: globals.browser },
     plugins: {
       jsdoc,
