@@ -45,14 +45,14 @@ const PasswordRecovery: React.FC<PasswordRecoveryProps> = ({ apiHost }) => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-100">
-      <div className="bg-white p-8 rounded shadow-md w-full max-w-md">
+    <div className="min-h-screen flex items-center justify-center bg-gray-900 text-white">
+      <div className="bg-gray-800 p-8 rounded-lg shadow-md w-full max-w-md">
         <h2 className="text-2xl font-bold mb-6 text-center">
           Recover Password
         </h2>
         <form onSubmit={handleSubmit}>
           <div className="mb-6">
-            <label htmlFor="email" className="block text-gray-700">
+            <label htmlFor="email" className="block text-gray-300">
               Email
             </label>
             <input
@@ -60,21 +60,21 @@ const PasswordRecovery: React.FC<PasswordRecoveryProps> = ({ apiHost }) => {
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full p-2 border border-gray-300 rounded mt-1"
+              className="w-full p-2 bg-gray-700 border border-gray-300 rounded mt-1 text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
               required
             />
           </div>
           <button
             type="submit"
             disabled={!email}
-            className="w-full bg-blue-500 text-white p-2 rounded hover:bg-blue-600 disabled:bg-gray-400 cursor-not-allowed p-2 rounded"
+            className="w-full bg-blue-600 hover:bg-blue-700 text-white p-2 rounded transition duration-300 disabled:bg-gray-400 cursor-not-allowed p-2 rounded"
           >
             Send Recovery Email
           </button>
         </form>
         <button
           onClick={() => navigate("/login")}
-          className="mt-4 text-blue-500 hover:underline w-full text-center"
+          className="w-full mt-4 text-blue-400 hover:underline"
         >
           Back to Login
         </button>

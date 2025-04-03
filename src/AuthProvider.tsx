@@ -116,6 +116,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({
         setUser(null);
         setIsAuthenticated(false);
         window.location.replace(window.location.origin);
+        return;
       } else {
         throw new Error("Could not delete user.");
       }
@@ -175,7 +176,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({
               <Route
                 path="/verify"
                 element={
-                  <VerifyAccount setLoading={setLoading} apiHost={apiHost} />
+                  <VerifyAccount
+                    setLoading={setLoading}
+                    apiHost={apiHost}
+                    validateToken={validateToken}
+                  />
                 }
               />
               <Route path="*" element={<Navigate to="/login" replace />} />

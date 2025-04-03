@@ -68,14 +68,14 @@ const ResetPassword: React.FC<ResetPasswordProps> = ({ apiHost }) => {
   }, [newPassword, confirmPassword]);
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-100">
-      <div className="bg-white p-8 rounded shadow-md w-full max-w-md">
+    <div className="min-h-screen flex items-center justify-center bg-gray-900 text-white">
+      <div className="bg-gray-800 p-8 rounded-lg shadow-md w-full max-w-md">
         <h2 className="text-2xl font-bold mb-6 text-center">
           Set New Password
         </h2>
         <form onSubmit={handleSubmit}>
           <div className="mb-6">
-            <label htmlFor="password" className="block text-gray-700">
+            <label htmlFor="password" className="block text-gray-300">
               New Password
             </label>
             <input
@@ -83,7 +83,7 @@ const ResetPassword: React.FC<ResetPasswordProps> = ({ apiHost }) => {
               type="password"
               value={newPassword}
               onChange={(e) => setNewPassword(e.target.value)}
-              className="w-full p-2 border border-gray-300 rounded mt-1"
+              className="w-full p-2 bg-gray-700 border border-gray-300 rounded mt-1 text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
               required
             />
           </div>
@@ -96,14 +96,14 @@ const ResetPassword: React.FC<ResetPasswordProps> = ({ apiHost }) => {
               type="password"
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
-              className="w-full p-2 border border-gray-300 rounded mt-1"
+              className="w-full p-2 bg-gray-700 border border-gray-300 rounded mt-1 text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
               required
             />
           </div>
           <button
             disabled={disabled}
             type="submit"
-            className={`w-full bg-blue-500 text-white p-2 rounded hover:bg-blue-600 disabled:bg-gray-400 cursor-not-allowed p-2 rounded`}
+            className={`w-full bg-blue-600 hover:bg-blue-700 text-white p-2 rounded transition duration-300 disabled:bg-gray-400 cursor-not-allowed p-2 rounded`}
           >
             Submit
           </button>

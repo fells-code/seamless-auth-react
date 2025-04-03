@@ -6,9 +6,13 @@ import LoadingSpinner from "./LoadingSpinner";
 export interface ResetPasswordProps {
   apiHost: string;
   setLoading(value: boolean): void;
+  validateToken(): void;
 }
 
-const VerifyAccount: React.FC<ResetPasswordProps> = ({ apiHost }) => {
+const VerifyAccount: React.FC<ResetPasswordProps> = ({
+  apiHost,
+  validateToken,
+}) => {
   const navigate = useNavigate();
   const queryString = window.location.search;
   const urlParams = new URLSearchParams(queryString);
@@ -37,6 +41,8 @@ const VerifyAccount: React.FC<ResetPasswordProps> = ({ apiHost }) => {
 
       localStorage.setItem("authToken", result.token);
       localStorage.setItem("refreshToken", result.refreshToken);
+      validateToken();
+      navigate("/");
     } catch {
       navigate("/login", {
         state: {
