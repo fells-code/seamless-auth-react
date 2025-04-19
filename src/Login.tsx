@@ -1,5 +1,4 @@
 import React, { useState } from "react";
-import { useNavigate } from "react-router-dom";
 
 export interface LoginProps {
   apiHost: string;
@@ -7,37 +6,37 @@ export interface LoginProps {
   error?: string;
 }
 
-const Login: React.FC<LoginProps> = ({ setLoading, apiHost, error }) => {
-  const navigate = useNavigate();
+const Login: React.FC<LoginProps> = ({ apiHost }) => {
   const [email, setEmail] = useState<string>("");
-  const [password, setPassword] = useState<string>("");
+  const [mode, setMode] = useState<"login" | "register">("login");
+  const [phone, setPhone] = useState("");
+  const [submitted, setSubmitted] = useState<boolean>(false);
   const [formErrors, setFormErrors] = useState<string>("");
+  const [phoneError, setPhoneError] = useState("");
 
-  const login = async (email: string, password: string) => {
+  const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    const isValid = /^\+?[1-9]\d{1,14}$/.test(value);
+    setPhone(value.replace(/[^\d+]/g, ""));
+    setPhoneError(isValid ? "" : "Please enter a valid phone number.");
+  };
+
+  const login = async (email: string) => {
+    setFormErrors("");
+
     try {
-      const response = await fetch(`${apiHost}auth/login`, {
+      const response = await fetch(`${apiHost}auth/magic-link`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          email: email,
-          password: password,
-        }),
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
       });
 
       if (!response.ok) {
-        setFormErrors(
-          "Login failed. Try again. If the problem persists, try resetting your password"
-        );
+        setFormErrors("Failed to send login link. Please try again.");
         return;
       }
 
-      const result = await response.json();
-
-      localStorage.setItem("authToken", result.token);
-      localStorage.setItem("refreshToken", result.refreshToken);
-      setLoading(true);
+      setSubmitted(true);
     } catch (err) {
       console.error("Unexpected login error", err);
       setFormErrors(
@@ -46,66 +45,76 @@ const Login: React.FC<LoginProps> = ({ setLoading, apiHost, error }) => {
     }
   };
 
-  const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    login(email, password);
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    login(email);
   };
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-900 text-white">
-      <div className="bg-gray-800 p-8 rounded shadow-md w-full max-w-md">
-        <h2 className="text-2xl font-bold mb-6 text-center">Login</h2>
-        <form onSubmit={handleSubmit}>
-          <div className="mb-4">
-            <label htmlFor="email" className="block text-gray-300">
-              Email
-            </label>
-            <input
-              id="email"
-              type="text"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="w-full p-2 bg-gray-700 border border-gray-300 rounded mt-1 text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-              required
-            />
-          </div>
-          <div className="mb-6">
-            <label htmlFor="password" className="block text-gray-300">
-              Password
-            </label>
-            <input
-              id="password"
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="w-full p-2 bg-gray-700 border border-gray-300 rounded mt-1 text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-              required
-            />
-          </div>
-          <button
-            type="submit"
-            className={`w-full bg-blue-600 hover:bg-blue-700 text-white p-2 rounded transition duration-300 disabled:bg-gray-400 cursor-not-allowed p-2 rounded`}
-            disabled={!password || !email}
-          >
-            Submit
-          </button>
-        </form>
-        <div className="flex justify-between items-center mt-4">
-          <button
-            onClick={() => navigate("/password")}
-            className="text-sm text-blue-500 hover:underline"
-          >
-            Forgot Password?
-          </button>
-          <button
-            onClick={() => navigate("/register")}
-            className="text-sm text-blue-500 hover:underline"
-          >
-            Register
-          </button>
-        </div>
-        <div className="mt-4">{error}</div>
-        <div>{formErrors}</div>
+      <div className="bg-gray-800 p-8 rounded-lg shadow-md w-full max-w-md">
+        <h2 className="text-2xl font-bold mb-6 text-center">
+          {mode === "login" ? "Sign In" : "Create Account"}
+        </h2>
+
+        {submitted ? (
+          <p className="text-green-400 text-center">
+            ✅ If your email is registered, you’ll receive a verification code
+            shortly.
+          </p>
+        ) : (
+          <form onSubmit={handleSubmit}>
+            <div className="mb-4">
+              <label htmlFor="email" className="block text-gray-300">
+                Email Address
+              </label>
+              <input
+                id="email"
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="w-full p-2 bg-gray-700 border border-gray-300 rounded mt-1 text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                required
+              />
+            </div>
+
+            {mode === "register" && (
+              <div className="mb-4">
+                <label className="block text-gray-300">Phone Number</label>
+                <input
+                  type="tel"
+                  value={phone}
+                  onChange={handlePhoneChange}
+                  className="w-full p-2 bg-gray-700 border border-gray-300 rounded mt-1 text-white"
+                />
+                {phoneError && (
+                  <p className="text-red-400 text-sm">{phoneError}</p>
+                )}
+              </div>
+            )}
+
+            <button
+              type="submit"
+              className={`w-full bg-blue-600 hover:bg-blue-700 text-white p-2 rounded transition duration-300 disabled:bg-gray-400 cursor-not-allowed p-2 rounded`}
+              disabled={!email}
+            >
+              {mode === "login" ? "Login" : "Register"}
+            </button>
+
+            {formErrors && (
+              <p className="text-red-400 mt-4 text-center">{formErrors}</p>
+            )}
+            <button
+              type="button"
+              onClick={() => setMode(mode === "login" ? "register" : "login")}
+              className="mt-6 w-full text-sm text-blue-400 hover:underline"
+            >
+              {mode === "login"
+                ? "Don't have an account? Create one"
+                : "Already have an account? Sign in"}
+            </button>
+          </form>
+        )}
       </div>
     </div>
   );

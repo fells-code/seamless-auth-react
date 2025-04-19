@@ -59,6 +59,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
   const [loading, setLoading] = useState<boolean>(true);
 
+  // TODO: Think about making this a hook?
   const validateToken = async () => {
     try {
       const response = await fetchWithAuth(`${apiHost}auth/user`, apiHost);
@@ -80,7 +81,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({
   useEffect(() => {
     validateToken();
     setLoading(false);
-  }, [loading]);
+  }, []);
 
   const logout = async () => {
     if (user) {
