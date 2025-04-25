@@ -18,9 +18,9 @@ import { fetchWithAuth } from "./fetchWithAuth";
 import LoadingSpinner from "./LoadingSpinner";
 import Login from "./Login";
 import PasswordRecovery from "./PasswordRecovery";
-import Register from "./Register";
+import Register from "./RegisterPassKey";
 import ResetPassword from "./ResetPassword";
-import VerifyAccount from "./VerifyAccount";
+import VerifyOTP from "./VerifyOTP";
 
 interface AuthContextType {
   user: { email: string } | null;
@@ -174,16 +174,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({
                 path="/reset-password"
                 element={<ResetPassword apiHost={apiHost} />}
               />
-              <Route
-                path="/verify"
-                element={
-                  <VerifyAccount
-                    setLoading={setLoading}
-                    apiHost={apiHost}
-                    validateToken={validateToken}
-                  />
-                }
-              />
+              <Route path="/verifyOTP" element={<VerifyOTP />} />
               <Route path="*" element={<Navigate to="/login" replace />} />
             </>
           )}

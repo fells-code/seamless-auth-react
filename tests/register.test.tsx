@@ -10,7 +10,7 @@ import {
 import React from "react";
 import { BrowserRouter } from "react-router-dom";
 
-import Register from "../src/Register";
+import Register from "../src/RegisterPassKey";
 
 global.fetch = jest.fn();
 

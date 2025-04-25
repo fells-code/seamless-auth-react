@@ -72,6 +72,7 @@
     "typescript-eslint": "^8.18.2"
   },
   "dependencies": {
+    "@simplewebauthn/browser": "^13.1.0",
     "autoprefixer": "^10.4.20",
     "postcss": "^8.4.42",
     "postcss-import": "^16.1.0",

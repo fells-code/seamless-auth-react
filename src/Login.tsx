@@ -1,4 +1,7 @@
 import React, { useState } from "react";
+import { useNavigate } from "react-router-dom";
+
+import { validateEmail, validatePhone } from "./utils";
 
 export interface LoginProps {
   apiHost: string;
@@ -7,18 +10,23 @@ export interface LoginProps {
 }
 
 const Login: React.FC<LoginProps> = ({ apiHost }) => {
+  const navigate = useNavigate();
   const [email, setEmail] = useState<string>("");
   const [mode, setMode] = useState<"login" | "register">("login");
-  const [phone, setPhone] = useState("");
+  const [phone, setPhone] = useState<string>("");
   const [submitted, setSubmitted] = useState<boolean>(false);
   const [formErrors, setFormErrors] = useState<string>("");
-  const [phoneError, setPhoneError] = useState("");
+  const [phoneError, setPhoneError] = useState<string>("");
+  const [emailError, setEmailError] = useState<string>("");
 
   const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value;
-    const isValid = /^\+?[1-9]\d{1,14}$/.test(value);
-    setPhone(value.replace(/[^\d+]/g, ""));
-    setPhoneError(isValid ? "" : "Please enter a valid phone number.");
+    const phoneNumber = e.target.value;
+    setPhone(phoneNumber.replace(/[^\d+]/g, ""));
+  };
+
+  const handleEmailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const email = e.target.value;
+    setEmail(email);
   };
 
   const login = async (email: string) => {
@@ -45,9 +53,35 @@ const Login: React.FC<LoginProps> = ({ apiHost }) => {
     }
   };
 
+  const register = async () => {
+    setFormErrors("");
+
+    try {
+      const response = await fetch(`${apiHost}auth/register`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, phone }),
+      });
+
+      if (!response.ok) {
+        setFormErrors("Failed to register. Please try again.");
+        return;
+      }
+
+      navigate("/verifyOTP");
+    } catch (err) {
+      console.error("Unexpected login error", err);
+      setFormErrors(
+        "An unexpected error occured. Try again. If the problem persists, try resetting your password"
+      );
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    login(email);
+
+    if (mode === "login") login(email);
+    if (mode === "register") register();
   };
 
   return (
@@ -72,10 +106,17 @@ const Login: React.FC<LoginProps> = ({ apiHost }) => {
                 id="email"
                 type="email"
                 value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                onChange={handleEmailChange}
+                onBlur={() => {
+                  const isValid = validateEmail(email);
+                  setEmailError(isValid ? "" : "Please enter a valid email");
+                }}
                 className="w-full p-2 bg-gray-700 border border-gray-300 rounded mt-1 text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                 required
               />
+              {emailError && (
+                <p className="text-red-400 text-sm">{emailError}</p>
+              )}
             </div>
 
             {mode === "register" && (
@@ -85,6 +126,12 @@ const Login: React.FC<LoginProps> = ({ apiHost }) => {
                   type="tel"
                   value={phone}
                   onChange={handlePhoneChange}
+                  onBlur={() => {
+                    const isValid = validatePhone(phone);
+                    setPhoneError(
+                      isValid ? "" : "Please enter a valid phone number."
+                    );
+                  }}
                   className="w-full p-2 bg-gray-700 border border-gray-300 rounded mt-1 text-white"
                 />
                 {phoneError && (
@@ -96,7 +143,12 @@ const Login: React.FC<LoginProps> = ({ apiHost }) => {
             <button
               type="submit"
               className={`w-full bg-blue-600 hover:bg-blue-700 text-white p-2 rounded transition duration-300 disabled:bg-gray-400 cursor-not-allowed p-2 rounded`}
-              disabled={!email}
+              disabled={
+                !email ||
+                !validateEmail(email) ||
+                !phone ||
+                !validatePhone(phone)
+              }
             >
               {mode === "login" ? "Login" : "Register"}
             </button>
