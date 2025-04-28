@@ -1,113 +1,132 @@
-import { startRegistration } from "@simplewebauthn/browser";
-import React, { useState } from "react";
+import {
+  type RegistrationResponseJSON,
+  startRegistration,
+} from "@simplewebauthn/browser";
+import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
-export interface RegisterProps {
+interface RegisterPassKeyProps {
   apiHost: string;
+  validateToken: () => void;
 }
 
-const RegisterPasskey: React.FC<RegisterProps> = ({ apiHost }) => {
-  const [email, setEmail] = useState("");
-  const [phone, setPhone] = useState("");
-  const [error, setError] = useState("");
-  const [loading, setLoading] = useState(false);
+const RegisterPasskey: React.FC<RegisterPassKeyProps> = ({
+  apiHost,
+  validateToken,
+}) => {
+  const token = localStorage.getItem("token");
   const navigate = useNavigate();
+  const [status, setStatus] = useState<
+    "idle" | "success" | "error" | "loading"
+  >("idle");
+  const [message, setMessage] = useState("");
 
-  const handleRegister = async () => {
-    setError("");
-    setLoading(true);
+  const handlePasskeyRegister = async () => {
+    setStatus("loading");
+
+    if (!token) {
+      console.error("Missing verification token");
+      navigate("/login");
+    }
 
     try {
-      // Step 1: Request registration options from the server
-      const optionsRes = await fetch(
-        `${apiHost}/webauthn/generate-registration-options`,
+      const challengeRes = await fetch(
+        `${apiHost}webauthn/generate-registration-options`,
         {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email }),
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
         }
       );
 
-      const options = await optionsRes.json();
+      const optionsJSON = await challengeRes.json();
 
-      // Step 2: Use browser to generate credentials
-      const attResp = await startRegistration(options);
+      let attResp: RegistrationResponseJSON;
+      try {
+        // Pass the options to the authenticator and wait for a response
+        attResp = await startRegistration({
+          optionsJSON,
+          useAutoRegister: true,
+        });
 
-      // Step 3: Send response to server to finalize
-      const verifyRes = await fetch(`${apiHost}/webauthn/verify-registration`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, phone, attResp }),
-      });
+        verifyPassKey(attResp);
+      } catch (error) {
+        console.error("A problem happened.");
 
-      const { verified, token, refreshToken } = await verifyRes.json();
-
-      if (verified) {
-        localStorage.setItem("authToken", token);
-        localStorage.setItem("refreshToken", refreshToken);
-        navigate("/");
-      } else {
-        setError("Registration failed. Try again.");
+        throw error;
       }
-    } catch (err: unknown) {
+
+      setStatus("success");
+      setMessage("Passkey registered successfully.");
+    } catch (err) {
       console.error(err);
-      setError("An error occurred. Please try again.");
-    } finally {
-      setLoading(false);
+      setStatus("error");
+      setMessage("Something went wrong registering passkey.");
     }
   };
 
+  const verifyPassKey = async (attResp: RegistrationResponseJSON) => {
+    const verificationResp = await fetch(
+      `${apiHost}webauthn/verify-registration`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          attestationResponse: attResp,
+        }),
+      }
+    );
+
+    // Wait for the results of verification
+    const verificationJSON = await verificationResp.json();
+
+    // Show UI appropriate for the `verified` status
+    if (verificationJSON && verificationJSON.verified) {
+      console.log("Registered");
+      localStorage.setItem("authToken", verificationJSON.accessToken);
+      localStorage.setItem("refreshToken", verificationJSON.refreshToken);
+      validateToken();
+    } else {
+      throw new Error("Failed to save passkey");
+    }
+  };
+
+  useEffect(() => {
+    if (!token) {
+      console.error("Missing Token.");
+      navigate("/");
+    }
+  }, []);
+
   return (
-    <div className="min-h-screen bg-gray-900 text-white flex items-center justify-center">
-      <div className="bg-gray-800 p-6 rounded-lg w-full max-w-md shadow-lg">
-        <h2 className="text-2xl font-semibold mb-4 text-center">
-          Sign Up with Passkey
+    <div className="min-h-screen bg-gray-900 text-white flex items-center justify-center px-4">
+      <div className="bg-gray-800 p-6 rounded-lg shadow-md text-white w-full max-w-md">
+        <h2 className="text-lg font-semibold mb-4">
+          Secure your account with a Passkey
         </h2>
-        {error && (
-          <p className="text-red-400 text-sm text-center mb-4">{error}</p>
-        )}
-        <div className="space-y-4">
-          <div>
-            <label className="block text-gray-300 mb-1" htmlFor="email">
-              Email
-            </label>
-            <input
-              id="email"
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-              className="w-full p-2 bg-gray-700 border border-gray-600 rounded text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-          </div>
-          <div>
-            <label className="block text-gray-300 mb-1" htmlFor="phone">
-              Phone (optional)
-            </label>
-            <input
-              id="phone"
-              type="tel"
-              pattern="^\+?[1-9]\d{1,14}$"
-              value={phone}
-              onChange={(e) => setPhone(e.target.value)}
-              className="w-full p-2 bg-gray-700 border border-gray-600 rounded text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="+1234567890"
-            />
-          </div>
-          <button
-            onClick={handleRegister}
-            disabled={loading}
-            className="w-full bg-blue-600 hover:bg-blue-700 text-white p-2 rounded transition duration-300"
-          >
-            {loading ? "Registering..." : "Register with Passkey"}
-          </button>
+
+        <button
+          onClick={handlePasskeyRegister}
+          disabled={status === "loading"}
+          className="bg-blue-600 hover:bg-blue-700 w-full py-2 px-4 rounded transition duration-300 disabled:opacity-50"
+        >
+          {status === "loading" ? "Registering..." : "Register Passkey"}
+        </button>
+
+        {message && (
           <p
-            className="text-sm text-blue-400 hover:underline text-center mt-2 cursor-pointer"
-            onClick={() => navigate("/login")}
+            className={`mt-4 text-sm ${
+              status === "success" ? "text-green-400" : "text-red-400"
+            }`}
           >
-            Already have an account? Login
+            {message}
           </p>
-        </div>
+        )}
       </div>
     </div>
   );

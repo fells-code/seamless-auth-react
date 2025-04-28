@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 
+import TermsModal from "./TermsModal";
 import { validateEmail, validatePhone } from "./utils";
 
 export interface LoginProps {
@@ -18,6 +19,7 @@ const Login: React.FC<LoginProps> = ({ apiHost }) => {
   const [formErrors, setFormErrors] = useState<string>("");
   const [phoneError, setPhoneError] = useState<string>("");
   const [emailError, setEmailError] = useState<string>("");
+  const [showModal, setShowModal] = useState<boolean>(false);
 
   const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const phoneNumber = e.target.value;
@@ -68,7 +70,12 @@ const Login: React.FC<LoginProps> = ({ apiHost }) => {
         return;
       }
 
-      navigate("/verifyOTP");
+      const data = await response.json();
+
+      if (data.token) {
+        localStorage.setItem("token", data.token);
+        navigate("/verifyOTP");
+      }
     } catch (err) {
       console.error("Unexpected login error", err);
       setFormErrors(
@@ -107,9 +114,12 @@ const Login: React.FC<LoginProps> = ({ apiHost }) => {
                 type="email"
                 value={email}
                 onChange={handleEmailChange}
+                autoComplete="off"
                 onBlur={() => {
-                  const isValid = validateEmail(email);
-                  setEmailError(isValid ? "" : "Please enter a valid email");
+                  if (email) {
+                    const isValid = validateEmail(email);
+                    setEmailError(isValid ? "" : "Please enter a valid email");
+                  }
                 }}
                 className="w-full p-2 bg-gray-700 border border-gray-300 rounded mt-1 text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                 required
@@ -126,13 +136,31 @@ const Login: React.FC<LoginProps> = ({ apiHost }) => {
                   type="tel"
                   value={phone}
                   onChange={handlePhoneChange}
+                  autoComplete="off"
                   onBlur={() => {
-                    const isValid = validatePhone(phone);
-                    setPhoneError(
-                      isValid ? "" : "Please enter a valid phone number."
-                    );
+                    if (phone) {
+                      const isValid = validatePhone(phone);
+                      setPhoneError(
+                        isValid ? "" : "Please enter a valid phone number."
+                      );
+                    }
                   }}
                   className="w-full p-2 bg-gray-700 border border-gray-300 rounded mt-1 text-white"
+                />
+                <p className="text-xs text-gray-400 mt-4">
+                  By signing up, you agree to our{" "}
+                  <button
+                    onClick={() => setShowModal(true)}
+                    className="text-blue-400 underline"
+                  >
+                    SMS Terms & Conditions
+                  </button>
+                  .
+                </p>
+
+                <TermsModal
+                  isOpen={showModal}
+                  onClose={() => setShowModal(false)}
                 />
                 {phoneError && (
                   <p className="text-red-400 text-sm">{phoneError}</p>

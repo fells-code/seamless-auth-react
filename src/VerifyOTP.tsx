@@ -1,37 +1,92 @@
-import React, { useState } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
+import React, { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 
-const VerifyOTP: React.FC = () => {
-  const [otp, setOtp] = useState("");
+interface VerifyOTPProps {
+  apiHost: string;
+}
+
+const VerifyOTP: React.FC<VerifyOTPProps> = ({ apiHost }) => {
+  const token = localStorage.getItem("token");
+  const navigate = useNavigate();
+
+  if (!token) {
+    navigate("/");
+  }
+
+  const [emailOtp, setEmailOtp] = useState("");
+  const [phoneOtp, setPhoneOtp] = useState("");
+  const [phoneVerified, setPhoneVerified] = useState<boolean | null>(null);
+  const [emailVerified, setEmailVerified] = useState<boolean | null>(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-  const navigate = useNavigate();
-  const location = useLocation();
-
-  const type = location.state?.type || "email"; // "email" or "phone"
-  const destination = location.state?.destination || ""; // user’s email/phone
+  const [resendMsg, setResendMsg] = useState("");
+  const [emailTimeLeft, setEmailTimeLeft] = useState(300);
+  const [phoneTimeLeft, setPhoneTimeLeft] = useState(300);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (otp.length !== 6 || !/^\d{6}$/.test(otp)) {
-      setError("Please enter a valid 6-digit code.");
+    if (emailOtp.length !== 6) {
+      setError("Please enter a valid code.");
+      return;
+    }
+
+    if (phoneOtp.length !== 6) {
+      setError("Please enter a valid code.");
       return;
     }
 
     setLoading(true);
     try {
-      const response = await fetch("/api/verify-otp", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ otp, type }),
-      });
+      if (!emailVerified) {
+        const response = await fetch(`${apiHost}auth/verify-email-otp`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            verificationToken: emailOtp,
+          }),
+        });
 
-      const data = await response.json();
+        const data = await response.json();
 
-      if (!response.ok) {
-        setError(data.error || "Verification failed.");
-      } else {
-        navigate("/dashboard");
+        if (!response.ok) {
+          setError(data.error || "Verification failed.");
+        } else {
+          setEmailVerified(true);
+          if (data.token && data.refreshToken) {
+            localStorage.setItem("authToken", data.accessToken);
+            localStorage.setItem("refreshToken", data.refreshToken);
+            navigate("/registerPasskey");
+          }
+        }
+      }
+
+      if (!phoneVerified) {
+        const response = await fetch(`${apiHost}auth/verify-phone-otp`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            verificationToken: phoneOtp,
+          }),
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          setError(data.error || "Verification failed.");
+        } else {
+          setPhoneVerified(true);
+          if (data.accessToken && data.refreshToken) {
+            localStorage.setItem("authToken", data.accessToken);
+            localStorage.setItem("refreshToken", data.refreshToken);
+            navigate("/registerPasskey");
+          }
+        }
       }
     } catch {
       setError("Unexpected error occurred.");
@@ -40,38 +95,196 @@ const VerifyOTP: React.FC = () => {
     }
   };
 
+  const onResendEmail = async () => {
+    setError("");
+    const response = await fetch(`${apiHost}auth/generate-email-otp`, {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      setError(
+        "Failed to send Email code. If this persists, refresh the page and try again."
+      );
+      return;
+    } else {
+      setResendMsg("Verification email has been resent.");
+      if (data.token) {
+        // Set a new token
+        localStorage.setItem("token", data.token);
+      }
+    }
+  };
+
+  const onResendPhone = async () => {
+    setError("");
+    const response = await fetch(`${apiHost}auth/generate-phone-otp`, {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      setError(
+        "Failed to send SMS code. If this persists, refresh the page and try again."
+      );
+      return;
+    } else {
+      if (data.token) {
+        // Set a new token
+        localStorage.setItem("token", data.token);
+      }
+      setResendMsg("Verification SMS has been resent.");
+    }
+  };
+
+  const handleResend = (type: "email" | "phone") => {
+    setResendMsg("");
+    if (type === "email") {
+      onResendEmail();
+      setResendMsg("Verification email has been resent.");
+    } else {
+      onResendPhone();
+      setResendMsg("Verification SMS has been resent.");
+    }
+  };
+
+  const getStatusIcon = (verified: boolean | null) => {
+    if (verified === true)
+      return <span className="text-green-400 ml-2">✅</span>;
+    if (verified === false)
+      return <span className="text-red-400 ml-2">❌</span>;
+    return null;
+  };
+
+  const formatTime = (seconds: number) => {
+    const m = Math.floor(seconds / 60)
+      .toString()
+      .padStart(2, "0");
+    const s = (seconds % 60).toString().padStart(2, "0");
+    return `${m}:${s}`;
+  };
+
+  useEffect(() => {
+    if (!token) {
+      console.error("Failed to find token");
+      navigate("/");
+    }
+  }, []);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setEmailTimeLeft((prev) => (prev > 0 ? prev - 1 : 0));
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, []);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setPhoneTimeLeft((prev) => (prev > 0 ? prev - 1 : 0));
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, []);
+
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-900 text-white px-4">
-      <div className="bg-gray-800 p-8 rounded-lg shadow-lg max-w-md w-full">
+    <div className="min-h-screen bg-gray-900 text-white flex items-center justify-center px-4">
+      <div className="bg-gray-800 w-full max-w-md p-6 rounded-lg shadow-md">
         <h2 className="text-2xl font-bold text-center mb-4">
-          Enter your 6-digit code
+          Verify Your Contact Info
         </h2>
-        <p className="text-gray-400 text-center mb-6">
-          We sent a code to your {type}:{" "}
-          <span className="font-medium">{destination}</span>
+        <p className="text-gray-400 text-sm text-center mb-6">
+          Enter the codes sent to your email and phone number.
         </p>
-        <form onSubmit={handleSubmit}>
-          <input
-            type="text"
-            maxLength={6}
-            value={otp}
-            onChange={(e) => setOtp(e.target.value)}
-            className="w-full text-center p-3 text-lg rounded bg-gray-700 border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 mb-4"
-            placeholder="Enter code"
-          />
-          {error && <p className="text-red-400 text-center mb-4">{error}</p>}
+        {error && <p className="text-red-400 text-center mb-4">{error}</p>}
+        {resendMsg && (
+          <p className="text-green-400 text-center mb-3">{resendMsg}</p>
+        )}
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label
+              htmlFor="emailCode"
+              className="block text-sm mb-1 text-gray-300"
+            >
+              Email Verification Code {getStatusIcon(emailVerified)} -{" "}
+              <span className="text-sm text-yellow-400">
+                Code expires in: {formatTime(emailTimeLeft)}
+              </span>
+            </label>
+            <input
+              type="text"
+              id="emailCode"
+              maxLength={6}
+              value={emailOtp}
+              autoComplete="off"
+              onChange={(e) => {
+                setEmailOtp(e.target.value);
+                setEmailVerified(null);
+              }}
+              className="w-full p-2 rounded bg-gray-700 border border-gray-600 text-white focus:ring focus:ring-blue-500 outline-none"
+              required
+            />
+            <button
+              type="button"
+              onClick={() => handleResend("email")}
+              className="mt-1 text-xs text-blue-400 hover:underline"
+            >
+              Resend code to email
+            </button>
+          </div>
+
+          <div>
+            <label
+              htmlFor="phoneCode"
+              className="block text-sm mb-1 text-gray-300"
+            >
+              Phone Verification Code {getStatusIcon(phoneVerified)} -{" "}
+              <span className="text-sm text-yellow-400">
+                Code expires in: {formatTime(phoneTimeLeft)}
+              </span>
+            </label>
+            <input
+              type="text"
+              id="phoneCode"
+              autoComplete="off"
+              maxLength={6}
+              pattern="\d{6}"
+              inputMode="numeric"
+              value={phoneOtp}
+              onChange={(e) => {
+                setPhoneOtp(e.target.value);
+                setPhoneVerified(null);
+              }}
+              className="w-full p-2 rounded bg-gray-700 border border-gray-600 text-white focus:ring focus:ring-blue-500 outline-none"
+              required
+            />
+            <button
+              type="button"
+              onClick={() => handleResend("phone")}
+              className="mt-1 text-xs text-blue-400 hover:underline"
+            >
+              Resend code to phone
+            </button>
+          </div>
+
           <button
             type="submit"
-            className="w-full bg-blue-600 hover:bg-blue-700 transition-colors duration-300 py-2 rounded font-medium"
-            disabled={loading}
+            className="w-full bg-blue-600 hover:bg-blue-700 text-white p-2 rounded transition"
           >
-            {loading ? "Verifying..." : "Verify"}
+            {loading ? "Verifying..." : "Verify & Continue"}
           </button>
         </form>
-        <p className="text-sm text-center text-gray-500 mt-4">
-          Didn’t get the code?{" "}
-          <button className="text-blue-400 hover:underline">Resend</button>
-        </p>
       </div>
     </div>
   );

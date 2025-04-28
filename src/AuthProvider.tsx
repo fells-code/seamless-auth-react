@@ -18,7 +18,7 @@ import { fetchWithAuth } from "./fetchWithAuth";
 import LoadingSpinner from "./LoadingSpinner";
 import Login from "./Login";
 import PasswordRecovery from "./PasswordRecovery";
-import Register from "./RegisterPassKey";
+import RegisterPasskey from "./RegisterPassKey";
 import ResetPassword from "./ResetPassword";
 import VerifyOTP from "./VerifyOTP";
 
@@ -163,10 +163,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({
                 element={<Login setLoading={setLoading} apiHost={apiHost} />}
               />
               <Route
-                path="/register"
-                element={<Register apiHost={apiHost} />}
-              />
-              <Route
                 path="/password"
                 element={<PasswordRecovery apiHost={apiHost} />}
               />
@@ -174,7 +170,19 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({
                 path="/reset-password"
                 element={<ResetPassword apiHost={apiHost} />}
               />
-              <Route path="/verifyOTP" element={<VerifyOTP />} />
+              <Route
+                path="/verifyOTP"
+                element={<VerifyOTP apiHost={apiHost} />}
+              />
+              <Route
+                path="/registerPasskey"
+                element={
+                  <RegisterPasskey
+                    apiHost={apiHost}
+                    validateToken={validateToken}
+                  />
+                }
+              />
               <Route path="*" element={<Navigate to="/login" replace />} />
             </>
           )}
