@@ -34,7 +34,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 /**
  * Returns the current context
- * @returns AuthContext
+ * @returns {AuthContextType} AuthContext
  */
 export const useAuth = (): AuthContextType => {
   const context = useContext(AuthContext);
@@ -59,7 +59,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
   const [loading, setLoading] = useState<boolean>(true);
 
-  // TODO: Think about making this a hook?
   const validateToken = async () => {
     try {
       const response = await fetchWithAuth(`${apiHost}auth/user`, apiHost);

@@ -1,8 +1,9 @@
-import React, { useState } from "react";
+import { startAuthentication } from "@simplewebauthn/browser";
+import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 import TermsModal from "./TermsModal";
-import { validateEmail, validatePhone } from "./utils";
+import { isPasskeySupported, validateEmail, validatePhone } from "./utils";
 
 export interface LoginProps {
   apiHost: string;
@@ -12,6 +13,7 @@ export interface LoginProps {
 
 const Login: React.FC<LoginProps> = ({ apiHost }) => {
   const navigate = useNavigate();
+  const [identifier, setIdentifier] = useState<string>("");
   const [email, setEmail] = useState<string>("");
   const [mode, setMode] = useState<"login" | "register">("login");
   const [phone, setPhone] = useState<string>("");
@@ -19,7 +21,21 @@ const Login: React.FC<LoginProps> = ({ apiHost }) => {
   const [formErrors, setFormErrors] = useState<string>("");
   const [phoneError, setPhoneError] = useState<string>("");
   const [emailError, setEmailError] = useState<string>("");
+  const [identifierError, setIdentifierError] = useState<string>("");
   const [showModal, setShowModal] = useState<boolean>(false);
+  const [passkeyAvailable, setPasskeyAvailable] = useState(false);
+
+  useEffect(() => {
+    /**
+     *
+     */
+    async function checkSupport() {
+      const supported = await isPasskeySupported();
+      setPasskeyAvailable(supported);
+    }
+
+    checkSupport();
+  }, []);
 
   const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const phoneNumber = e.target.value;
@@ -29,6 +45,11 @@ const Login: React.FC<LoginProps> = ({ apiHost }) => {
   const handleEmailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const email = e.target.value;
     setEmail(email);
+  };
+
+  const handleIdentifierChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setIdentifier(value);
   };
 
   const login = async (email: string) => {
@@ -91,6 +112,50 @@ const Login: React.FC<LoginProps> = ({ apiHost }) => {
     if (mode === "register") register();
   };
 
+  const handlePasskeyLogin = async () => {
+    try {
+      const response = await fetch(`${apiHost}webauthn/options`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          /* if needed, like email */
+        }),
+      });
+
+      const options = await response.json();
+
+      if (!options.ok) {
+        console.error("Something went wrong getting options");
+        return;
+      }
+      const credential = await startAuthentication(options);
+
+      const verificationResponse = await fetch("webauthn/verify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(credential),
+      });
+
+      if (!verificationResponse.ok) {
+        console.error("Failed to verify passkey");
+      }
+
+      const verificationResult = await verificationResponse.json();
+
+      if (verificationResult.success) {
+        localStorage.setItem("authToken", verificationResult.accessToken);
+        localStorage.setItem("refreshToken", verificationResult.refreshToken);
+        navigate("/");
+      } else {
+        console.error("Passkey login failed:", verificationResult.message);
+        alert("Login failed, please try again.");
+      }
+    } catch (error) {
+      console.error("Passkey login error:", error);
+      alert("Something went wrong. Please try again.");
+    }
+  };
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-900 text-white">
       <div className="bg-gray-800 p-8 rounded-lg shadow-md w-full max-w-md">
@@ -98,102 +163,155 @@ const Login: React.FC<LoginProps> = ({ apiHost }) => {
           {mode === "login" ? "Sign In" : "Create Account"}
         </h2>
 
+        {mode === "login" && passkeyAvailable ? (
+          <>
+            <h1 className="text-2xl font-bold mb-6 text-center">
+              Login with Passkey
+            </h1>
+            <button
+              onClick={handlePasskeyLogin}
+              className="w-full bg-blue-600 hover:bg-blue-700 text-white p-2 rounded transition duration-300"
+            >
+              Use Passkey
+            </button>
+            <div className="my-4 text-gray-500 text-center">or</div>
+          </>
+        ) : null}
+
         {submitted ? (
           <p className="text-green-400 text-center">
-            ✅ If your email is registered, you’ll receive a verification code
-            shortly.
+            ✅ If your email or phone is registered, you’ll receive a
+            verification code shortly.
           </p>
         ) : (
-          <form onSubmit={handleSubmit}>
-            <div className="mb-4">
-              <label htmlFor="email" className="block text-gray-300">
-                Email Address
-              </label>
-              <input
-                id="email"
-                type="email"
-                value={email}
-                onChange={handleEmailChange}
-                autoComplete="off"
-                onBlur={() => {
-                  if (email) {
-                    const isValid = validateEmail(email);
-                    setEmailError(isValid ? "" : "Please enter a valid email");
-                  }
-                }}
-                className="w-full p-2 bg-gray-700 border border-gray-300 rounded mt-1 text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                required
-              />
-              {emailError && (
-                <p className="text-red-400 text-sm">{emailError}</p>
+          <>
+            <form onSubmit={handleSubmit}>
+              {mode === "login" && (
+                <div className="mb-4">
+                  <label htmlFor="identifer" className="block text-gray-300">
+                    Email Address / Phone Number
+                  </label>
+                  <input
+                    id="identifer"
+                    type="text"
+                    value={identifier}
+                    onChange={handleIdentifierChange}
+                    autoComplete="off"
+                    onBlur={() => {
+                      if (identifier) {
+                        const isValid =
+                          validateEmail(identifier) ||
+                          validatePhone(identifier);
+                        setIdentifierError(
+                          isValid
+                            ? ""
+                            : "Please enter a valid email or phone number"
+                        );
+                      }
+                    }}
+                    className="w-full p-2 bg-gray-700 border border-gray-300 rounded mt-1 text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    required
+                  />
+                  {identifierError && (
+                    <p className="text-red-400 text-sm">{identifierError}</p>
+                  )}
+                </div>
               )}
-            </div>
 
-            {mode === "register" && (
-              <div className="mb-4">
-                <label className="block text-gray-300">Phone Number</label>
-                <input
-                  type="tel"
-                  value={phone}
-                  onChange={handlePhoneChange}
-                  autoComplete="off"
-                  onBlur={() => {
-                    if (phone) {
-                      const isValid = validatePhone(phone);
-                      setPhoneError(
-                        isValid ? "" : "Please enter a valid phone number."
-                      );
-                    }
-                  }}
-                  className="w-full p-2 bg-gray-700 border border-gray-300 rounded mt-1 text-white"
-                />
-                <p className="text-xs text-gray-400 mt-4">
-                  By signing up, you agree to our{" "}
-                  <button
-                    onClick={() => setShowModal(true)}
-                    className="text-blue-400 underline"
-                  >
-                    SMS Terms & Conditions
-                  </button>
-                  .
-                </p>
+              {mode === "register" && (
+                <>
+                  <div className="mb-4">
+                    <label htmlFor="email" className="block text-gray-300">
+                      Email Address
+                    </label>
+                    <input
+                      id="email"
+                      type="email"
+                      value={email}
+                      onChange={handleEmailChange}
+                      autoComplete="off"
+                      onBlur={() => {
+                        if (email) {
+                          const isValid = validateEmail(email);
+                          setEmailError(
+                            isValid ? "" : "Please enter a valid email"
+                          );
+                        }
+                      }}
+                      className="w-full p-2 bg-gray-700 border border-gray-300 rounded mt-1 text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      required
+                    />
+                    {emailError && (
+                      <p className="text-red-400 text-sm">{emailError}</p>
+                    )}
+                  </div>
 
-                <TermsModal
-                  isOpen={showModal}
-                  onClose={() => setShowModal(false)}
-                />
-                {phoneError && (
-                  <p className="text-red-400 text-sm">{phoneError}</p>
-                )}
-              </div>
-            )}
+                  <div className="mb-4">
+                    <label className="block text-gray-300">Phone Number</label>
+                    <input
+                      type="tel"
+                      value={phone}
+                      onChange={handlePhoneChange}
+                      autoComplete="off"
+                      onBlur={() => {
+                        if (phone) {
+                          const isValid = validatePhone(phone);
+                          setPhoneError(
+                            isValid ? "" : "Please enter a valid phone number."
+                          );
+                        }
+                      }}
+                      className="w-full p-2 bg-gray-700 border border-gray-300 rounded mt-1 text-white"
+                    />
+                    <p className="text-xs text-gray-400 mt-4">
+                      By signing up, you agree to our{" "}
+                      <button
+                        onClick={() => setShowModal(true)}
+                        className="text-blue-400 underline"
+                      >
+                        SMS Terms & Conditions
+                      </button>
+                      .
+                    </p>
 
-            <button
-              type="submit"
-              className={`w-full bg-blue-600 hover:bg-blue-700 text-white p-2 rounded transition duration-300 disabled:bg-gray-400 cursor-not-allowed p-2 rounded`}
-              disabled={
-                !email ||
-                !validateEmail(email) ||
-                !phone ||
-                !validatePhone(phone)
-              }
-            >
-              {mode === "login" ? "Login" : "Register"}
-            </button>
+                    <TermsModal
+                      isOpen={showModal}
+                      onClose={() => setShowModal(false)}
+                    />
+                    {phoneError && (
+                      <p className="text-red-400 text-sm">{phoneError}</p>
+                    )}
+                  </div>
+                </>
+              )}
 
-            {formErrors && (
-              <p className="text-red-400 mt-4 text-center">{formErrors}</p>
-            )}
-            <button
-              type="button"
-              onClick={() => setMode(mode === "login" ? "register" : "login")}
-              className="mt-6 w-full text-sm text-blue-400 hover:underline"
-            >
-              {mode === "login"
-                ? "Don't have an account? Create one"
-                : "Already have an account? Sign in"}
-            </button>
-          </form>
+              <button
+                type="submit"
+                className={`w-full bg-blue-600 hover:bg-blue-700 text-white p-2 rounded transition duration-300 disabled:bg-gray-400 cursor-not-allowed p-2 rounded`}
+                disabled={
+                  !email ||
+                  !validateEmail(email) ||
+                  !phone ||
+                  !validatePhone(phone)
+                }
+              >
+                {mode === "login" ? "Login" : "Register"}
+              </button>
+
+              {formErrors && (
+                <p className="text-red-400 mt-4 text-center">{formErrors}</p>
+              )}
+              <button
+                type="button"
+                onClick={() => setMode(mode === "login" ? "register" : "login")}
+                className="mt-6 w-full text-sm text-blue-400 hover:underline"
+              >
+                {mode === "login"
+                  ? "Don't have an account? Create one"
+                  : "Already have an account? Sign in"}
+              </button>
+            </form>
+          </>
         )}
       </div>
     </div>

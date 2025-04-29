@@ -5,6 +5,8 @@ import {
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
+import { isPasskeySupported } from "./utils";
+
 interface RegisterPassKeyProps {
   apiHost: string;
   validateToken: () => void;
@@ -20,6 +22,7 @@ const RegisterPasskey: React.FC<RegisterPassKeyProps> = ({
     "idle" | "success" | "error" | "loading"
   >("idle");
   const [message, setMessage] = useState("");
+  const [passkeyAvailable, setPasskeyAvailable] = useState(false);
 
   const handlePasskeyRegister = async () => {
     setStatus("loading");
@@ -41,6 +44,13 @@ const RegisterPasskey: React.FC<RegisterPassKeyProps> = ({
         }
       );
 
+      if (!challengeRes.ok) {
+        console.error("Failed to create passkey");
+        setStatus("error");
+        setMessage("Something went wrong registering passkey.");
+        return;
+      }
+
       const optionsJSON = await challengeRes.json();
 
       let attResp: RegistrationResponseJSON;
@@ -51,7 +61,7 @@ const RegisterPasskey: React.FC<RegisterPassKeyProps> = ({
           useAutoRegister: true,
         });
 
-        verifyPassKey(attResp);
+        await verifyPassKey(attResp);
       } catch (error) {
         console.error("A problem happened.");
 
@@ -68,64 +78,100 @@ const RegisterPasskey: React.FC<RegisterPassKeyProps> = ({
   };
 
   const verifyPassKey = async (attResp: RegistrationResponseJSON) => {
-    const verificationResp = await fetch(
-      `${apiHost}webauthn/verify-registration`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          attestationResponse: attResp,
-        }),
+    try {
+      const verificationResp = await fetch(
+        `${apiHost}webauthn/verify-registration`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            attestationResponse: attResp,
+          }),
+        }
+      );
+
+      // Wait for the results of verification
+      const verificationJSON = await verificationResp.json();
+
+      if (!verificationResp.ok) {
+        console.error("Failed to verify passkey");
+        setStatus("error");
+        setMessage("Something went wrong registering passkey.");
+        return;
       }
-    );
 
-    // Wait for the results of verification
-    const verificationJSON = await verificationResp.json();
-
-    // Show UI appropriate for the `verified` status
-    if (verificationJSON && verificationJSON.verified) {
-      console.log("Registered");
-      localStorage.setItem("authToken", verificationJSON.accessToken);
-      localStorage.setItem("refreshToken", verificationJSON.refreshToken);
-      validateToken();
-    } else {
-      throw new Error("Failed to save passkey");
+      // Show UI appropriate for the `verified` status
+      if (verificationJSON && verificationJSON.verified) {
+        localStorage.setItem("authToken", verificationJSON.accessToken);
+        localStorage.setItem("refreshToken", verificationJSON.refreshToken);
+        validateToken();
+        navigate("/");
+      }
+    } catch (error) {
+      console.error(`An error occured: ${error}`);
     }
   };
 
   useEffect(() => {
     if (!token) {
-      console.error("Missing Token.");
       navigate("/");
     }
+  }, []);
+
+  useEffect(() => {
+    /**
+     *
+     */
+    async function checkSupport() {
+      const supported = await isPasskeySupported();
+      setPasskeyAvailable(supported);
+    }
+
+    checkSupport();
   }, []);
 
   return (
     <div className="min-h-screen bg-gray-900 text-white flex items-center justify-center px-4">
       <div className="bg-gray-800 p-6 rounded-lg shadow-md text-white w-full max-w-md">
-        <h2 className="text-lg font-semibold mb-4">
-          Secure your account with a Passkey
-        </h2>
+        {passkeyAvailable === null ? (
+          <div className="flex items-center justify-center gap-3 p-6 bg-gray-50 rounded-lg shadow">
+            <div className="animate-spin rounded-full h-6 w-6 border-t-2 border-b-2 border-blue-500"></div>
+            <span className="text-gray-600 font-medium">
+              Checking for Passkey Support...
+            </span>
+          </div>
+        ) : (
+          passkeyAvailable && (
+            <div className="p-4 border rounded-lg bg-green-50 text-green-700 shadow">
+              <h2 className="text-lg font-semibold mb-2">
+                Secure Your Account with a Passkey
+              </h2>
+              <p className="mb-4">
+                Your device supports passkeys! Register one to skip passwords
+                forever.
+              </p>
+              <button
+                onClick={handlePasskeyRegister}
+                disabled={status === "loading"}
+                className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 transition"
+              >
+                {status === "loading" ? "Registering..." : "Register Passkey"}
+              </button>
 
-        <button
-          onClick={handlePasskeyRegister}
-          disabled={status === "loading"}
-          className="bg-blue-600 hover:bg-blue-700 w-full py-2 px-4 rounded transition duration-300 disabled:opacity-50"
-        >
-          {status === "loading" ? "Registering..." : "Register Passkey"}
-        </button>
-
-        {message && (
-          <p
-            className={`mt-4 text-sm ${
-              status === "success" ? "text-green-400" : "text-red-400"
-            }`}
-          >
-            {message}
-          </p>
+              {message && (
+                <p
+                  className={`mt-4 text-sm ${
+                    status === "success" ? "text-green-400" : "text-red-400"
+                  }`}
+                >
+                  {message}
+                </p>
+              )}
+            </div>
+          )
         )}
       </div>
     </div>
