@@ -114,27 +114,33 @@ const Login: React.FC<LoginProps> = ({ apiHost }) => {
 
   const handlePasskeyLogin = async () => {
     try {
-      const response = await fetch(`${apiHost}webauthn/options`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          /* if needed, like email */
-        }),
-      });
+      const response = await fetch(
+        `${apiHost}webauthn/generate-authentication-options`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            email: "bccorb1000@gmail.com",
+          }),
+        }
+      );
 
-      const options = await response.json();
-
-      if (!options.ok) {
+      if (!response.ok) {
         console.error("Something went wrong getting options");
         return;
       }
+
+      const options = await response.json();
       const credential = await startAuthentication(options);
 
-      const verificationResponse = await fetch("webauthn/verify", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(credential),
-      });
+      const verificationResponse = await fetch(
+        "webauthn/verify-authentication",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(credential),
+        }
+      );
 
       if (!verificationResponse.ok) {
         console.error("Failed to verify passkey");
