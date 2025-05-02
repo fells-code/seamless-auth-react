@@ -6,12 +6,7 @@ interface VerifyOTPProps {
 }
 
 const VerifyOTP: React.FC<VerifyOTPProps> = ({ apiHost }) => {
-  const token = localStorage.getItem("token");
   const navigate = useNavigate();
-
-  if (!token) {
-    navigate("/");
-  }
 
   const [emailOtp, setEmailOtp] = useState("");
   const [phoneOtp, setPhoneOtp] = useState("");
@@ -25,6 +20,8 @@ const VerifyOTP: React.FC<VerifyOTPProps> = ({ apiHost }) => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setError("");
+
     if (emailOtp.length !== 6) {
       setError("Please enter a valid code.");
       return;
@@ -38,15 +35,15 @@ const VerifyOTP: React.FC<VerifyOTPProps> = ({ apiHost }) => {
     setLoading(true);
     try {
       if (!emailVerified) {
-        const response = await fetch(`${apiHost}auth/verify-email-otp`, {
+        const response = await fetch(`${apiHost}otp/verify-email-otp`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
           },
           body: JSON.stringify({
             verificationToken: emailOtp,
           }),
+          credentials: "include",
         });
 
         const data = await response.json();
@@ -64,15 +61,15 @@ const VerifyOTP: React.FC<VerifyOTPProps> = ({ apiHost }) => {
       }
 
       if (!phoneVerified) {
-        const response = await fetch(`${apiHost}auth/verify-phone-otp`, {
+        const response = await fetch(`${apiHost}otp/verify-phone-otp`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
           },
           body: JSON.stringify({
             verificationToken: phoneOtp,
           }),
+          credentials: "include",
         });
 
         const data = await response.json();
@@ -81,11 +78,7 @@ const VerifyOTP: React.FC<VerifyOTPProps> = ({ apiHost }) => {
           setError(data.error || "Verification failed.");
         } else {
           setPhoneVerified(true);
-          if (data.accessToken && data.refreshToken) {
-            localStorage.setItem("authToken", data.accessToken);
-            localStorage.setItem("refreshToken", data.refreshToken);
-            navigate("/registerPasskey");
-          }
+          navigate("/registerPasskey");
         }
       }
     } catch {
@@ -97,11 +90,10 @@ const VerifyOTP: React.FC<VerifyOTPProps> = ({ apiHost }) => {
 
   const onResendEmail = async () => {
     setError("");
-    const response = await fetch(`${apiHost}auth/generate-email-otp`, {
+    const response = await fetch(`${apiHost}otp/generate-email-otp`, {
       method: "GET",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
       },
     });
 
@@ -123,11 +115,10 @@ const VerifyOTP: React.FC<VerifyOTPProps> = ({ apiHost }) => {
 
   const onResendPhone = async () => {
     setError("");
-    const response = await fetch(`${apiHost}auth/generate-phone-otp`, {
+    const response = await fetch(`${apiHost}otp/generate-phone-otp`, {
       method: "GET",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
       },
     });
 
@@ -173,13 +164,6 @@ const VerifyOTP: React.FC<VerifyOTPProps> = ({ apiHost }) => {
     const s = (seconds % 60).toString().padStart(2, "0");
     return `${m}:${s}`;
   };
-
-  useEffect(() => {
-    if (!token) {
-      console.error("Failed to find token");
-      navigate("/");
-    }
-  }, []);
 
   useEffect(() => {
     const interval = setInterval(() => {

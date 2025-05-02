@@ -60,6 +60,7 @@ const Login: React.FC<LoginProps> = ({ apiHost }) => {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email }),
+        credentials: "include",
       });
 
       if (!response.ok) {
@@ -80,10 +81,11 @@ const Login: React.FC<LoginProps> = ({ apiHost }) => {
     setFormErrors("");
 
     try {
-      const response = await fetch(`${apiHost}auth/register`, {
+      const response = await fetch(`${apiHost}registration/register`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, phone }),
+        credentials: "include",
       });
 
       if (!response.ok) {
@@ -93,10 +95,10 @@ const Login: React.FC<LoginProps> = ({ apiHost }) => {
 
       const data = await response.json();
 
-      if (data.token) {
-        localStorage.setItem("token", data.token);
+      if (data.message === "success") {
         navigate("/verifyOTP");
       }
+      // TODO what happens if data.message isn't false!?
     } catch (err) {
       console.error("Unexpected login error", err);
       setFormErrors(
@@ -115,13 +117,14 @@ const Login: React.FC<LoginProps> = ({ apiHost }) => {
   const handlePasskeyLogin = async () => {
     try {
       const response = await fetch(
-        `${apiHost}webauthn/generate-authentication-options`,
+        `${apiHost}webAuthn/generate-authentication-options`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             email: "bccorb1000@gmail.com",
           }),
+          credentials: "include",
         }
       );
 
@@ -134,11 +137,15 @@ const Login: React.FC<LoginProps> = ({ apiHost }) => {
       const credential = await startAuthentication(options);
 
       const verificationResponse = await fetch(
-        "webauthn/verify-authentication",
+        `${apiHost}webAuthn/verify-authentication`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(credential),
+          body: JSON.stringify({
+            assertionResponse: credential,
+            email: "bccorb1000@gmail.com",
+          }),
+          credentials: "include",
         }
       );
 

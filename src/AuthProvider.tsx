@@ -93,6 +93,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({
           body: JSON.stringify({
             email: user.email,
           }),
+          credentials: "include",
         });
       } catch {
         console.error("Error in logout");

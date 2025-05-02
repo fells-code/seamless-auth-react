@@ -34,13 +34,14 @@ const RegisterPasskey: React.FC<RegisterPassKeyProps> = ({
 
     try {
       const challengeRes = await fetch(
-        `${apiHost}webauthn/generate-registration-options`,
+        `${apiHost}webAuthn/generate-registration-options`,
         {
           method: "GET",
           headers: {
             "Content-Type": "application/json",
             Authorization: `Bearer ${token}`,
           },
+          credentials: "include",
         }
       );
 
@@ -80,7 +81,7 @@ const RegisterPasskey: React.FC<RegisterPassKeyProps> = ({
   const verifyPassKey = async (attResp: RegistrationResponseJSON) => {
     try {
       const verificationResp = await fetch(
-        `${apiHost}webauthn/verify-registration`,
+        `${apiHost}webAuthn/verify-registration`,
         {
           method: "POST",
           headers: {
@@ -90,6 +91,7 @@ const RegisterPasskey: React.FC<RegisterPassKeyProps> = ({
           body: JSON.stringify({
             attestationResponse: attResp,
           }),
+          credentials: "include",
         }
       );
 
