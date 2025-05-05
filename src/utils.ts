@@ -1,11 +1,27 @@
-export const validateEmail = (email: string): boolean => {
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  return emailRegex.test(email);
+import parsePhoneNumberFromString from "libphonenumber-js";
+import validator from "validator";
+
+/**
+ * isValidEmail
+ *
+ * Determine if the given string is a valid phone number or not
+ * @param email An email to validate
+ * @returns boolean - Is the email valid or not
+ */
+export const isValidEmail = (email: string): boolean => {
+  return validator.isEmail(email);
 };
 
-export const validatePhone = (phoneNumber: string) => {
-  const phoneRegex = /^\+?[1-9]\d{1,14}$/;
-  return phoneRegex.test(phoneNumber);
+/**
+ * isValidPhoneNumber
+ *
+ * Determine if the given string is a valid phone number or not
+ * @param phone A phone number
+ * @returns {boolean} - Is the phone number valid or not
+ */
+export const isValidPhoneNumber = (phone: string): boolean => {
+  const phoneNumber = parsePhoneNumberFromString(phone);
+  return phoneNumber?.isValid() || false;
 };
 
 /**

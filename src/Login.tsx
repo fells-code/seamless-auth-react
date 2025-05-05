@@ -1,9 +1,8 @@
-import { startAuthentication } from "@simplewebauthn/browser";
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 import TermsModal from "./TermsModal";
-import { isPasskeySupported, validateEmail, validatePhone } from "./utils";
+import { isPasskeySupported, isValidEmail, isValidPhoneNumber } from "./utils";
 
 export interface LoginProps {
   apiHost: string;
@@ -95,10 +94,12 @@ const Login: React.FC<LoginProps> = ({ apiHost }) => {
 
       const data = await response.json();
 
-      if (data.message === "success") {
+      if (data.message === "Success") {
         navigate("/verifyOTP");
       }
-      // TODO what happens if data.message isn't false!?
+      setFormErrors(
+        "An unexpected error occured. Try again. If the problem persists, try resetting your password"
+      );
     } catch (err) {
       console.error("Unexpected login error", err);
       setFormErrors(
@@ -114,82 +115,12 @@ const Login: React.FC<LoginProps> = ({ apiHost }) => {
     if (mode === "register") register();
   };
 
-  const handlePasskeyLogin = async () => {
-    try {
-      const response = await fetch(
-        `${apiHost}webAuthn/generate-authentication-options`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            email: "bccorb1000@gmail.com",
-          }),
-          credentials: "include",
-        }
-      );
-
-      if (!response.ok) {
-        console.error("Something went wrong getting options");
-        return;
-      }
-
-      const options = await response.json();
-      const credential = await startAuthentication(options);
-
-      const verificationResponse = await fetch(
-        `${apiHost}webAuthn/verify-authentication`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            assertionResponse: credential,
-            email: "bccorb1000@gmail.com",
-          }),
-          credentials: "include",
-        }
-      );
-
-      if (!verificationResponse.ok) {
-        console.error("Failed to verify passkey");
-      }
-
-      const verificationResult = await verificationResponse.json();
-
-      if (verificationResult.success) {
-        localStorage.setItem("authToken", verificationResult.accessToken);
-        localStorage.setItem("refreshToken", verificationResult.refreshToken);
-        navigate("/");
-      } else {
-        console.error("Passkey login failed:", verificationResult.message);
-        alert("Login failed, please try again.");
-      }
-    } catch (error) {
-      console.error("Passkey login error:", error);
-      alert("Something went wrong. Please try again.");
-    }
-  };
-
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-900 text-white">
       <div className="bg-gray-800 p-8 rounded-lg shadow-md w-full max-w-md">
         <h2 className="text-2xl font-bold mb-6 text-center">
           {mode === "login" ? "Sign In" : "Create Account"}
         </h2>
-
-        {mode === "login" && passkeyAvailable ? (
-          <>
-            <h1 className="text-2xl font-bold mb-6 text-center">
-              Login with Passkey
-            </h1>
-            <button
-              onClick={handlePasskeyLogin}
-              className="w-full bg-blue-600 hover:bg-blue-700 text-white p-2 rounded transition duration-300"
-            >
-              Use Passkey
-            </button>
-            <div className="my-4 text-gray-500 text-center">or</div>
-          </>
-        ) : null}
 
         {submitted ? (
           <p className="text-green-400 text-center">
@@ -210,11 +141,12 @@ const Login: React.FC<LoginProps> = ({ apiHost }) => {
                     value={identifier}
                     onChange={handleIdentifierChange}
                     autoComplete="off"
+                    placeholder="example@gmail.com or +14105551111"
                     onBlur={() => {
                       if (identifier) {
                         const isValid =
-                          validateEmail(identifier) ||
-                          validatePhone(identifier);
+                          isValidEmail(identifier) ||
+                          isValidPhoneNumber(identifier);
                         setIdentifierError(
                           isValid
                             ? ""
@@ -225,6 +157,9 @@ const Login: React.FC<LoginProps> = ({ apiHost }) => {
                     className="w-full p-2 bg-gray-700 border border-gray-300 rounded mt-1 text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                     required
                   />
+                  <p className="text-sm">
+                    Phone numbers must include a country code e.g. +1
+                  </p>
                   {identifierError && (
                     <p className="text-red-400 text-sm">{identifierError}</p>
                   )}
@@ -245,7 +180,7 @@ const Login: React.FC<LoginProps> = ({ apiHost }) => {
                       autoComplete="off"
                       onBlur={() => {
                         if (email) {
-                          const isValid = validateEmail(email);
+                          const isValid = isValidEmail(email);
                           setEmailError(
                             isValid ? "" : "Please enter a valid email"
                           );
@@ -268,7 +203,7 @@ const Login: React.FC<LoginProps> = ({ apiHost }) => {
                       autoComplete="off"
                       onBlur={() => {
                         if (phone) {
-                          const isValid = validatePhone(phone);
+                          const isValid = isValidPhoneNumber(phone);
                           setPhoneError(
                             isValid ? "" : "Please enter a valid phone number."
                           );
@@ -302,10 +237,8 @@ const Login: React.FC<LoginProps> = ({ apiHost }) => {
                 type="submit"
                 className={`w-full bg-blue-600 hover:bg-blue-700 text-white p-2 rounded transition duration-300 disabled:bg-gray-400 cursor-not-allowed p-2 rounded`}
                 disabled={
-                  !email ||
-                  !validateEmail(email) ||
-                  !phone ||
-                  !validatePhone(phone)
+                  !identifier ||
+                  (!isValidEmail(identifier) && !isValidPhoneNumber(identifier))
                 }
               >
                 {mode === "login" ? "Login" : "Register"}

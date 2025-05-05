@@ -61,7 +61,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({
 
   const validateToken = async () => {
     try {
-      const response = await fetchWithAuth(`${apiHost}auth/user`, apiHost);
+      const response = await fetchWithAuth(`${apiHost}users/me`, apiHost);
 
       if (response.ok) {
         const user = await response.json();

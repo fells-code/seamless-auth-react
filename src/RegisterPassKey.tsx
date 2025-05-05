@@ -16,7 +16,6 @@ const RegisterPasskey: React.FC<RegisterPassKeyProps> = ({
   apiHost,
   validateToken,
 }) => {
-  const token = localStorage.getItem("token");
   const navigate = useNavigate();
   const [status, setStatus] = useState<
     "idle" | "success" | "error" | "loading"
@@ -27,11 +26,6 @@ const RegisterPasskey: React.FC<RegisterPassKeyProps> = ({
   const handlePasskeyRegister = async () => {
     setStatus("loading");
 
-    if (!token) {
-      console.error("Missing verification token");
-      navigate("/login");
-    }
-
     try {
       const challengeRes = await fetch(
         `${apiHost}webAuthn/generate-registration-options`,
@@ -39,14 +33,12 @@ const RegisterPasskey: React.FC<RegisterPassKeyProps> = ({
           method: "GET",
           headers: {
             "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
           },
           credentials: "include",
         }
       );
 
       if (!challengeRes.ok) {
-        console.error("Failed to create passkey");
         setStatus("error");
         setMessage("Something went wrong registering passkey.");
         return;
@@ -76,6 +68,8 @@ const RegisterPasskey: React.FC<RegisterPassKeyProps> = ({
       setStatus("error");
       setMessage("Something went wrong registering passkey.");
     }
+
+    navigate("/");
   };
 
   const verifyPassKey = async (attResp: RegistrationResponseJSON) => {
@@ -86,7 +80,6 @@ const RegisterPasskey: React.FC<RegisterPassKeyProps> = ({
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
           },
           body: JSON.stringify({
             attestationResponse: attResp,
@@ -107,8 +100,6 @@ const RegisterPasskey: React.FC<RegisterPassKeyProps> = ({
 
       // Show UI appropriate for the `verified` status
       if (verificationJSON && verificationJSON.verified) {
-        localStorage.setItem("authToken", verificationJSON.accessToken);
-        localStorage.setItem("refreshToken", verificationJSON.refreshToken);
         validateToken();
         navigate("/");
       }
@@ -116,12 +107,6 @@ const RegisterPasskey: React.FC<RegisterPassKeyProps> = ({
       console.error(`An error occured: ${error}`);
     }
   };
-
-  useEffect(() => {
-    if (!token) {
-      navigate("/");
-    }
-  }, []);
 
   useEffect(() => {
     /**

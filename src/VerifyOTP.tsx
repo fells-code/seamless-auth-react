@@ -52,11 +52,6 @@ const VerifyOTP: React.FC<VerifyOTPProps> = ({ apiHost }) => {
           setError(data.error || "Verification failed.");
         } else {
           setEmailVerified(true);
-          if (data.token && data.refreshToken) {
-            localStorage.setItem("authToken", data.accessToken);
-            localStorage.setItem("refreshToken", data.refreshToken);
-            navigate("/registerPasskey");
-          }
         }
       }
 
@@ -78,7 +73,6 @@ const VerifyOTP: React.FC<VerifyOTPProps> = ({ apiHost }) => {
           setError(data.error || "Verification failed.");
         } else {
           setPhoneVerified(true);
-          navigate("/registerPasskey");
         }
       }
     } catch {
@@ -180,6 +174,12 @@ const VerifyOTP: React.FC<VerifyOTPProps> = ({ apiHost }) => {
 
     return () => clearInterval(interval);
   }, []);
+
+  useEffect(() => {
+    if (emailVerified && phoneVerified) {
+      navigate("/registerPasskey");
+    }
+  }, [emailVerified, phoneVerified]);
 
   return (
     <div className="min-h-screen bg-gray-900 text-white flex items-center justify-center px-4">
