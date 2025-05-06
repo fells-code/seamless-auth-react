@@ -46,15 +46,13 @@ const PassKeyLogin: React.FC<PassKeyLoginProps> = ({ apiHost }) => {
 
       const verificationResult = await verificationResponse.json();
 
-      if (verificationResult.success) {
-        navigate("/");
+      if (verificationResult.message === "Success") {
+        navigate("/mfaLogin");
       } else {
         console.error("Passkey login failed:", verificationResult.message);
-        alert("Login failed, please try again.");
       }
     } catch (error) {
       console.error("Passkey login error:", error);
-      alert("Something went wrong. Please try again.");
     }
   };
 
@@ -71,7 +69,6 @@ const PassKeyLogin: React.FC<PassKeyLoginProps> = ({ apiHost }) => {
           >
             Use Passkey
           </button>
-          <div className="my-4 text-gray-500 text-center">or</div>
         </>
       </div>
     </div>

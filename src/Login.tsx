@@ -16,7 +16,6 @@ const Login: React.FC<LoginProps> = ({ apiHost }) => {
   const [email, setEmail] = useState<string>("");
   const [mode, setMode] = useState<"login" | "register">("login");
   const [phone, setPhone] = useState<string>("");
-  const [submitted, setSubmitted] = useState<boolean>(false);
   const [formErrors, setFormErrors] = useState<string>("");
   const [phoneError, setPhoneError] = useState<string>("");
   const [emailError, setEmailError] = useState<string>("");
@@ -51,14 +50,14 @@ const Login: React.FC<LoginProps> = ({ apiHost }) => {
     setIdentifier(value);
   };
 
-  const login = async (email: string) => {
+  const login = async () => {
     setFormErrors("");
 
     try {
-      const response = await fetch(`${apiHost}auth/magic-link`, {
+      const response = await fetch(`${apiHost}auth/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email }),
+        body: JSON.stringify({ identifier, passkeyAvailable }),
         credentials: "include",
       });
 
@@ -67,7 +66,7 @@ const Login: React.FC<LoginProps> = ({ apiHost }) => {
         return;
       }
 
-      setSubmitted(true);
+      navigate("/passKeyLogin");
     } catch (err) {
       console.error("Unexpected login error", err);
       setFormErrors(
@@ -111,7 +110,7 @@ const Login: React.FC<LoginProps> = ({ apiHost }) => {
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
 
-    if (mode === "login") login(email);
+    if (mode === "login") login();
     if (mode === "register") register();
   };
 
@@ -122,10 +121,11 @@ const Login: React.FC<LoginProps> = ({ apiHost }) => {
           {mode === "login" ? "Sign In" : "Create Account"}
         </h2>
 
-        {submitted ? (
+        {!passkeyAvailable ? (
           <p className="text-green-400 text-center">
-            ✅ If your email or phone is registered, you’ll receive a
-            verification code shortly.
+            ❌ This device doesn't seem to have access to a passwordless
+            authenticator You won't be able to login without providing a passkey
+            or registering a passkey.
           </p>
         ) : (
           <>
@@ -141,7 +141,7 @@ const Login: React.FC<LoginProps> = ({ apiHost }) => {
                     value={identifier}
                     onChange={handleIdentifierChange}
                     autoComplete="off"
-                    placeholder="example@gmail.com or +14105551111"
+                    placeholder="Email or Phone Number"
                     onBlur={() => {
                       if (identifier) {
                         const isValid =
@@ -157,7 +157,7 @@ const Login: React.FC<LoginProps> = ({ apiHost }) => {
                     className="w-full p-2 bg-gray-700 border border-gray-300 rounded mt-1 text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                     required
                   />
-                  <p className="text-sm">
+                  <p className="text-xs text-gray-400 mt-2">
                     Phone numbers must include a country code e.g. +1
                   </p>
                   {identifierError && (

@@ -17,9 +17,9 @@ import {
 import { fetchWithAuth } from "./fetchWithAuth";
 import LoadingSpinner from "./LoadingSpinner";
 import Login from "./Login";
-import PasswordRecovery from "./PasswordRecovery";
+import MfaLogin from "./MfaLogin";
+import PassKeyLogin from "./PassKeyLogin";
 import RegisterPasskey from "./RegisterPassKey";
-import ResetPassword from "./ResetPassword";
 import VerifyOTP from "./VerifyOTP";
 
 interface AuthContextType {
@@ -109,7 +109,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({
 
   const deleteUser = async () => {
     try {
-      const response = await fetchWithAuth(`${apiHost}auth/delete`, apiHost, {
+      const response = await fetchWithAuth(`${apiHost}users/delete`, apiHost, {
         method: "delete",
       });
 
@@ -163,12 +163,14 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({
                 element={<Login setLoading={setLoading} apiHost={apiHost} />}
               />
               <Route
-                path="/password"
-                element={<PasswordRecovery apiHost={apiHost} />}
+                path="/passKeyLogin"
+                element={<PassKeyLogin apiHost={apiHost} />}
               />
               <Route
-                path="/reset-password"
-                element={<ResetPassword apiHost={apiHost} />}
+                path="/mfaLogin"
+                element={
+                  <MfaLogin apiHost={apiHost} validateToken={validateToken} />
+                }
               />
               <Route
                 path="/verifyOTP"

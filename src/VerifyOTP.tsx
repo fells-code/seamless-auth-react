@@ -34,27 +34,18 @@ const VerifyOTP: React.FC<VerifyOTPProps> = ({ apiHost }) => {
 
     setLoading(true);
     try {
-      if (!emailVerified) {
-        const response = await fetch(`${apiHost}otp/verify-email-otp`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            verificationToken: emailOtp,
-          }),
-          credentials: "include",
-        });
+      verifyEmailOTP();
+      verifyPhoneOTP();
+    } catch {
+      setError("Unexpected error occurred.");
+    } finally {
+      setLoading(false);
+    }
+  };
 
-        const data = await response.json();
-
-        if (!response.ok) {
-          setError(data.error || "Verification failed.");
-        } else {
-          setEmailVerified(true);
-        }
-      }
-
+  const verifyPhoneOTP = async () => {
+    setLoading(true);
+    try {
       if (!phoneVerified) {
         const response = await fetch(`${apiHost}otp/verify-phone-otp`, {
           method: "POST",
@@ -67,19 +58,47 @@ const VerifyOTP: React.FC<VerifyOTPProps> = ({ apiHost }) => {
           credentials: "include",
         });
 
-        const data = await response.json();
-
         if (!response.ok) {
-          setError(data.error || "Verification failed.");
+          setError("Verification failed.");
         } else {
           setPhoneVerified(true);
         }
       }
-    } catch {
-      setError("Unexpected error occurred.");
-    } finally {
-      setLoading(false);
+    } catch (error: unknown) {
+      console.error(error);
+      setError("Verification failed.");
     }
+
+    setLoading(false);
+  };
+
+  const verifyEmailOTP = async () => {
+    setLoading(true);
+    try {
+      if (!emailVerified) {
+        const response = await fetch(`${apiHost}otp/verify-email-otp`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            verificationToken: emailOtp,
+          }),
+          credentials: "include",
+        });
+
+        if (!response.ok) {
+          setError("Verification failed.");
+        } else {
+          setEmailVerified(true);
+        }
+      }
+    } catch (error: unknown) {
+      console.error(error);
+      setError("Verification failed.");
+    }
+
+    setLoading(false);
   };
 
   const onResendEmail = async () => {
