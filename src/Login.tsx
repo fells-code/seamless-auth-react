@@ -233,16 +233,34 @@ const Login: React.FC<LoginProps> = ({ apiHost }) => {
                 </>
               )}
 
-              <button
-                type="submit"
-                className={`w-full bg-blue-600 hover:bg-blue-700 text-white p-2 rounded transition duration-300 disabled:bg-gray-400 cursor-not-allowed p-2 rounded`}
-                disabled={
-                  !identifier ||
-                  (!isValidEmail(identifier) && !isValidPhoneNumber(identifier))
-                }
-              >
-                {mode === "login" ? "Login" : "Register"}
-              </button>
+              {mode === "login" && (
+                <button
+                  type="submit"
+                  className={`w-full bg-blue-600 hover:bg-blue-700 text-white p-2 rounded transition duration-300 disabled:bg-gray-400 cursor-not-allowed p-2 rounded`}
+                  disabled={
+                    !identifier ||
+                    (!isValidEmail(identifier) &&
+                      !isValidPhoneNumber(identifier))
+                  }
+                >
+                  Login
+                </button>
+              )}
+
+              {mode === "register" && (
+                <button
+                  type="submit"
+                  className={`w-full bg-blue-600 hover:bg-blue-700 text-white p-2 rounded transition duration-300 disabled:bg-gray-400 cursor-not-allowed p-2 rounded`}
+                  disabled={
+                    !email ||
+                    !phone ||
+                    !isValidEmail(email) ||
+                    !isValidPhoneNumber(phone)
+                  }
+                >
+                  Register
+                </button>
+              )}
 
               {formErrors && (
                 <p className="text-red-400 mt-4 text-center">{formErrors}</p>
