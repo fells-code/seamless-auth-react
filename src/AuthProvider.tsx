@@ -1,5 +1,3 @@
-import "./index.css";
-
 import React, {
   createContext,
   ReactNode,
@@ -147,12 +145,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({
         hasRole,
       }}
     >
-      <Router
-        future={{
-          v7_startTransition: true,
-          v7_relativeSplatPath: true,
-        }}
-      >
+      <Router>
         <Routes>
           {isAuthenticated ? (
             <Route path="*" element={children} />

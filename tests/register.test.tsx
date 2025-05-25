@@ -29,12 +29,7 @@ describe("Register Component", () => {
 
   it("renders correctly", () => {
     render(
-      <BrowserRouter
-        future={{
-          v7_startTransition: true,
-          v7_relativeSplatPath: true,
-        }}
-      >
+      <BrowserRouter>
         <RegisterPassKey apiHost={mockApiHost} validateToken={jest.fn()} />
       </BrowserRouter>
     );

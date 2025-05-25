@@ -1,9 +1,0 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
-
-@layer components {
- .primary-btn {
-  @apply disabled:bg-blue-300;
- }
-}
