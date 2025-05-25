@@ -15,13 +15,13 @@
 Using [npm](https://npmjs.org/)
 
 ```bash
-npm install seamless-auth-react
+npm install @seamless-auth/react
 ```
 
 Using [yarn](https://yarnpkg.com/)
 
 ```bash
-yarn add seamless-auth-react
+yarn add @seamless-auth/react
 ```
 
 <summary></summary>
@@ -36,9 +36,8 @@ import ReactDOM from "react-dom/client";
 import "./index.css";
 import App from "./App";
 import reportWebVitals from "./reportWebVitals";
-import { AuthProvider } from "seamless-auth-react";
+import { AuthProvider } from "@seamless-auth/react";
 
-// Best practice is to use your own backend server to proxy your Auth server an actual proxy server
 const apiHost = "https://<your-seamless-auth-server-url>";
 
 const root = ReactDOM.createRoot(document.getElementById("root"));
