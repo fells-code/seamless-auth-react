@@ -5,12 +5,7 @@ import React, {
   useEffect,
   useState,
 } from "react";
-import {
-  BrowserRouter as Router,
-  Navigate,
-  Route,
-  Routes,
-} from "react-router-dom";
+import { Navigate, Route, Routes } from "react-router-dom";
 
 import { fetchWithAuth } from "./fetchWithAuth";
 import LoadingSpinner from "./LoadingSpinner";
@@ -145,44 +140,42 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({
         hasRole,
       }}
     >
-      <Router>
-        <Routes>
-          {isAuthenticated ? (
-            <Route path="*" element={children} />
-          ) : (
-            <>
-              <Route
-                path="/login"
-                element={<Login setLoading={setLoading} apiHost={apiHost} />}
-              />
-              <Route
-                path="/passKeyLogin"
-                element={<PassKeyLogin apiHost={apiHost} />}
-              />
-              <Route
-                path="/mfaLogin"
-                element={
-                  <MfaLogin apiHost={apiHost} validateToken={validateToken} />
-                }
-              />
-              <Route
-                path="/verifyOTP"
-                element={<VerifyOTP apiHost={apiHost} />}
-              />
-              <Route
-                path="/registerPasskey"
-                element={
-                  <RegisterPasskey
-                    apiHost={apiHost}
-                    validateToken={validateToken}
-                  />
-                }
-              />
-              <Route path="*" element={<Navigate to="/login" replace />} />
-            </>
-          )}
-        </Routes>
-      </Router>
+      <Routes>
+        {isAuthenticated ? (
+          <Route path="*" element={children} />
+        ) : (
+          <>
+            <Route
+              path="/login"
+              element={<Login setLoading={setLoading} apiHost={apiHost} />}
+            />
+            <Route
+              path="/passKeyLogin"
+              element={<PassKeyLogin apiHost={apiHost} />}
+            />
+            <Route
+              path="/mfaLogin"
+              element={
+                <MfaLogin apiHost={apiHost} validateToken={validateToken} />
+              }
+            />
+            <Route
+              path="/verifyOTP"
+              element={<VerifyOTP apiHost={apiHost} />}
+            />
+            <Route
+              path="/registerPasskey"
+              element={
+                <RegisterPasskey
+                  apiHost={apiHost}
+                  validateToken={validateToken}
+                />
+              }
+            />
+            <Route path="*" element={<Navigate to="/login" replace />} />
+          </>
+        )}
+      </Routes>
     </AuthContext.Provider>
   );
 };
