@@ -2,17 +2,17 @@
   "name": "@seamless-auth/react",
   "version": "1.0.0",
   "description": "A drop in authentication solution for react applications.",
-  "module": "dist/index.es.js",
-  "types": "dist/index.d.ts",
   "type": "module",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
   "exports": {
     ".": {
-      "import": "./dist/index.es.js",
+      "import": "./dist/index.js",
       "types": "./dist/index.d.ts"
     },
     "./styles.css": "./dist/index.css"
   },
-  "style": "dist/index.css",
   "files": [
     "dist",
     "README.md",
@@ -28,6 +28,7 @@
     "build": "rimraf dist && tsc && rollup -c",
     "prepare": "npm run build",
     "check-npm-build": "npm pack --dry-run",
+    "build:css": "tailwindcss -i ./src/styles/index.css -o ./dist/output.css --minify",
     "lint": "eslint ./src/"
   },
   "repository": {
@@ -56,6 +57,7 @@
     "@rollup/plugin-babel": "^6.0.4",
     "@rollup/plugin-commonjs": "^26.0.1",
     "@rollup/plugin-node-resolve": "^15.2.3",
+    "@rollup/plugin-replace": "^6.0.2",
     "@rollup/plugin-terser": "^0.4.4",
     "@rollup/plugin-typescript": "^11.1.6",
     "@testing-library/jest-dom": "^6.6.3",

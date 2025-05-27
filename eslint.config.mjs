@@ -32,12 +32,6 @@ export default tseslint.config(
   {
     files: ["src/**/*.{js,mjs,cjs,ts,jsx,tsx}"],
     languageOptions: { globals: globals.browser },
-    plugins: {
-      jsdoc,
-    },
-    rules: {
-      "jsdoc/require-description": "warn",
-    },
   },
   {
     plugins: {

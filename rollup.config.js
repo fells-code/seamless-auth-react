@@ -3,23 +3,20 @@ import commonjs from "@rollup/plugin-commonjs";
 import resolve from "@rollup/plugin-node-resolve";
 import terser from "@rollup/plugin-terser";
 import typescript from "@rollup/plugin-typescript";
-import autoprefixer from "autoprefixer";
-import postcssImport from "postcss-import";
 import dts from "rollup-plugin-dts";
 import peerDepsExternal from "rollup-plugin-peer-deps-external";
 import postcss from "rollup-plugin-postcss";
-import tailwindcss from "tailwindcss";
 
 export default [
   // === Main JS Build ===
   {
     input: "src/index.ts",
     output: {
-      dir: "dist",
-      entryFileNames: "[name].[format].js",
-      format: "esm", // or dynamically set in a loop if needed
+      file: "dist/index.js",
+      format: "esm",
       sourcemap: true,
     },
+
     plugins: [
       peerDepsExternal(),
       resolve({ extensions: [".ts", ".tsx"] }),
@@ -29,10 +26,10 @@ export default [
       }),
       postcss({
         extensions: [".css"],
-        extract: "index.css",
-        inject: true,
+        extract: false, // Don't extract, we'll inject styles into ShadowRoot manually
+        inject: false,
         minimize: true,
-        plugins: [postcssImport, tailwindcss, autoprefixer],
+        modules: false,
       }),
       babel({
         babelHelpers: "bundled",

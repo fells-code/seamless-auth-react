@@ -4,9 +4,13 @@ import { useNavigate } from "react-router-dom";
 
 export interface PassKeyLoginProps {
   apiHost: string;
+  validateToken: () => void;
 }
 
-const PassKeyLogin: React.FC<PassKeyLoginProps> = ({ apiHost }) => {
+const PassKeyLogin: React.FC<PassKeyLoginProps> = ({
+  apiHost,
+  validateToken,
+}) => {
   const navigate = useNavigate();
 
   const handlePasskeyLogin = async () => {

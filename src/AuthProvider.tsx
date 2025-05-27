@@ -5,30 +5,22 @@ import React, {
   useEffect,
   useState,
 } from "react";
-import { Navigate, Route, Routes } from "react-router-dom";
 
 import { fetchWithAuth } from "./fetchWithAuth";
-import LoadingSpinner from "./LoadingSpinner";
-import Login from "./Login";
-import MfaLogin from "./MfaLogin";
-import PassKeyLogin from "./PassKeyLogin";
-import RegisterPasskey from "./RegisterPassKey";
-import VerifyOTP from "./VerifyOTP";
 
 interface AuthContextType {
-  user: { email: string } | null;
+  user: { email: string; roles?: string[] } | null;
   logout: () => void;
   deleteUser: () => void;
   isAuthenticated: boolean;
   hasRole: (role: string) => boolean | undefined;
+  validateToken: () => Promise<void>;
+  setLoading: (state: boolean) => void;
+  loading: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-/**
- * Returns the current context
- * @returns {AuthContextType} AuthContext
- */
 export const useAuth = (): AuthContextType => {
   const context = useContext(AuthContext);
   if (!context) {
@@ -38,7 +30,7 @@ export const useAuth = (): AuthContextType => {
 };
 
 interface AuthProviderProps {
-  children: ReactNode;
+  children?: ReactNode;
   apiHost: string;
 }
 
@@ -52,9 +44,17 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
   const [loading, setLoading] = useState<boolean>(true);
 
+  const normalizeHost = (host: string) =>
+    host.endsWith("/") ? host : `${host}/`;
+
+  const normalizedHost = normalizeHost(apiHost);
+
   const validateToken = async () => {
     try {
-      const response = await fetchWithAuth(`${apiHost}users/me`, apiHost);
+      const response = await fetchWithAuth(
+        `${normalizedHost}users/me`,
+        apiHost
+      );
 
       if (response.ok) {
         const user = await response.json();
@@ -71,21 +71,25 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({
   };
 
   useEffect(() => {
-    validateToken();
-    setLoading(false);
+    let isMounted = true;
+
+    validateToken().finally(() => {
+      if (isMounted) setLoading(false);
+    });
+
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   const logout = async () => {
     if (user) {
       try {
-        await fetch(`${apiHost}auth/logout`, {
+        await fetch(`${normalizedHost}auth/logout`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
           },
-          body: JSON.stringify({
-            email: user.email,
-          }),
           credentials: "include",
         });
       } catch {
@@ -95,40 +99,32 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({
         setUser(null);
       }
     }
-
-    localStorage.removeItem("authToken");
-    localStorage.removeItem("refreshToken");
   };
 
   const deleteUser = async () => {
     try {
-      const response = await fetchWithAuth(`${apiHost}users/delete`, apiHost, {
-        method: "delete",
-      });
+      const response = await fetchWithAuth(
+        `${normalizedHost}users/delete`,
+        apiHost,
+        {
+          method: "delete",
+        }
+      );
 
       if (response.ok) {
         setUser(null);
         setIsAuthenticated(false);
         window.location.replace(window.location.origin);
-        return;
       } else {
         throw new Error("Could not delete user.");
       }
     } catch (error) {
       console.error("Something went wrong deleting user:", error);
-      throw new Error("Could not delete user.");
+      throw error;
     }
   };
 
   const hasRole = (role: string) => user?.roles?.includes(role);
-
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-100">
-        <LoadingSpinner />;
-      </div>
-    );
-  }
 
   return (
     <AuthContext.Provider
@@ -138,44 +134,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({
         deleteUser,
         isAuthenticated,
         hasRole,
+        validateToken,
+        setLoading,
+        loading,
       }}
     >
-      <Routes>
-        {isAuthenticated ? (
-          <Route path="*" element={children} />
-        ) : (
-          <>
-            <Route
-              path="/login"
-              element={<Login setLoading={setLoading} apiHost={apiHost} />}
-            />
-            <Route
-              path="/passKeyLogin"
-              element={<PassKeyLogin apiHost={apiHost} />}
-            />
-            <Route
-              path="/mfaLogin"
-              element={
-                <MfaLogin apiHost={apiHost} validateToken={validateToken} />
-              }
-            />
-            <Route
-              path="/verifyOTP"
-              element={<VerifyOTP apiHost={apiHost} />}
-            />
-            <Route
-              path="/registerPasskey"
-              element={
-                <RegisterPasskey
-                  apiHost={apiHost}
-                  validateToken={validateToken}
-                />
-              }
-            />
-            <Route path="*" element={<Navigate to="/login" replace />} />
-          </>
-        )}
-      </Routes>
+      {children}
     </AuthContext.Provider>
   );
 };

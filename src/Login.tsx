@@ -6,52 +6,30 @@ import { isPasskeySupported, isValidEmail, isValidPhoneNumber } from "./utils";
 
 export interface LoginProps {
   apiHost: string;
-  setLoading: (bool: boolean) => void;
-  error?: string;
+  setLoading?: (bool: boolean) => void;
 }
 
-const Login: React.FC<LoginProps> = ({ apiHost }) => {
+const Login: React.FC<LoginProps> = ({ apiHost, setLoading }) => {
   const navigate = useNavigate();
-  const [identifier, setIdentifier] = useState<string>("");
-  const [email, setEmail] = useState<string>("");
+
+  const [identifier, setIdentifier] = useState("");
+  const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
   const [mode, setMode] = useState<"login" | "register">("login");
-  const [phone, setPhone] = useState<string>("");
-  const [formErrors, setFormErrors] = useState<string>("");
-  const [phoneError, setPhoneError] = useState<string>("");
-  const [emailError, setEmailError] = useState<string>("");
-  const [identifierError, setIdentifierError] = useState<string>("");
-  const [showModal, setShowModal] = useState<boolean>(false);
+  const [formErrors, setFormErrors] = useState("");
+  const [phoneError, setPhoneError] = useState("");
+  const [emailError, setEmailError] = useState("");
+  const [identifierError, setIdentifierError] = useState("");
+  const [showModal, setShowModal] = useState(false);
   const [passkeyAvailable, setPasskeyAvailable] = useState(false);
 
   useEffect(() => {
-    /**
-     *
-     */
-    async function checkSupport() {
-      const supported = await isPasskeySupported();
-      setPasskeyAvailable(supported);
-    }
-
-    checkSupport();
+    isPasskeySupported().then(setPasskeyAvailable);
   }, []);
 
-  const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const phoneNumber = e.target.value;
-    setPhone(phoneNumber.replace(/[^\d+]/g, ""));
-  };
-
-  const handleEmailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const email = e.target.value;
-    setEmail(email);
-  };
-
-  const handleIdentifierChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value;
-    setIdentifier(value);
-  };
-
-  const login = async () => {
+  const handleLogin = async () => {
     setFormErrors("");
+    setLoading?.(true);
 
     try {
       const response = await fetch(`${apiHost}auth/login`, {
@@ -68,15 +46,16 @@ const Login: React.FC<LoginProps> = ({ apiHost }) => {
 
       navigate("/passKeyLogin");
     } catch (err) {
-      console.error("Unexpected login error", err);
-      setFormErrors(
-        "An unexpected error occured. Try again. If the problem persists, try resetting your password"
-      );
+      console.error("Login error", err);
+      setFormErrors("Unexpected error. Please try again.");
+    } finally {
+      setLoading?.(false);
     }
   };
 
-  const register = async () => {
+  const handleRegister = async () => {
     setFormErrors("");
+    setLoading?.(true);
 
     try {
       const response = await fetch(`${apiHost}registration/register`, {
@@ -87,31 +66,28 @@ const Login: React.FC<LoginProps> = ({ apiHost }) => {
       });
 
       if (!response.ok) {
-        setFormErrors("Failed to register. Please try again.");
+        setFormErrors("Registration failed. Please try again.");
         return;
       }
 
       const data = await response.json();
-
       if (data.message === "Success") {
         navigate("/verifyOTP");
+      } else {
+        setFormErrors("Unexpected error. Please try again.");
       }
-      setFormErrors(
-        "An unexpected error occured. Try again. If the problem persists, try resetting your password"
-      );
     } catch (err) {
-      console.error("Unexpected login error", err);
-      setFormErrors(
-        "An unexpected error occured. Try again. If the problem persists, try resetting your password"
-      );
+      console.error("Register error", err);
+      setFormErrors("Unexpected error. Please try again.");
+    } finally {
+      setLoading?.(false);
     }
   };
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-
-    if (mode === "login") login();
-    if (mode === "register") register();
+    if (mode === "login") await handleLogin();
+    else await handleRegister();
   };
 
   return (
@@ -122,160 +98,138 @@ const Login: React.FC<LoginProps> = ({ apiHost }) => {
         </h2>
 
         {!passkeyAvailable ? (
-          <p className="text-green-400 text-center">
-            ❌ This device doesn't seem to have access to a passwordless
-            authenticator You won't be able to login without providing a passkey
-            or registering a passkey.
+          <p className="text-red-400 text-center mb-4">
+            ❌ This device doesn't support passkeys.
           </p>
         ) : (
-          <>
-            <form onSubmit={handleSubmit}>
-              {mode === "login" && (
+          <form onSubmit={handleSubmit}>
+            {mode === "login" && (
+              <div className="mb-4">
+                <label htmlFor="identifier" className="block text-gray-300">
+                  Email / Phone
+                </label>
+                <input
+                  id="identifier"
+                  type="text"
+                  value={identifier}
+                  onChange={(e) => setIdentifier(e.target.value)}
+                  onBlur={() => {
+                    const isValid =
+                      isValidEmail(identifier) ||
+                      isValidPhoneNumber(identifier);
+                    setIdentifierError(
+                      isValid ? "" : "Enter a valid email or phone number"
+                    );
+                  }}
+                  placeholder="Email or Phone Number"
+                  className="w-full p-2 bg-gray-700 border border-gray-300 rounded mt-1"
+                  required
+                />
+                {identifierError && (
+                  <p className="text-red-400 text-sm mt-1">{identifierError}</p>
+                )}
+              </div>
+            )}
+
+            {mode === "register" && (
+              <>
                 <div className="mb-4">
-                  <label htmlFor="identifer" className="block text-gray-300">
-                    Email Address / Phone Number
+                  <label htmlFor="email" className="block text-gray-300">
+                    Email Address
                   </label>
                   <input
-                    id="identifer"
-                    type="text"
-                    value={identifier}
-                    onChange={handleIdentifierChange}
-                    autoComplete="off"
-                    placeholder="Email or Phone Number"
-                    onBlur={() => {
-                      if (identifier) {
-                        const isValid =
-                          isValidEmail(identifier) ||
-                          isValidPhoneNumber(identifier);
-                        setIdentifierError(
-                          isValid
-                            ? ""
-                            : "Please enter a valid email or phone number"
-                        );
-                      }
-                    }}
-                    className="w-full p-2 bg-gray-700 border border-gray-300 rounded mt-1 text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    id="email"
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    onBlur={() =>
+                      setEmailError(
+                        isValidEmail(email) ? "" : "Please enter a valid email"
+                      )
+                    }
+                    className="w-full p-2 bg-gray-700 border border-gray-300 rounded mt-1"
                     required
                   />
-                  <p className="text-xs text-gray-400 mt-2">
-                    Phone numbers must include a country code e.g. +1
-                  </p>
-                  {identifierError && (
-                    <p className="text-red-400 text-sm">{identifierError}</p>
+                  {emailError && (
+                    <p className="text-red-400 text-sm mt-1">{emailError}</p>
                   )}
                 </div>
-              )}
 
-              {mode === "register" && (
-                <>
-                  <div className="mb-4">
-                    <label htmlFor="email" className="block text-gray-300">
-                      Email Address
-                    </label>
-                    <input
-                      id="email"
-                      type="email"
-                      value={email}
-                      onChange={handleEmailChange}
-                      autoComplete="off"
-                      onBlur={() => {
-                        if (email) {
-                          const isValid = isValidEmail(email);
-                          setEmailError(
-                            isValid ? "" : "Please enter a valid email"
-                          );
-                        }
-                      }}
-                      className="w-full p-2 bg-gray-700 border border-gray-300 rounded mt-1 text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      required
-                    />
-                    {emailError && (
-                      <p className="text-red-400 text-sm">{emailError}</p>
-                    )}
-                  </div>
+                <div className="mb-4">
+                  <label htmlFor="phone" className="block text-gray-300">
+                    Phone Number
+                  </label>
+                  <input
+                    id="phone"
+                    type="tel"
+                    value={phone}
+                    onChange={(e) =>
+                      setPhone(e.target.value.replace(/[^\d+]/g, ""))
+                    }
+                    onBlur={() =>
+                      setPhoneError(
+                        isValidPhoneNumber(phone)
+                          ? ""
+                          : "Enter a valid phone number"
+                      )
+                    }
+                    className="w-full p-2 bg-gray-700 border border-gray-300 rounded mt-1"
+                    required
+                  />
+                  {phoneError && (
+                    <p className="text-red-400 text-sm mt-1">{phoneError}</p>
+                  )}
+                  <p className="text-xs text-gray-400 mt-3">
+                    By signing up, you agree to our{" "}
+                    <button
+                      type="button"
+                      onClick={() => setShowModal(true)}
+                      className="text-blue-400 underline"
+                    >
+                      SMS Terms
+                    </button>
+                    .
+                  </p>
+                  <TermsModal
+                    isOpen={showModal}
+                    onClose={() => setShowModal(false)}
+                  />
+                </div>
+              </>
+            )}
 
-                  <div className="mb-4">
-                    <label className="block text-gray-300">Phone Number</label>
-                    <input
-                      type="tel"
-                      value={phone}
-                      onChange={handlePhoneChange}
-                      autoComplete="off"
-                      onBlur={() => {
-                        if (phone) {
-                          const isValid = isValidPhoneNumber(phone);
-                          setPhoneError(
-                            isValid ? "" : "Please enter a valid phone number."
-                          );
-                        }
-                      }}
-                      className="w-full p-2 bg-gray-700 border border-gray-300 rounded mt-1 text-white"
-                    />
-                    <p className="text-xs text-gray-400 mt-4">
-                      By signing up, you agree to our{" "}
-                      <button
-                        onClick={() => setShowModal(true)}
-                        className="text-blue-400 underline"
-                      >
-                        SMS Terms & Conditions
-                      </button>
-                      .
-                    </p>
-
-                    <TermsModal
-                      isOpen={showModal}
-                      onClose={() => setShowModal(false)}
-                    />
-                    {phoneError && (
-                      <p className="text-red-400 text-sm">{phoneError}</p>
-                    )}
-                  </div>
-                </>
-              )}
-
-              {mode === "login" && (
-                <button
-                  type="submit"
-                  className={`w-full bg-blue-600 hover:bg-blue-700 text-white p-2 rounded transition duration-300 disabled:bg-gray-400 cursor-not-allowed p-2 rounded`}
-                  disabled={
-                    !identifier ||
+            <button
+              type="submit"
+              className="w-full bg-blue-600 hover:bg-blue-700 text-white p-2 rounded mt-2 disabled:bg-gray-500"
+              disabled={
+                (mode === "login" &&
+                  (!identifier ||
                     (!isValidEmail(identifier) &&
-                      !isValidPhoneNumber(identifier))
-                  }
-                >
-                  Login
-                </button>
-              )}
-
-              {mode === "register" && (
-                <button
-                  type="submit"
-                  className={`w-full bg-blue-600 hover:bg-blue-700 text-white p-2 rounded transition duration-300 disabled:bg-gray-400 cursor-not-allowed p-2 rounded`}
-                  disabled={
-                    !email ||
+                      !isValidPhoneNumber(identifier)))) ||
+                (mode === "register" &&
+                  (!email ||
                     !phone ||
                     !isValidEmail(email) ||
-                    !isValidPhoneNumber(phone)
-                  }
-                >
-                  Register
-                </button>
-              )}
+                    !isValidPhoneNumber(phone)))
+              }
+            >
+              {mode === "login" ? "Login" : "Register"}
+            </button>
 
-              {formErrors && (
-                <p className="text-red-400 mt-4 text-center">{formErrors}</p>
-              )}
-              <button
-                type="button"
-                onClick={() => setMode(mode === "login" ? "register" : "login")}
-                className="mt-6 w-full text-sm text-blue-400 hover:underline"
-              >
-                {mode === "login"
-                  ? "Don't have an account? Create one"
-                  : "Already have an account? Sign in"}
-              </button>
-            </form>
-          </>
+            {formErrors && (
+              <p className="text-red-400 mt-4 text-center">{formErrors}</p>
+            )}
+
+            <button
+              type="button"
+              onClick={() => setMode(mode === "login" ? "register" : "login")}
+              className="mt-6 w-full text-sm text-blue-400 hover:underline"
+            >
+              {mode === "login"
+                ? "Don't have an account? Register"
+                : "Already have an account? Sign in"}
+            </button>
+          </form>
         )}
       </div>
     </div>

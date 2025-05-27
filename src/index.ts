@@ -1,5 +1,5 @@
-if (typeof document !== "undefined") {
-  import("./styles/init");
-}
-import { AuthProvider, useAuth } from "./AuthProvider";
-export { AuthProvider, useAuth };
+import "./SeamlessAuth";
+import "./custom-elements";
+
+export { AuthProvider, useAuth } from "./AuthProvider";
+export * from "./SeamlessAuth";
