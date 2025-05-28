@@ -3,12 +3,9 @@ import commonjs from "@rollup/plugin-commonjs";
 import resolve from "@rollup/plugin-node-resolve";
 import terser from "@rollup/plugin-terser";
 import typescript from "@rollup/plugin-typescript";
-import autoprefixer from "autoprefixer";
-import postcssImport from "postcss-import";
 import dts from "rollup-plugin-dts";
 import peerDepsExternal from "rollup-plugin-peer-deps-external";
 import postcss from "rollup-plugin-postcss";
-import tailwindcss from "tailwindcss";
 
 export default [
   // === Main JS Build ===
@@ -28,11 +25,12 @@ export default [
         tsconfig: "./tsconfig.json",
       }),
       postcss({
-        extensions: [".css"],
-        extract: "index.css",
+        modules: {
+          generateScopedName: "[name]__[local]___[hash:base64:5]",
+        },
+        extract: false,
         inject: true,
         minimize: true,
-        plugins: [postcssImport, tailwindcss, autoprefixer],
       }),
       babel({
         babelHelpers: "bundled",

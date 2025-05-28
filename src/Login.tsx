@@ -1,17 +1,14 @@
+import { useAuth } from "AuthProvider";
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
+import styles from "./Styles/login.module.css";
 import TermsModal from "./TermsModal";
 import { isPasskeySupported, isValidEmail, isValidPhoneNumber } from "./utils";
 
-export interface LoginProps {
-  apiHost: string;
-  setLoading: (bool: boolean) => void;
-  error?: string;
-}
-
-const Login: React.FC<LoginProps> = ({ apiHost }) => {
+const Login: React.FC = () => {
   const navigate = useNavigate();
+  const { apiHost } = useAuth();
   const [identifier, setIdentifier] = useState<string>("");
   const [email, setEmail] = useState<string>("");
   const [mode, setMode] = useState<"login" | "register">("login");
@@ -48,6 +45,14 @@ const Login: React.FC<LoginProps> = ({ apiHost }) => {
   const handleIdentifierChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
     setIdentifier(value);
+  };
+
+  const canSubmit = (): boolean | undefined => {
+    if (mode === "login" && identifier) {
+      return isValidEmail(identifier) || isValidPhoneNumber(identifier);
+    }
+
+    return isValidEmail(email) && isValidPhoneNumber(phone);
   };
 
   const login = async () => {
@@ -115,33 +120,33 @@ const Login: React.FC<LoginProps> = ({ apiHost }) => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-900 text-white">
-      <div className="bg-gray-800 p-8 rounded-lg shadow-md w-full max-w-md">
-        <h2 className="text-2xl font-bold mb-6 text-center">
+    <div className={styles.container}>
+      <div className={styles.card}>
+        <h2 className={styles.heading}>
           {mode === "login" ? "Sign In" : "Create Account"}
         </h2>
 
         {!passkeyAvailable ? (
-          <p className="text-green-400 text-center">
-            ❌ This device doesn't seem to have access to a passwordless
-            authenticator You won't be able to login without providing a passkey
-            or registering a passkey.
+          <p className={styles.message}>
+            ❌ This device doesn't support passkey login. You must provide or
+            register a passkey.
           </p>
         ) : (
           <>
             <form onSubmit={handleSubmit}>
               {mode === "login" && (
-                <div className="mb-4">
-                  <label htmlFor="identifer" className="block text-gray-300">
+                <div className={styles.inputGroup}>
+                  <label htmlFor="identifier" className={styles.label}>
                     Email Address / Phone Number
                   </label>
                   <input
-                    id="identifer"
+                    id="identifier"
                     type="text"
                     value={identifier}
                     onChange={handleIdentifierChange}
                     autoComplete="off"
                     placeholder="Email or Phone Number"
+                    className={styles.input}
                     onBlur={() => {
                       if (identifier) {
                         const isValid =
@@ -154,22 +159,21 @@ const Login: React.FC<LoginProps> = ({ apiHost }) => {
                         );
                       }
                     }}
-                    className="w-full p-2 bg-gray-700 border border-gray-300 rounded mt-1 text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                     required
                   />
-                  <p className="text-xs text-gray-400 mt-2">
+                  <p className={styles.helperText}>
                     Phone numbers must include a country code e.g. +1
                   </p>
                   {identifierError && (
-                    <p className="text-red-400 text-sm">{identifierError}</p>
+                    <p className={styles.error}>{identifierError}</p>
                   )}
                 </div>
               )}
 
               {mode === "register" && (
                 <>
-                  <div className="mb-4">
-                    <label htmlFor="email" className="block text-gray-300">
+                  <div className={styles.inputGroup}>
+                    <label htmlFor="email" className={styles.label}>
                       Email Address
                     </label>
                     <input
@@ -178,6 +182,7 @@ const Login: React.FC<LoginProps> = ({ apiHost }) => {
                       value={email}
                       onChange={handleEmailChange}
                       autoComplete="off"
+                      className={styles.input}
                       onBlur={() => {
                         if (email) {
                           const isValid = isValidEmail(email);
@@ -186,21 +191,19 @@ const Login: React.FC<LoginProps> = ({ apiHost }) => {
                           );
                         }
                       }}
-                      className="w-full p-2 bg-gray-700 border border-gray-300 rounded mt-1 text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                       required
                     />
-                    {emailError && (
-                      <p className="text-red-400 text-sm">{emailError}</p>
-                    )}
+                    {emailError && <p className={styles.error}>{emailError}</p>}
                   </div>
 
-                  <div className="mb-4">
-                    <label className="block text-gray-300">Phone Number</label>
+                  <div className={styles.inputGroup}>
+                    <label className={styles.label}>Phone Number</label>
                     <input
                       type="tel"
                       value={phone}
                       onChange={handlePhoneChange}
                       autoComplete="off"
+                      className={styles.input}
                       onBlur={() => {
                         if (phone) {
                           const isValid = isValidPhoneNumber(phone);
@@ -209,66 +212,40 @@ const Login: React.FC<LoginProps> = ({ apiHost }) => {
                           );
                         }
                       }}
-                      className="w-full p-2 bg-gray-700 border border-gray-300 rounded mt-1 text-white"
                     />
-                    <p className="text-xs text-gray-400 mt-4">
+                    <p className={styles.helperText}>
                       By signing up, you agree to our{" "}
                       <button
                         onClick={() => setShowModal(true)}
-                        className="text-blue-400 underline"
+                        className={styles.underline}
                       >
                         SMS Terms & Conditions
                       </button>
                       .
                     </p>
-
+                    {phoneError && <p className={styles.error}>{phoneError}</p>}
                     <TermsModal
                       isOpen={showModal}
                       onClose={() => setShowModal(false)}
                     />
-                    {phoneError && (
-                      <p className="text-red-400 text-sm">{phoneError}</p>
-                    )}
                   </div>
                 </>
               )}
 
-              {mode === "login" && (
-                <button
-                  type="submit"
-                  className={`w-full bg-blue-600 hover:bg-blue-700 text-white p-2 rounded transition duration-300 disabled:bg-gray-400 cursor-not-allowed p-2 rounded`}
-                  disabled={
-                    !identifier ||
-                    (!isValidEmail(identifier) &&
-                      !isValidPhoneNumber(identifier))
-                  }
-                >
-                  Login
-                </button>
-              )}
+              <button
+                type="submit"
+                className={styles.button}
+                disabled={!canSubmit()}
+              >
+                {mode === "login" ? "Login" : "Register"}
+              </button>
 
-              {mode === "register" && (
-                <button
-                  type="submit"
-                  className={`w-full bg-blue-600 hover:bg-blue-700 text-white p-2 rounded transition duration-300 disabled:bg-gray-400 cursor-not-allowed p-2 rounded`}
-                  disabled={
-                    !email ||
-                    !phone ||
-                    !isValidEmail(email) ||
-                    !isValidPhoneNumber(phone)
-                  }
-                >
-                  Register
-                </button>
-              )}
+              {formErrors && <p className={styles.error}>{formErrors}</p>}
 
-              {formErrors && (
-                <p className="text-red-400 mt-4 text-center">{formErrors}</p>
-              )}
               <button
                 type="button"
                 onClick={() => setMode(mode === "login" ? "register" : "login")}
-                className="mt-6 w-full text-sm text-blue-400 hover:underline"
+                className={styles.toggle}
               >
                 {mode === "login"
                   ? "Don't have an account? Create one"

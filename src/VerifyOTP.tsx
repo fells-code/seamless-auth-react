@@ -1,12 +1,10 @@
+import { useAuth } from "AuthProvider";
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
-interface VerifyOTPProps {
-  apiHost: string;
-}
-
-const VerifyOTP: React.FC<VerifyOTPProps> = ({ apiHost }) => {
+const VerifyOTP: React.FC = () => {
   const navigate = useNavigate();
+  const { apiHost } = useAuth();
 
   const [emailOtp, setEmailOtp] = useState("");
   const [phoneOtp, setPhoneOtp] = useState("");

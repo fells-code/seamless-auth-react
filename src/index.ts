@@ -1,5 +1,4 @@
-if (typeof document !== "undefined") {
-  import("./styles/init");
-}
+import { AuthRoutes } from "AuthRoutes";
+
 import { AuthProvider, useAuth } from "./AuthProvider";
-export { AuthProvider, useAuth };
+export { AuthProvider, AuthRoutes, useAuth };

@@ -2,21 +2,18 @@ import {
   type RegistrationResponseJSON,
   startRegistration,
 } from "@simplewebauthn/browser";
+import { useAuth } from "AuthProvider";
+import { useInternalAuth } from "context/InternalAuthContext";
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
+import styles from "./styles/registerPasskey.module.css";
 import { isPasskeySupported } from "./utils";
 
-interface RegisterPassKeyProps {
-  apiHost: string;
-  validateToken: () => void;
-}
-
-const RegisterPasskey: React.FC<RegisterPassKeyProps> = ({
-  apiHost,
-  validateToken,
-}) => {
+const RegisterPasskey: React.FC = () => {
   const navigate = useNavigate();
+  const { apiHost } = useAuth();
+  const { validateToken } = useInternalAuth();
   const [status, setStatus] = useState<
     "idle" | "success" | "error" | "loading"
   >("idle");
@@ -48,7 +45,6 @@ const RegisterPasskey: React.FC<RegisterPassKeyProps> = ({
 
       let attResp: RegistrationResponseJSON;
       try {
-        // Pass the options to the authenticator and wait for a response
         attResp = await startRegistration({
           optionsJSON,
           useAutoRegister: true,
@@ -57,7 +53,6 @@ const RegisterPasskey: React.FC<RegisterPassKeyProps> = ({
         await verifyPassKey(attResp);
       } catch (error) {
         console.error("A problem happened.");
-
         throw error;
       }
 
@@ -88,23 +83,20 @@ const RegisterPasskey: React.FC<RegisterPassKeyProps> = ({
         }
       );
 
-      // Wait for the results of verification
       const verificationJSON = await verificationResp.json();
 
       if (!verificationResp.ok) {
-        console.error("Failed to verify passkey");
         setStatus("error");
         setMessage("Something went wrong registering passkey.");
         return;
       }
 
-      // Show UI appropriate for the `verified` status
-      if (verificationJSON && verificationJSON.verified) {
+      if (verificationJSON?.verified) {
         validateToken();
         navigate("/");
       }
     } catch (error) {
-      console.error(`An error occured: ${error}`);
+      console.error(`An error occurred: ${error}`);
     }
   };
 
@@ -121,37 +113,34 @@ const RegisterPasskey: React.FC<RegisterPassKeyProps> = ({
   }, []);
 
   return (
-    <div className="min-h-screen bg-gray-900 text-white flex items-center justify-center px-4">
-      <div className="bg-gray-800 p-6 rounded-lg shadow-md text-white w-full max-w-md">
+    <div className={styles.container}>
+      <div className={styles.card}>
         {passkeyAvailable === null ? (
-          <div className="flex items-center justify-center gap-3 p-6 bg-gray-50 rounded-lg shadow">
-            <div className="animate-spin rounded-full h-6 w-6 border-t-2 border-b-2 border-blue-500"></div>
-            <span className="text-gray-600 font-medium">
-              Checking for Passkey Support...
-            </span>
+          <div className={styles.loading}>
+            <div className={styles.spinner}></div>
+            <span>Checking for Passkey Support...</span>
           </div>
         ) : (
           passkeyAvailable && (
-            <div className="p-4 border rounded-lg bg-green-50 text-green-700 shadow">
-              <h2 className="text-lg font-semibold mb-2">
+            <div className={styles.supported}>
+              <h2 className={styles.title}>
                 Secure Your Account with a Passkey
               </h2>
-              <p className="mb-4">
+              <p className={styles.description}>
                 Your device supports passkeys! Register one to skip passwords
                 forever.
               </p>
               <button
                 onClick={handlePasskeyRegister}
                 disabled={status === "loading"}
-                className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 transition"
+                className={styles.button}
               >
                 {status === "loading" ? "Registering..." : "Register Passkey"}
               </button>
-
               {message && (
                 <p
-                  className={`mt-4 text-sm ${
-                    status === "success" ? "text-green-400" : "text-red-400"
+                  className={`${styles.message} ${
+                    status === "success" ? styles.success : styles.error
                   }`}
                 >
                   {message}

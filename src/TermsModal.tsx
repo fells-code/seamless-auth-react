@@ -1,4 +1,6 @@
-import React from "react";
+import React, { useEffect, useRef } from "react";
+
+import styles from "./styles/termsModal.module.css";
 
 interface TermsModalProps {
   isOpen: boolean;
@@ -6,23 +8,42 @@ interface TermsModalProps {
 }
 
 const TermsModal: React.FC<TermsModalProps> = ({ isOpen, onClose }) => {
+  const modalRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+
+    if (isOpen) {
+      document.addEventListener("keydown", handleKeyDown);
+      modalRef.current?.focus();
+    }
+
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [isOpen, onClose]);
+
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70">
-      <div className="bg-gray-900 p-6 rounded-lg max-w-2xl w-full shadow-xl overflow-y-auto max-h-[80vh] text-white">
-        <div className="flex justify-between items-center mb-4">
-          <h2 className="text-xl font-bold text-blue-400">
+    <div
+      className={styles.overlay}
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="terms-title"
+    >
+      <div className={styles.modal} tabIndex={-1} ref={modalRef}>
+        <div className={styles.header}>
+          <h2 id="terms-title" className={styles.title}>
             SMS Terms & Conditions
           </h2>
-          <button
-            onClick={onClose}
-            className="text-gray-400 hover:text-white text-2xl"
-          >
+          <button onClick={onClose} className={styles.closeBtn}>
             &times;
           </button>
         </div>
-        <div className="space-y-4 text-gray-300 text-sm">
+        <div className={styles.content}>
           <p>
             <strong>Effective Date:</strong> June 01, 2025
           </p>
@@ -59,10 +80,7 @@ const TermsModal: React.FC<TermsModalProps> = ({ isOpen, onClose }) => {
           </p>
           <p>
             Questions? Email us at{" "}
-            <a
-              className="text-blue-400 underline"
-              href="mailto:support@seamlessauth.com"
-            >
+            <a className={styles.link} href="mailto:support@seamlessauth.com">
               support@seamlessauth.com
             </a>
             .

@@ -1,3 +1,4 @@
+import { InternalAuthProvider } from "context/InternalAuthContext";
 import React, {
   createContext,
   ReactNode,
@@ -5,22 +6,17 @@ import React, {
   useEffect,
   useState,
 } from "react";
-import { Navigate, Route, Routes } from "react-router-dom";
 
 import { fetchWithAuth } from "./fetchWithAuth";
 import LoadingSpinner from "./LoadingSpinner";
-import Login from "./Login";
-import MfaLogin from "./MfaLogin";
-import PassKeyLogin from "./PassKeyLogin";
-import RegisterPasskey from "./RegisterPassKey";
-import VerifyOTP from "./VerifyOTP";
 
-interface AuthContextType {
+export interface AuthContextType {
   user: { email: string } | null;
   logout: () => void;
   deleteUser: () => void;
   isAuthenticated: boolean;
   hasRole: (role: string) => boolean | undefined;
+  apiHost: string;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -138,44 +134,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({
         deleteUser,
         isAuthenticated,
         hasRole,
+        apiHost,
       }}
     >
-      <Routes>
-        {isAuthenticated ? (
-          <Route path="*" element={children} />
-        ) : (
-          <>
-            <Route
-              path="/login"
-              element={<Login setLoading={setLoading} apiHost={apiHost} />}
-            />
-            <Route
-              path="/passKeyLogin"
-              element={<PassKeyLogin apiHost={apiHost} />}
-            />
-            <Route
-              path="/mfaLogin"
-              element={
-                <MfaLogin apiHost={apiHost} validateToken={validateToken} />
-              }
-            />
-            <Route
-              path="/verifyOTP"
-              element={<VerifyOTP apiHost={apiHost} />}
-            />
-            <Route
-              path="/registerPasskey"
-              element={
-                <RegisterPasskey
-                  apiHost={apiHost}
-                  validateToken={validateToken}
-                />
-              }
-            />
-            <Route path="*" element={<Navigate to="/login" replace />} />
-          </>
-        )}
-      </Routes>
+      <InternalAuthProvider value={{ validateToken, setLoading }}>
+        {children}
+      </InternalAuthProvider>
     </AuthContext.Provider>
   );
 };

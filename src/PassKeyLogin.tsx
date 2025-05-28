@@ -1,13 +1,13 @@
 import { startAuthentication } from "@simplewebauthn/browser";
+import { useAuth } from "AuthProvider";
 import React from "react";
 import { useNavigate } from "react-router-dom";
 
-export interface PassKeyLoginProps {
-  apiHost: string;
-}
+import styles from "./styles/passKeyLogin.module.css";
 
-const PassKeyLogin: React.FC<PassKeyLoginProps> = ({ apiHost }) => {
+const PassKeyLogin: React.FC = () => {
   const navigate = useNavigate();
+  const { apiHost } = useAuth();
 
   const handlePasskeyLogin = async () => {
     try {
@@ -33,9 +33,7 @@ const PassKeyLogin: React.FC<PassKeyLoginProps> = ({ apiHost }) => {
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            assertionResponse: credential,
-          }),
+          body: JSON.stringify({ assertionResponse: credential }),
           credentials: "include",
         }
       );
@@ -57,19 +55,12 @@ const PassKeyLogin: React.FC<PassKeyLoginProps> = ({ apiHost }) => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-900 text-white">
-      <div className="bg-gray-800 p-8 rounded-lg shadow-md w-full max-w-md">
-        <h2 className="text-2xl font-bold mb-6 text-center">
-          Login with Passkey
-        </h2>
-        <>
-          <button
-            onClick={handlePasskeyLogin}
-            className="w-full bg-blue-600 hover:bg-blue-700 text-white p-2 rounded transition duration-300"
-          >
-            Use Passkey
-          </button>
-        </>
+    <div className={styles.container}>
+      <div className={styles.card}>
+        <h2 className={styles.title}>Login with Passkey</h2>
+        <button onClick={handlePasskeyLogin} className={styles.button}>
+          Use Passkey
+        </button>
       </div>
     </div>
   );
