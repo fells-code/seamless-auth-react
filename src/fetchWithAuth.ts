@@ -1,6 +1,5 @@
 export const fetchWithAuth = async (
   input: RequestInfo,
-  apiHost: string,
   init?: RequestInit
 ): Promise<Response> => {
   const requestInit: RequestInit = {
@@ -11,25 +10,11 @@ export const fetchWithAuth = async (
     },
   };
 
-  let response = await fetch(input, requestInit);
+  const response = await fetch(input, requestInit);
 
-  if (response.status === 403) {
-    // Attempt to refresh the token
-    const refreshResponse = await fetch(`${apiHost}auth/refresh-token`, {
-      method: "GET",
-      credentials: "include",
-      headers: {
-        "Content-Type": "application/json",
-      },
-    });
-
-    if (refreshResponse.ok) {
-      // Retry the original request with the new token
-      response = await fetch(input, requestInit);
-    } else {
-      throw new Error("Session expired. Please log in again.");
-    }
+  if (response.ok) {
+    return response;
   }
 
-  return response;
+  throw new Error(`Failed to make API call to auth server.`);
 };
