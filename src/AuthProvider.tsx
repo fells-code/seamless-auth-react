@@ -50,7 +50,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({
 
   const validateToken = async () => {
     try {
-      const response = await fetchWithAuth(`${apiHost}users/me`, apiHost);
+      const response = await fetchWithAuth(`${apiHost}users/me`);
 
       if (response.ok) {
         const user = await response.json();
@@ -98,7 +98,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({
 
   const deleteUser = async () => {
     try {
-      const response = await fetchWithAuth(`${apiHost}users/delete`, apiHost, {
+      const response = await fetchWithAuth(`${apiHost}users/delete`, {
         method: "delete",
       });
 
