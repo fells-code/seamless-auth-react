@@ -15,6 +15,7 @@
   },
   "files": [
     "dist",
+    "src/custom-elements.d.ts",
     "README.md",
     "LICENSE"
   ],

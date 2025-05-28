@@ -3,6 +3,8 @@ declare namespace JSX {
     "seamless-auth": React.DetailedHTMLProps<
       React.HTMLAttributes<HTMLElement>,
       HTMLElement
-    >;
+    > & {
+      "api-host": string;
+    };
   }
 }
