@@ -10,13 +10,26 @@ import React, {
 import { fetchWithAuth } from "./fetchWithAuth";
 import LoadingSpinner from "./LoadingSpinner";
 
+interface User {
+  id: string;
+  email: string;
+  phone: string;
+  roles?: string[];
+}
+
+type AuthToken = {
+  oneTimeToken: string;
+  expiresAt: string;
+};
+
 export interface AuthContextType {
-  user: { email: string } | null;
+  user: User | null;
   logout: () => void;
   deleteUser: () => void;
   isAuthenticated: boolean;
   hasRole: (role: string) => boolean | undefined;
   apiHost: string;
+  token: AuthToken | null;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -42,20 +55,20 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({
   children,
   apiHost,
 }) => {
-  const [user, setUser] = useState<{ email: string; roles?: string[] } | null>(
-    null
-  );
+  const [user, setUser] = useState<User | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
   const [loading, setLoading] = useState<boolean>(true);
+  const [token, setToken] = useState<AuthToken | null>(null);
 
   const validateToken = async () => {
     try {
       const response = await fetchWithAuth(`${apiHost}users/me`);
 
       if (response.ok) {
-        const user = await response.json();
+        const { user, token } = await response.json();
         setUser(user);
         setIsAuthenticated(true);
+        setToken(token);
       } else {
         logout();
       }
@@ -89,22 +102,22 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({
       } finally {
         setIsAuthenticated(false);
         setUser(null);
+        setToken(null);
       }
     }
-
-    localStorage.removeItem("authToken");
-    localStorage.removeItem("refreshToken");
   };
 
   const deleteUser = async () => {
     try {
       const response = await fetchWithAuth(`${apiHost}users/delete`, {
         method: "delete",
+        credentials: "include",
       });
 
       if (response.ok) {
         setUser(null);
         setIsAuthenticated(false);
+        setToken(null);
         window.location.replace(window.location.origin);
         return;
       } else {
@@ -135,6 +148,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({
         isAuthenticated,
         hasRole,
         apiHost,
+        token,
       }}
     >
       <InternalAuthProvider value={{ validateToken, setLoading }}>
