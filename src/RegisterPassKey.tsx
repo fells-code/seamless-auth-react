@@ -92,8 +92,7 @@ const RegisterPasskey: React.FC = () => {
       }
 
       if (verificationJSON?.verified) {
-        validateToken();
-        navigate("/");
+        await validateToken();
       }
     } catch (error) {
       console.error(`An error occurred: ${error}`);

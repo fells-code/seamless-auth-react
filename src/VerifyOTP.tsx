@@ -2,6 +2,8 @@ import { useAuth } from "AuthProvider";
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
+import styles from "./styles/verifyOTP.module.css";
+
 const VerifyOTP: React.FC = () => {
   const navigate = useNavigate();
   const { apiHost } = useAuth();
@@ -199,33 +201,27 @@ const VerifyOTP: React.FC = () => {
   }, [emailVerified, phoneVerified]);
 
   return (
-    <div className="min-h-screen bg-gray-900 text-white flex items-center justify-center px-4">
-      <div className="bg-gray-800 w-full max-w-md p-6 rounded-lg shadow-md">
-        <h2 className="text-2xl font-bold text-center mb-4">
-          Verify Your Contact Info
-        </h2>
-        <p className="text-gray-400 text-sm text-center mb-6">
+    <div className={styles.container}>
+      <div className={styles.card}>
+        <h2 className={styles.title}>Verify Your Contact Info</h2>
+        <p className={styles.subtitle}>
           Enter the codes sent to your email and phone number.
         </p>
-        {error && <p className="text-red-400 text-center mb-4">{error}</p>}
-        {resendMsg && (
-          <p className="text-green-400 text-center mb-3">{resendMsg}</p>
-        )}
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+        {error && <p className={styles.error}>{error}</p>}
+        {resendMsg && <p className={styles.success}>{resendMsg}</p>}
+
+        <form onSubmit={handleSubmit} className={styles.form}>
           <div>
-            <label
-              htmlFor="emailCode"
-              className="block text-sm mb-1 text-gray-300"
-            >
+            <label htmlFor="emailCode" className={styles.label}>
               Email Verification Code {getStatusIcon(emailVerified)} -{" "}
-              <span className="text-sm text-yellow-400">
+              <span className={styles.timer}>
                 Code expires in: {formatTime(emailTimeLeft)}
               </span>
             </label>
             <input
-              type="text"
               id="emailCode"
+              type="text"
               maxLength={6}
               value={emailOtp}
               autoComplete="off"
@@ -233,56 +229,50 @@ const VerifyOTP: React.FC = () => {
                 setEmailOtp(e.target.value);
                 setEmailVerified(null);
               }}
-              className="w-full p-2 rounded bg-gray-700 border border-gray-600 text-white focus:ring focus:ring-blue-500 outline-none"
+              className={styles.input}
               required
             />
             <button
               type="button"
               onClick={() => handleResend("email")}
-              className="mt-1 text-xs text-blue-400 hover:underline"
+              className={styles.resend}
             >
               Resend code to email
             </button>
           </div>
 
           <div>
-            <label
-              htmlFor="phoneCode"
-              className="block text-sm mb-1 text-gray-300"
-            >
+            <label htmlFor="phoneCode" className={styles.label}>
               Phone Verification Code {getStatusIcon(phoneVerified)} -{" "}
-              <span className="text-sm text-yellow-400">
+              <span className={styles.timer}>
                 Code expires in: {formatTime(phoneTimeLeft)}
               </span>
             </label>
             <input
-              type="text"
               id="phoneCode"
-              autoComplete="off"
+              type="text"
               maxLength={6}
               pattern="\d{6}"
               inputMode="numeric"
               value={phoneOtp}
+              autoComplete="off"
               onChange={(e) => {
                 setPhoneOtp(e.target.value);
                 setPhoneVerified(null);
               }}
-              className="w-full p-2 rounded bg-gray-700 border border-gray-600 text-white focus:ring focus:ring-blue-500 outline-none"
+              className={styles.input}
               required
             />
             <button
               type="button"
               onClick={() => handleResend("phone")}
-              className="mt-1 text-xs text-blue-400 hover:underline"
+              className={styles.resend}
             >
               Resend code to phone
             </button>
           </div>
 
-          <button
-            type="submit"
-            className="w-full bg-blue-600 hover:bg-blue-700 text-white p-2 rounded transition"
-          >
+          <button type="submit" className={styles.button}>
             {loading ? "Verifying..." : "Verify & Continue"}
           </button>
         </form>

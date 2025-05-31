@@ -61,7 +61,7 @@ const MfaLogin: React.FC = () => {
         return;
       }
 
-      validateToken();
+      await validateToken();
     } catch (err) {
       console.error(err);
       setError("Verification failed.");
