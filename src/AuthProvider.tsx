@@ -118,7 +118,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({
         setUser(null);
         setIsAuthenticated(false);
         setToken(null);
-        window.location.replace(window.location.origin);
         return;
       } else {
         throw new Error("Could not delete user.");
