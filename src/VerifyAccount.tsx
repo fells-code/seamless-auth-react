@@ -28,6 +28,7 @@ const VerifyAccount: React.FC<ResetPasswordProps> = ({
             "Content-Type": "application/json",
           },
           body: JSON.stringify({ verificationToken }),
+          credentials: "include",
         });
 
         if (!response.ok) {

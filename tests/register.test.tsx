@@ -10,7 +10,7 @@ import {
 import React from "react";
 import { BrowserRouter } from "react-router-dom";
 
-import Register from "../src/Register";
+import RegisterPassKey from "../src/RegisterPassKey";
 
 global.fetch = jest.fn();
 
@@ -29,13 +29,8 @@ describe("Register Component", () => {
 
   it("renders correctly", () => {
     render(
-      <BrowserRouter
-        future={{
-          v7_startTransition: true,
-          v7_relativeSplatPath: true,
-        }}
-      >
-        <Register apiHost={mockApiHost} />
+      <BrowserRouter>
+        <RegisterPassKey apiHost={mockApiHost} validateToken={jest.fn()} />
       </BrowserRouter>
     );
 

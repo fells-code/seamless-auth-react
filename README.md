@@ -1,96 +1,129 @@
-# Seamless Auth - Authentication and authorization for teams who want to get in front of users fast
+[![npm version](https://img.shields.io/npm/v/@seamless-auth/react.svg?label=%40seamless-auth%2Freact)](https://www.npmjs.com/package/@seamless-auth/react)
 
-📚 [Documentation](#documentation) - 🚀 [Getting Started](#getting-started) - 💬 [Feedback](#feedback)
+# Seamless Auth React
 
-## Documentation
+A drop-in authentication provider for React applications, designed to handle login, multi-factor authentication, passkeys, and user session validation using your own backend.
 
-- [Quickstart](https://seamlessauth.com/docs/seamless-auth-react/quickstart) - Learn to add Authentication to a React application in less than 5 mins.
+## Features
 
-- [FAQs](https://seamlessauth.com/faq/seamless-auth-react) - frequently asked questions about the Seamless Auth.
+- Provides `AuthProvider` context
+- Includes `useAuth()` hook for access to auth state and actions
+- Ships with pre-built login, MFA, and passkey routes
+- Lets consumer apps handle routing via `react-router-dom`
+- Supports automatic session validation on load
 
-- [Docs site](https://www.seamlessauth.com/how-it-works/seamless-auth-react) - Documentation on how Seamless auth really works.
+---
 
-## Getting Started
-
-Using [npm](https://npmjs.org/)
+## Installation
 
 ```bash
 npm install seamless-auth-react
 ```
 
-Using [yarn](https://yarnpkg.com/)
+---
 
-```bash
-yarn add seamless-auth-react
-```
+## Usage
 
-<summary></summary>
-<br>
+### 1. Wrap your app with `AuthProvider`
 
-Wrap your React app in the `AuthProvider` component:
-
-```jsx
-// src/index.js
-import React from "react";
-import ReactDOM from "react-dom/client";
-import "./index.css";
-import App from "./App";
-import reportWebVitals from "./reportWebVitals";
+```tsx
 import { AuthProvider } from "seamless-auth-react";
+import { BrowserRouter } from "react-router-dom";
 
-// Best practice is to use your own backend server to proxy your Auth server an actual proxy server
-const apiHost = "https://<your-seamless-auth-server-url>";
-
-const root = ReactDOM.createRoot(document.getElementById("root"));
-root.render(
-  <React.StrictMode>
-    <AuthProvider apiHost={apiHost}>
-      <App />
-    </AuthProvider>
-  </React.StrictMode>
-);
+<BrowserRouter>
+  <AuthProvider apiHost="https://your.api/">
+    <AppRoutes />
+  </AuthProvider>
+</BrowserRouter>;
 ```
 
-Use the `useAuth` hook to access user information, authentication, and user management routines such as logout from any component.
+### 2. Use `useAuth()` to access auth state
 
-```jsx
+```tsx
 import { useAuth } from "seamless-auth-react";
 
-function App() {
+const Dashboard = () => {
   const { user, logout } = useAuth();
-
-  if (!user) {
-    return <div>Please log in to access this content.</div>;
-  }
-
   return (
-    <div className="App">
-      <header className="App-header">
-        <img src={logo} className="App-logo" alt="logo" />
-        <h1>Welcome, {user.email}!</h1>
-        <button className="App-link" onClick={logout}>
-          Logout
-        </button>
-      </header>
+    <div>
+      Welcome, {user?.email}
+      <button onClick={logout}>Logout</button>
     </div>
   );
-}
-
-export default App;
+};
 ```
 
-## Avaliable Features from useAuth
+### 3. Use `<AuthRoutes />` for handling login/mfa/passkey screens
 
-#### User - The information about your Seamless Auth user
+```tsx
+import { Routes, Route } from "react-router-dom";
+import { useAuth, AuthRoutes } from "seamless-auth-react";
 
-#### login - Programatically call login
+const AppRoutes = () => {
+  const { isAuthenticated } = useAuth();
 
-#### logout - Programmatically call logout
+  return (
+    <Routes>
+      {isAuthenticated ? (
+        <Route path="*" element={<Dashboard />} />
+      ) : (
+        <Route path="*" element={<AuthRoutes />} />
+      )}
+    </Routes>
+  );
+};
+```
 
-#### register - Programmatically call register
+> Note: You are responsible for handling route protection and redirects based on `isAuthenticated`.
 
-## Feedback
+---
 
-### Raise an issue
+## AuthContext API
 
-To provide feedback or report a bug, please [raise an issue on our issue tracker](https://github.com/fells-code/seamless-auth-react/issues).
+### `useAuth()` returns:
+
+```ts
+{
+  user: { email: string, roles?: string[] } | null;
+  isAuthenticated: boolean;
+  logout(): Promise<void>;
+  deleteUser(): Promise<void>;
+  hasRole(role: string): boolean | undefined;
+}
+```
+
+---
+
+## Auth Routes Included
+
+- `/login`
+- `/mfaLogin`
+- `/passKeyLogin`
+- `/registerPasskey`
+- `/verifyOTP`
+
+Each route includes a pre-built UI and expects your backend to expose compatible endpoints.
+
+---
+
+## Customization
+
+You can override the included UI screens by:
+
+- Copying the component source from the package
+- Creating your own version
+- Replacing the component in your app
+
+---
+
+## Notes
+
+- This package **does not** create its own `<BrowserRouter>` or `<Routes>`.
+- It is designed to be fully compatible with your existing routing tree.
+- The `AuthProvider` automatically calls `/users/me` on load to validate session.
+
+---
+
+## License
+
+MIT

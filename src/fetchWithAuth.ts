@@ -1,54 +1,20 @@
 export const fetchWithAuth = async (
   input: RequestInfo,
-  apiHost: string,
   init?: RequestInit
 ): Promise<Response> => {
-  const authToken = localStorage.getItem("authToken");
-
-  if (!authToken) {
-    throw new Error("No token available. Please log in again.");
-  }
-
-  const requestInit = {
+  const requestInit: RequestInit = {
     ...init,
+    credentials: "include",
     headers: {
       ...(init?.headers || {}),
-      Authorization: `Bearer ${authToken}`,
     },
   };
 
-  let response = await fetch(input, requestInit);
+  const response = await fetch(input, requestInit);
 
-  if (response.status === 403) {
-    // Attempt to refresh the token
-    const refreshToken = localStorage.getItem("refreshToken");
-
-    if (!refreshToken) {
-      throw new Error("No refresh token available. Please log in again.");
-    }
-
-    const refreshResponse = await fetch(`${apiHost}auth/refresh-token`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ refreshToken }),
-    });
-
-    if (refreshResponse.ok) {
-      const refreshData = await refreshResponse.json();
-      localStorage.setItem("authToken", refreshData.accessToken);
-
-      // Retry the original request with the new token
-      requestInit.headers.Authorization = `Bearer ${refreshData.accessToken}`;
-      response = await fetch(input, requestInit);
-    } else {
-      // Refresh token failed, force logout or handle accordingly
-      localStorage.removeItem("authToken");
-      localStorage.removeItem("refreshToken");
-      throw new Error("Session expired. Please log in again.");
-    }
+  if (response.ok) {
+    return response;
   }
 
-  return response;
+  throw new Error(`Failed to make API call to auth server.`);
 };
