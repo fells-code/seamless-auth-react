@@ -1,3 +1,5 @@
+[![npm version](https://img.shields.io/npm/v/@seamless-auth/react.svg?label=%40seamless-auth%2Freact)](https://www.npmjs.com/package/@seamless-auth/react)
+
 # Seamless Auth React
 
 A drop-in authentication provider for React applications, designed to handle login, multi-factor authentication, passkeys, and user session validation using your own backend.
