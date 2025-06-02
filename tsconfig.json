@@ -6,8 +6,8 @@
 
     "declaration": true,
     "emitDeclarationOnly": true,
-    "declarationDir": "dist/types",
-    "outDir": "dist/types",
+    "declarationDir": "dist",
+    "outDir": "dist",
 
     "moduleResolution": "Node",
     "allowSyntheticDefaultImports": true,
