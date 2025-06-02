@@ -1,8 +1,9 @@
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-nocheck
-import React from "react";
 import { render, waitFor } from "@testing-library/react";
+import React from "react";
 import { MemoryRouter } from "react-router-dom";
+
 import VerifyAccount from "../src/VerifyAccount";
 
 global.fetch = jest.fn();
@@ -33,12 +34,7 @@ describe("VerifyAccount", () => {
     });
 
     render(
-      <MemoryRouter
-        future={{
-          v7_startTransition: true,
-          v7_relativeSplatPath: true,
-        }}
-      >
+      <MemoryRouter>
         <VerifyAccount setLoading={jest.fn()} apiHost={apiHost} />
       </MemoryRouter>
     );
@@ -62,12 +58,7 @@ describe("VerifyAccount", () => {
     global.fetch.mockResolvedValue({ ok: false });
 
     render(
-      <MemoryRouter
-        future={{
-          v7_startTransition: true,
-          v7_relativeSplatPath: true,
-        }}
-      >
+      <MemoryRouter>
         <VerifyAccount setLoading={jest.fn()} apiHost={apiHost} />
       </MemoryRouter>
     );
@@ -90,12 +81,7 @@ describe("VerifyAccount", () => {
     window.history.pushState({}, "", "/verify"); // No token in URL
 
     render(
-      <MemoryRouter
-        future={{
-          v7_startTransition: true,
-          v7_relativeSplatPath: true,
-        }}
-      >
+      <MemoryRouter>
         <VerifyAccount setLoading={jest.fn()} apiHost={apiHost} />
       </MemoryRouter>
     );
@@ -116,12 +102,7 @@ describe("VerifyAccount", () => {
     global.fetch.mockRejectedValue(new Error("Network error"));
 
     render(
-      <MemoryRouter
-        future={{
-          v7_startTransition: true,
-          v7_relativeSplatPath: true,
-        }}
-      >
+      <MemoryRouter>
         <VerifyAccount setLoading={jest.fn()} apiHost={apiHost} />
       </MemoryRouter>
     );

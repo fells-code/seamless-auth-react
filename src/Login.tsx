@@ -1,43 +1,77 @@
-import React, { useState } from "react";
+import { useAuth } from "AuthProvider";
+import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
-export interface LoginProps {
-  apiHost: string;
-  setLoading: (bool: boolean) => void;
-  error?: string;
-}
+import styles from "./Styles/login.module.css";
+import TermsModal from "./TermsModal";
+import { isPasskeySupported, isValidEmail, isValidPhoneNumber } from "./utils";
 
-const Login: React.FC<LoginProps> = ({ setLoading, apiHost, error }) => {
+const Login: React.FC = () => {
   const navigate = useNavigate();
+  const { apiHost } = useAuth();
+  const [identifier, setIdentifier] = useState<string>("");
   const [email, setEmail] = useState<string>("");
-  const [password, setPassword] = useState<string>("");
+  const [mode, setMode] = useState<"login" | "register">("login");
+  const [phone, setPhone] = useState<string>("");
   const [formErrors, setFormErrors] = useState<string>("");
+  const [phoneError, setPhoneError] = useState<string>("");
+  const [emailError, setEmailError] = useState<string>("");
+  const [identifierError, setIdentifierError] = useState<string>("");
+  const [showModal, setShowModal] = useState<boolean>(false);
+  const [passkeyAvailable, setPasskeyAvailable] = useState(false);
 
-  const login = async (email: string, password: string) => {
+  useEffect(() => {
+    /**
+     *
+     */
+    async function checkSupport() {
+      const supported = await isPasskeySupported();
+      setPasskeyAvailable(supported);
+    }
+
+    checkSupport();
+  }, []);
+
+  const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const phoneNumber = e.target.value;
+    setPhone(phoneNumber.replace(/[^\d+]/g, ""));
+  };
+
+  const handleEmailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const email = e.target.value;
+    setEmail(email);
+  };
+
+  const handleIdentifierChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setIdentifier(value);
+  };
+
+  const canSubmit = (): boolean | undefined => {
+    if (mode === "login" && identifier) {
+      return isValidEmail(identifier) || isValidPhoneNumber(identifier);
+    }
+
+    return isValidEmail(email) && isValidPhoneNumber(phone);
+  };
+
+  const login = async () => {
+    setFormErrors("");
+
     try {
       const response = await fetch(`${apiHost}auth/login`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          email: email,
-          password: password,
-        }),
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ identifier, passkeyAvailable }),
+        credentials: "include",
       });
 
       if (!response.ok) {
-        setFormErrors(
-          "Login failed. Try again. If the problem persists, try resetting your password"
-        );
+        setFormErrors("Failed to send login link. Please try again.");
         return;
       }
 
-      const result = await response.json();
-
-      localStorage.setItem("authToken", result.token);
-      localStorage.setItem("refreshToken", result.refreshToken);
-      setLoading(true);
+      navigate("/passKeyLogin");
     } catch (err) {
       console.error("Unexpected login error", err);
       setFormErrors(
@@ -46,66 +80,180 @@ const Login: React.FC<LoginProps> = ({ setLoading, apiHost, error }) => {
     }
   };
 
-  const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    login(email, password);
+  const register = async () => {
+    setFormErrors("");
+
+    try {
+      const response = await fetch(`${apiHost}registration/register`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, phone }),
+        credentials: "include",
+      });
+
+      if (!response.ok) {
+        setFormErrors("Failed to register. Please try again.");
+        return;
+      }
+
+      const data = await response.json();
+
+      if (data.message === "Success") {
+        navigate("/verifyOTP");
+      }
+      setFormErrors(
+        "An unexpected error occured. Try again. If the problem persists, try resetting your password"
+      );
+    } catch (err) {
+      console.error("Unexpected login error", err);
+      setFormErrors(
+        "An unexpected error occured. Try again. If the problem persists, try resetting your password"
+      );
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+
+    if (mode === "login") login();
+    if (mode === "register") register();
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-900 text-white">
-      <div className="bg-gray-800 p-8 rounded shadow-md w-full max-w-md">
-        <h2 className="text-2xl font-bold mb-6 text-center">Login</h2>
-        <form onSubmit={handleSubmit}>
-          <div className="mb-4">
-            <label htmlFor="email" className="block text-gray-300">
-              Email
-            </label>
-            <input
-              id="email"
-              type="text"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="w-full p-2 bg-gray-700 border border-gray-300 rounded mt-1 text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-              required
-            />
-          </div>
-          <div className="mb-6">
-            <label htmlFor="password" className="block text-gray-300">
-              Password
-            </label>
-            <input
-              id="password"
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="w-full p-2 bg-gray-700 border border-gray-300 rounded mt-1 text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-              required
-            />
-          </div>
-          <button
-            type="submit"
-            className={`w-full bg-blue-600 hover:bg-blue-700 text-white p-2 rounded transition duration-300 disabled:bg-gray-400 cursor-not-allowed p-2 rounded`}
-            disabled={!password || !email}
-          >
-            Submit
-          </button>
-        </form>
-        <div className="flex justify-between items-center mt-4">
-          <button
-            onClick={() => navigate("/password")}
-            className="text-sm text-blue-500 hover:underline"
-          >
-            Forgot Password?
-          </button>
-          <button
-            onClick={() => navigate("/register")}
-            className="text-sm text-blue-500 hover:underline"
-          >
-            Register
-          </button>
-        </div>
-        <div className="mt-4">{error}</div>
-        <div>{formErrors}</div>
+    <div className={styles.container}>
+      <div className={styles.card}>
+        <h2 className={styles.heading}>
+          {mode === "login" ? "Sign In" : "Create Account"}
+        </h2>
+
+        {!passkeyAvailable ? (
+          <p className={styles.message}>
+            ❌ This device doesn't support passkey login. You must provide or
+            register a passkey.
+          </p>
+        ) : (
+          <>
+            <form onSubmit={handleSubmit}>
+              {mode === "login" && (
+                <div className={styles.inputGroup}>
+                  <label htmlFor="identifier" className={styles.label}>
+                    Email Address / Phone Number
+                  </label>
+                  <input
+                    id="identifier"
+                    type="text"
+                    value={identifier}
+                    onChange={handleIdentifierChange}
+                    autoComplete="off"
+                    placeholder="Email or Phone Number"
+                    className={styles.input}
+                    onBlur={() => {
+                      if (identifier) {
+                        const isValid =
+                          isValidEmail(identifier) ||
+                          isValidPhoneNumber(identifier);
+                        setIdentifierError(
+                          isValid
+                            ? ""
+                            : "Please enter a valid email or phone number"
+                        );
+                      }
+                    }}
+                    required
+                  />
+                  <p className={styles.helperText}>
+                    Phone numbers must include a country code e.g. +1
+                  </p>
+                  {identifierError && (
+                    <p className={styles.error}>{identifierError}</p>
+                  )}
+                </div>
+              )}
+
+              {mode === "register" && (
+                <>
+                  <div className={styles.inputGroup}>
+                    <label htmlFor="email" className={styles.label}>
+                      Email Address
+                    </label>
+                    <input
+                      id="email"
+                      type="email"
+                      value={email}
+                      onChange={handleEmailChange}
+                      autoComplete="off"
+                      className={styles.input}
+                      onBlur={() => {
+                        if (email) {
+                          const isValid = isValidEmail(email);
+                          setEmailError(
+                            isValid ? "" : "Please enter a valid email"
+                          );
+                        }
+                      }}
+                      required
+                    />
+                    {emailError && <p className={styles.error}>{emailError}</p>}
+                  </div>
+
+                  <div className={styles.inputGroup}>
+                    <label className={styles.label}>Phone Number</label>
+                    <input
+                      type="tel"
+                      value={phone}
+                      onChange={handlePhoneChange}
+                      autoComplete="off"
+                      className={styles.input}
+                      onBlur={() => {
+                        if (phone) {
+                          const isValid = isValidPhoneNumber(phone);
+                          setPhoneError(
+                            isValid ? "" : "Please enter a valid phone number."
+                          );
+                        }
+                      }}
+                    />
+                    <p className={styles.helperText}>
+                      By signing up, you agree to our{" "}
+                      <button
+                        onClick={() => setShowModal(true)}
+                        className={styles.underline}
+                      >
+                        SMS Terms & Conditions
+                      </button>
+                      .
+                    </p>
+                    {phoneError && <p className={styles.error}>{phoneError}</p>}
+                    <TermsModal
+                      isOpen={showModal}
+                      onClose={() => setShowModal(false)}
+                    />
+                  </div>
+                </>
+              )}
+
+              <button
+                type="submit"
+                className={styles.button}
+                disabled={!canSubmit()}
+              >
+                {mode === "login" ? "Login" : "Register"}
+              </button>
+
+              {formErrors && <p className={styles.error}>{formErrors}</p>}
+
+              <button
+                type="button"
+                onClick={() => setMode(mode === "login" ? "register" : "login")}
+                className={styles.toggle}
+              >
+                {mode === "login"
+                  ? "Don't have an account? Create one"
+                  : "Already have an account? Sign in"}
+              </button>
+            </form>
+          </>
+        )}
       </div>
     </div>
   );

@@ -1,48 +1,42 @@
-/* eslint-disable no-undef */
-/* eslint-disable @typescript-eslint/no-require-imports */
 import babel from "@rollup/plugin-babel";
 import commonjs from "@rollup/plugin-commonjs";
-import resolve, { nodeResolve } from "@rollup/plugin-node-resolve";
+import resolve from "@rollup/plugin-node-resolve";
 import terser from "@rollup/plugin-terser";
 import typescript from "@rollup/plugin-typescript";
+import peerDepsExternal from "rollup-plugin-peer-deps-external";
 import postcss from "rollup-plugin-postcss";
 
-export default {
-  input: "src/index.ts",
-  output: [
-    {
-      file: "dist/index.cjs.js",
-      format: "cjs",
-      sourcemap: true,
-    },
-    {
-      file: "dist/index.esm.js",
+export default [
+  {
+    input: "src/index.ts",
+    output: {
+      dir: "dist",
+      entryFileNames: "[name].[format].js",
       format: "esm",
       sourcemap: true,
     },
-  ],
-  plugins: [
-    resolve(),
-    commonjs(),
-    nodeResolve({
-      extensions: [".ts", ".tsx"],
-    }),
-    typescript(),
-    babel({
-      babelHelpers: "bundled",
-      extensions: [".ts", ".tsx"],
-    }),
-    postcss({
-      extensions: [".css"],
-      inject: true,
-      minimize: true,
-      plugins: [
-        require("postcss-import"),
-        require("tailwindcss"),
-        require("autoprefixer"),
-      ],
-    }),
-    terser(),
-  ],
-  external: ["react", "react-dom"],
-};
+    plugins: [
+      peerDepsExternal(),
+      resolve({ extensions: [".ts", ".tsx"] }),
+      commonjs(),
+      typescript({
+        tsconfig: "./tsconfig.json",
+      }),
+      postcss({
+        modules: {
+          generateScopedName: "[name]__[local]___[hash:base64:5]",
+        },
+        extract: false,
+        inject: true,
+        minimize: true,
+      }),
+      babel({
+        babelHelpers: "bundled",
+        extensions: [".ts", ".tsx", ".js", ".jsx"],
+        presets: ["@babel/preset-env", "@babel/preset-react"],
+        exclude: "node_modules/**",
+      }),
+      terser(),
+    ],
+  },
+];

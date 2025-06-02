@@ -1,5 +1,4 @@
-import "./index.css";
-
+import { InternalAuthProvider } from "context/InternalAuthContext";
 import React, {
   createContext,
   ReactNode,
@@ -7,34 +6,37 @@ import React, {
   useEffect,
   useState,
 } from "react";
-import {
-  BrowserRouter as Router,
-  Navigate,
-  Route,
-  Routes,
-} from "react-router-dom";
 
 import { fetchWithAuth } from "./fetchWithAuth";
 import LoadingSpinner from "./LoadingSpinner";
-import Login from "./Login";
-import PasswordRecovery from "./PasswordRecovery";
-import Register from "./Register";
-import ResetPassword from "./ResetPassword";
-import VerifyAccount from "./VerifyAccount";
 
-interface AuthContextType {
-  user: { email: string } | null;
+interface User {
+  id: string;
+  email: string;
+  phone: string;
+  roles?: string[];
+}
+
+type AuthToken = {
+  oneTimeToken: string;
+  expiresAt: string;
+};
+
+export interface AuthContextType {
+  user: User | null;
   logout: () => void;
   deleteUser: () => void;
   isAuthenticated: boolean;
   hasRole: (role: string) => boolean | undefined;
+  apiHost: string;
+  token: AuthToken | null;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 /**
  * Returns the current context
- * @returns AuthContext
+ * @returns {AuthContextType} AuthContext
  */
 export const useAuth = (): AuthContextType => {
   const context = useContext(AuthContext);
@@ -53,20 +55,20 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({
   children,
   apiHost,
 }) => {
-  const [user, setUser] = useState<{ email: string; roles?: string[] } | null>(
-    null
-  );
+  const [user, setUser] = useState<User | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
   const [loading, setLoading] = useState<boolean>(true);
+  const [token, setToken] = useState<AuthToken | null>(null);
 
   const validateToken = async () => {
     try {
-      const response = await fetchWithAuth(`${apiHost}auth/user`, apiHost);
+      const response = await fetchWithAuth(`${apiHost}users/me`);
 
       if (response.ok) {
-        const user = await response.json();
+        const { user, token } = await response.json();
         setUser(user);
         setIsAuthenticated(true);
+        setToken(token);
       } else {
         logout();
       }
@@ -80,7 +82,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({
   useEffect(() => {
     validateToken();
     setLoading(false);
-  }, [loading]);
+  }, []);
 
   const logout = async () => {
     if (user) {
@@ -93,29 +95,29 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({
           body: JSON.stringify({
             email: user.email,
           }),
+          credentials: "include",
         });
       } catch {
         console.error("Error in logout");
       } finally {
         setIsAuthenticated(false);
         setUser(null);
+        setToken(null);
       }
     }
-
-    localStorage.removeItem("authToken");
-    localStorage.removeItem("refreshToken");
   };
 
   const deleteUser = async () => {
     try {
-      const response = await fetchWithAuth(`${apiHost}auth/delete`, apiHost, {
+      const response = await fetchWithAuth(`${apiHost}users/delete`, {
         method: "delete",
+        credentials: "include",
       });
 
       if (response.ok) {
         setUser(null);
         setIsAuthenticated(false);
-        window.location.replace(window.location.origin);
+        setToken(null);
         return;
       } else {
         throw new Error("Could not delete user.");
@@ -144,50 +146,13 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({
         deleteUser,
         isAuthenticated,
         hasRole,
+        apiHost,
+        token,
       }}
     >
-      <Router
-        future={{
-          v7_startTransition: true,
-          v7_relativeSplatPath: true,
-        }}
-      >
-        <Routes>
-          {isAuthenticated ? (
-            <Route path="*" element={children} />
-          ) : (
-            <>
-              <Route
-                path="/login"
-                element={<Login setLoading={setLoading} apiHost={apiHost} />}
-              />
-              <Route
-                path="/register"
-                element={<Register apiHost={apiHost} />}
-              />
-              <Route
-                path="/password"
-                element={<PasswordRecovery apiHost={apiHost} />}
-              />
-              <Route
-                path="/reset-password"
-                element={<ResetPassword apiHost={apiHost} />}
-              />
-              <Route
-                path="/verify"
-                element={
-                  <VerifyAccount
-                    setLoading={setLoading}
-                    apiHost={apiHost}
-                    validateToken={validateToken}
-                  />
-                }
-              />
-              <Route path="*" element={<Navigate to="/login" replace />} />
-            </>
-          )}
-        </Routes>
-      </Router>
+      <InternalAuthProvider value={{ validateToken, setLoading }}>
+        {children}
+      </InternalAuthProvider>
     </AuthContext.Provider>
   );
 };

@@ -1,7 +1,9 @@
-import React from "react";
 import "@testing-library/jest-dom";
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import React from "react";
 import { MemoryRouter } from "react-router-dom";
+
 import Login from "../src/Login";
 
 const mockNavigate = jest.fn();
@@ -25,12 +27,7 @@ describe("Login Component", () => {
 
   it("renders the login form correctly", () => {
     render(
-      <MemoryRouter
-        future={{
-          v7_startTransition: true,
-          v7_relativeSplatPath: true,
-        }}
-      >
+      <MemoryRouter>
         <Login setLoading={mockSetLoading} apiHost={apiHost} />
       </MemoryRouter>
     );
@@ -44,12 +41,7 @@ describe("Login Component", () => {
 
   it("updates email and password state on input change", () => {
     render(
-      <MemoryRouter
-        future={{
-          v7_startTransition: true,
-          v7_relativeSplatPath: true,
-        }}
-      >
+      <MemoryRouter>
         <Login setLoading={mockSetLoading} apiHost={apiHost} />
       </MemoryRouter>
     );
@@ -75,12 +67,7 @@ describe("Login Component", () => {
     ) as jest.Mock;
 
     render(
-      <MemoryRouter
-        future={{
-          v7_startTransition: true,
-          v7_relativeSplatPath: true,
-        }}
-      >
+      <MemoryRouter>
         <Login setLoading={mockSetLoading} apiHost={apiHost} />
       </MemoryRouter>
     );
@@ -107,12 +94,7 @@ describe("Login Component", () => {
     ) as jest.Mock;
 
     render(
-      <MemoryRouter
-        future={{
-          v7_startTransition: true,
-          v7_relativeSplatPath: true,
-        }}
-      >
+      <MemoryRouter>
         <Login setLoading={mockSetLoading} apiHost={apiHost} />
       </MemoryRouter>
     );
@@ -134,12 +116,7 @@ describe("Login Component", () => {
 
   it("navigates to /password when clicking 'Forgot Password?'", () => {
     render(
-      <MemoryRouter
-        future={{
-          v7_startTransition: true,
-          v7_relativeSplatPath: true,
-        }}
-      >
+      <MemoryRouter>
         <Login setLoading={mockSetLoading} apiHost={apiHost} />
       </MemoryRouter>
     );
@@ -152,12 +129,7 @@ describe("Login Component", () => {
 
   it("navigates to /register when clicking 'Register'", () => {
     render(
-      <MemoryRouter
-        future={{
-          v7_startTransition: true,
-          v7_relativeSplatPath: true,
-        }}
-      >
+      <MemoryRouter>
         <Login setLoading={mockSetLoading} apiHost={apiHost} />
       </MemoryRouter>
     );
