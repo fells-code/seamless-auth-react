@@ -49,6 +49,7 @@ const PassKeyLogin: React.FC = () => {
       if (verificationResult.message === "Success") {
         if (verificationResult.token) {
           await validateToken();
+          navigate("/");
           return;
         }
         navigate("/mfaLogin");
