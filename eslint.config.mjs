@@ -1,5 +1,4 @@
 import js from "@eslint/js";
-import jsdoc from "eslint-plugin-jsdoc";
 import react from "eslint-plugin-react";
 import simpleImportSort from "eslint-plugin-simple-import-sort";
 import globals from "globals";
@@ -8,7 +7,6 @@ import tseslint from "typescript-eslint";
 export default tseslint.config(
   js.configs.recommended,
   tseslint.configs.recommended,
-  jsdoc.configs["flat/recommended"],
   {
     files: ["**/src/**/*.{js,jsx,mjs,cjs,ts,tsx}"],
     plugins: {
