@@ -1,6 +1,6 @@
 {
   "name": "@seamless-auth/react",
-  "version": "0.0.3",
+  "version": "0.0.4-beta.0",
   "description": "A drop in authentication solution for react applications.",
   "module": "dist/index.es.js",
   "types": "dist/index.d.ts",
