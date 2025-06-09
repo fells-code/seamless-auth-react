@@ -53,18 +53,19 @@ const RegisterPasskey: React.FC = () => {
         await verifyPassKey(attResp);
       } catch (error) {
         console.error("A problem happened.");
+        setStatus("error");
+        setMessage(`Error: ${error}`);
         throw error;
       }
 
       setStatus("success");
       setMessage("Passkey registered successfully.");
+      navigate("/");
     } catch (err) {
       console.error(err);
       setStatus("error");
       setMessage("Something went wrong registering passkey.");
     }
-
-    navigate("/");
   };
 
   const verifyPassKey = async (attResp: RegistrationResponseJSON) => {
