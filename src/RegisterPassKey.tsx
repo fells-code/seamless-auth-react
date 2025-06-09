@@ -20,6 +20,34 @@ const RegisterPasskey: React.FC = () => {
   const [message, setMessage] = useState("");
   const [passkeyAvailable, setPasskeyAvailable] = useState(false);
 
+  function base64urlToArrayBuffer(base64url: string): ArrayBuffer {
+    const padding = "=".repeat((4 - (base64url.length % 4)) % 4);
+    const base64 = (base64url + padding).replace(/-/g, "+").replace(/_/g, "/");
+    const binary = atob(base64);
+    const buffer = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) {
+      buffer[i] = binary.charCodeAt(i);
+    }
+    return buffer.buffer;
+  }
+
+  function decodeSimpleWebauthnOptions(options: any) {
+    return {
+      ...options,
+      challenge: base64urlToArrayBuffer(options.challenge),
+      user: {
+        ...options.user,
+        id: base64urlToArrayBuffer(options.user.id),
+      },
+      excludeCredentials: (options.excludeCredentials || []).map(
+        (cred: any) => ({
+          ...cred,
+          id: base64urlToArrayBuffer(cred.id),
+        })
+      ),
+    };
+  }
+
   const handlePasskeyRegister = async () => {
     setStatus("loading");
 
@@ -41,30 +69,30 @@ const RegisterPasskey: React.FC = () => {
         return;
       }
 
-      const optionsJSON = await challengeRes.json();
+      const options = await challengeRes.json();
+
+      const publicKey = decodeSimpleWebauthnOptions(options);
 
       let attResp: RegistrationResponseJSON;
       try {
-        attResp = await startRegistration({
-          optionsJSON,
-          useAutoRegister: true,
-        });
+        attResp = await startRegistration({ optionsJSON: publicKey });
 
         await verifyPassKey(attResp);
       } catch (error) {
         console.error("A problem happened.");
+        setStatus("error");
+        setMessage(`Error: ${error}`);
         throw error;
       }
 
       setStatus("success");
       setMessage("Passkey registered successfully.");
+      navigate("/");
     } catch (err) {
       console.error(err);
       setStatus("error");
       setMessage("Something went wrong registering passkey.");
     }
-
-    navigate("/");
   };
 
   const verifyPassKey = async (attResp: RegistrationResponseJSON) => {
