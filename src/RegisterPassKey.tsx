@@ -75,7 +75,7 @@ const RegisterPasskey: React.FC = () => {
 
       let attResp: RegistrationResponseJSON;
       try {
-        attResp = await startRegistration(publicKey);
+        attResp = await startRegistration({ optionsJSON: publicKey });
 
         await verifyPassKey(attResp);
       } catch (error) {
