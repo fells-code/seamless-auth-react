@@ -1,6 +1,8 @@
 import {
+  type PublicKeyCredentialCreationOptionsJSON,
   type RegistrationResponseJSON,
   startRegistration,
+  WebAuthnError,
 } from "@simplewebauthn/browser";
 import { useAuth } from "AuthProvider";
 import { useInternalAuth } from "context/InternalAuthContext";
@@ -31,7 +33,9 @@ const RegisterPasskey: React.FC = () => {
     return buffer.buffer;
   }
 
-  function decodeSimpleWebauthnOptions(options: any) {
+  function decodeSimpleWebauthnOptions(
+    options: any
+  ): PublicKeyCredentialCreationOptionsJSON {
     return {
       ...options,
       challenge: base64urlToArrayBuffer(options.challenge),
@@ -71,7 +75,8 @@ const RegisterPasskey: React.FC = () => {
 
       const options = await challengeRes.json();
 
-      const publicKey = decodeSimpleWebauthnOptions(options);
+      const publicKey: PublicKeyCredentialCreationOptionsJSON =
+        decodeSimpleWebauthnOptions(options);
 
       let attResp: RegistrationResponseJSON;
       try {
@@ -79,10 +84,17 @@ const RegisterPasskey: React.FC = () => {
 
         await verifyPassKey(attResp);
       } catch (error) {
-        console.error("A problem happened.");
-        setStatus("error");
-        setMessage(`Error: ${error}`);
-        throw error;
+        if (error instanceof WebAuthnError) {
+          console.error(
+            `Error occurred with webAuthn, ${error.name} - ${error.cause} - ${error.code}-${error.stack}`
+          );
+          setStatus("error");
+          setMessage(`Error: ${error.name}`);
+        } else {
+          console.error("A problem happened.");
+          setStatus("error");
+          setMessage(`Error: ${error}`);
+        }
       }
 
       setStatus("success");
