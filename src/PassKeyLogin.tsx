@@ -28,7 +28,7 @@ const PassKeyLogin: React.FC = () => {
       }
 
       const options = await response.json();
-      const credential = await startAuthentication(options);
+      const credential = await startAuthentication({ optionsJSON: options });
 
       const verificationResponse = await fetch(
         `${apiHost}webAuthn/verify-authentication`,

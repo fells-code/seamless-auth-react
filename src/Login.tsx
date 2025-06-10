@@ -11,7 +11,7 @@ const Login: React.FC = () => {
   const { apiHost } = useAuth();
   const [identifier, setIdentifier] = useState<string>("");
   const [email, setEmail] = useState<string>("");
-  const [mode, setMode] = useState<"login" | "register">("login");
+  const [mode, setMode] = useState<"login" | "register">("register");
   const [phone, setPhone] = useState<string>("");
   const [formErrors, setFormErrors] = useState<string>("");
   const [phoneError, setPhoneError] = useState<string>("");
@@ -21,9 +21,6 @@ const Login: React.FC = () => {
   const [passkeyAvailable, setPasskeyAvailable] = useState(false);
 
   useEffect(() => {
-    /**
-     *
-     */
     async function checkSupport() {
       const supported = await isPasskeySupported();
       setPasskeyAvailable(supported);
