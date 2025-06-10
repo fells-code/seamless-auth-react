@@ -1,5 +1,4 @@
 import {
-  type PublicKeyCredentialCreationOptionsJSON,
   type RegistrationResponseJSON,
   startRegistration,
   WebAuthnError,
@@ -21,36 +20,6 @@ const RegisterPasskey: React.FC = () => {
   >("idle");
   const [message, setMessage] = useState("");
   const [passkeyAvailable, setPasskeyAvailable] = useState(false);
-
-  function base64urlToArrayBuffer(base64url: string): ArrayBuffer {
-    const padding = "=".repeat((4 - (base64url.length % 4)) % 4);
-    const base64 = (base64url + padding).replace(/-/g, "+").replace(/_/g, "/");
-    const binary = atob(base64);
-    const buffer = new Uint8Array(binary.length);
-    for (let i = 0; i < binary.length; i++) {
-      buffer[i] = binary.charCodeAt(i);
-    }
-    return buffer.buffer;
-  }
-
-  function decodeSimpleWebauthnOptions(
-    options: any
-  ): PublicKeyCredentialCreationOptionsJSON {
-    return {
-      ...options,
-      challenge: base64urlToArrayBuffer(options.challenge),
-      user: {
-        ...options.user,
-        id: base64urlToArrayBuffer(options.user.id),
-      },
-      excludeCredentials: (options.excludeCredentials || []).map(
-        (cred: any) => ({
-          ...cred,
-          id: base64urlToArrayBuffer(cred.id),
-        })
-      ),
-    };
-  }
 
   const handlePasskeyRegister = async () => {
     setStatus("loading");
@@ -75,12 +44,9 @@ const RegisterPasskey: React.FC = () => {
 
       const options = await challengeRes.json();
 
-      const publicKey: PublicKeyCredentialCreationOptionsJSON =
-        decodeSimpleWebauthnOptions(options);
-
       let attResp: RegistrationResponseJSON;
       try {
-        attResp = await startRegistration({ optionsJSON: publicKey });
+        attResp = await startRegistration({ optionsJSON: options });
 
         await verifyPassKey(attResp);
       } catch (error) {
@@ -91,10 +57,11 @@ const RegisterPasskey: React.FC = () => {
           setStatus("error");
           setMessage(`Error: ${error.name}`);
         } else {
-          console.error("A problem happened.");
+          console.error("A problem happened.", error);
           setStatus("error");
           setMessage(`Error: ${error}`);
         }
+        return;
       }
 
       setStatus("success");
@@ -140,9 +107,6 @@ const RegisterPasskey: React.FC = () => {
   };
 
   useEffect(() => {
-    /**
-     *
-     */
     async function checkSupport() {
       const supported = await isPasskeySupported();
       setPasskeyAvailable(supported);
