@@ -1,9 +1,9 @@
 import { useAuth } from "AuthProvider";
+import PhoneInputWithCountryCode from "components/phoneInput";
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 import styles from "./styles/login.module.css";
-import TermsModal from "./TermsModal";
 import { isPasskeySupported, isValidEmail, isValidPhoneNumber } from "./utils";
 
 const Login: React.FC = () => {
@@ -17,7 +17,6 @@ const Login: React.FC = () => {
   const [phoneError, setPhoneError] = useState<string>("");
   const [emailError, setEmailError] = useState<string>("");
   const [identifierError, setIdentifierError] = useState<string>("");
-  const [showModal, setShowModal] = useState<boolean>(false);
   const [passkeyAvailable, setPasskeyAvailable] = useState(false);
 
   useEffect(() => {
@@ -28,11 +27,6 @@ const Login: React.FC = () => {
 
     checkSupport();
   }, []);
-
-  const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const phoneNumber = e.target.value;
-    setPhone(phoneNumber.replace(/[^\d+]/g, ""));
-  };
 
   const handleEmailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const email = e.target.value;
@@ -193,39 +187,12 @@ const Login: React.FC = () => {
                     {emailError && <p className={styles.error}>{emailError}</p>}
                   </div>
 
-                  <div className={styles.inputGroup}>
-                    <label className={styles.label}>Phone Number</label>
-                    <input
-                      type="tel"
-                      value={phone}
-                      onChange={handlePhoneChange}
-                      autoComplete="off"
-                      className={styles.input}
-                      onBlur={() => {
-                        if (phone) {
-                          const isValid = isValidPhoneNumber(phone);
-                          setPhoneError(
-                            isValid ? "" : "Please enter a valid phone number."
-                          );
-                        }
-                      }}
-                    />
-                    <p className={styles.helperText}>
-                      By signing up, you agree to our{" "}
-                      <button
-                        onClick={() => setShowModal(true)}
-                        className={styles.underline}
-                      >
-                        SMS Terms & Conditions
-                      </button>
-                      .
-                    </p>
-                    {phoneError && <p className={styles.error}>{phoneError}</p>}
-                    <TermsModal
-                      isOpen={showModal}
-                      onClose={() => setShowModal(false)}
-                    />
-                  </div>
+                  <PhoneInputWithCountryCode
+                    phone={phone}
+                    setPhone={setPhone}
+                    phoneError={phoneError}
+                    setPhoneError={setPhoneError}
+                  />
                 </>
               )}
 

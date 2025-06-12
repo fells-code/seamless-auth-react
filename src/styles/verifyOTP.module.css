@@ -1,6 +1,4 @@
 .container {
-  min-height: 100vh;
-  background-color: #1f2937;
   color: white;
   display: flex;
   align-items: center;
@@ -9,7 +7,7 @@
 }
 
 .card {
-  background-color: #2d3748;
+  background-color: #1f2937;
   width: 100%;
   max-width: 28rem;
   padding: 1.5rem;
