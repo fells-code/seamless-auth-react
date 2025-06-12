@@ -63,7 +63,7 @@ const MfaLogin: React.FC = () => {
 
       await validateToken();
     } catch (err) {
-      console.error(err);
+      console.error("Error verifying OTP", err);
       setError("Verification failed.");
     }
   };

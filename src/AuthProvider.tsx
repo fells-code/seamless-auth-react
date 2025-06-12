@@ -98,7 +98,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({
           credentials: "include",
         });
       } catch {
-        console.error("Error in logout");
+        console.error("Error during logout");
       } finally {
         setIsAuthenticated(false);
         setUser(null);

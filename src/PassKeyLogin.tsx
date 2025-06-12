@@ -23,7 +23,7 @@ const PassKeyLogin: React.FC = () => {
       );
 
       if (!response.ok) {
-        console.error("Something went wrong getting options");
+        console.error("Something went wrong getting webauthn options");
         return;
       }
 
