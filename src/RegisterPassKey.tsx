@@ -6,6 +6,7 @@ import {
 import { useAuth } from "AuthProvider";
 import { useInternalAuth } from "context/InternalAuthContext";
 import React, { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 
 import styles from "./styles/registerPasskey.module.css";
 import { isPasskeySupported } from "./utils";
@@ -13,6 +14,7 @@ import { isPasskeySupported } from "./utils";
 const RegisterPasskey: React.FC = () => {
   const { apiHost } = useAuth();
   const { validateToken } = useInternalAuth();
+  const navigate = useNavigate();
   const [status, setStatus] = useState<
     "idle" | "success" | "error" | "loading"
   >("idle");
@@ -64,6 +66,7 @@ const RegisterPasskey: React.FC = () => {
 
       setStatus("success");
       setMessage("Passkey registered successfully.");
+      navigate("/");
     } catch (err) {
       console.error(err);
       setStatus("error");
