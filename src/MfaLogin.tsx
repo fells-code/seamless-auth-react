@@ -1,13 +1,14 @@
 import { useAuth } from "AuthProvider";
 import { useInternalAuth } from "context/InternalAuthContext";
 import React, { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 
 import styles from "./styles/mfaLogin.module.css";
 
 const MfaLogin: React.FC = () => {
   const { apiHost } = useAuth();
   const { validateToken } = useInternalAuth();
-
+  const navigate = useNavigate();
   const [OTP, setOTP] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -62,6 +63,7 @@ const MfaLogin: React.FC = () => {
       }
 
       await validateToken();
+      navigate("/");
     } catch (err) {
       console.error("Error verifying OTP", err);
       setError("Verification failed.");
