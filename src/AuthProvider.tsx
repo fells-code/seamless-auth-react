@@ -88,13 +88,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({
     if (user) {
       try {
         await fetch(`${apiHost}auth/logout`, {
-          method: "POST",
+          method: "GET",
           headers: {
             "Content-Type": "application/json",
           },
-          body: JSON.stringify({
-            email: user.email,
-          }),
           credentials: "include",
         });
       } catch {
