@@ -1,15 +1,56 @@
 import parsePhoneNumberFromString from "libphonenumber-js";
-import validator from "validator";
 
 /**
  * isValidEmail
  *
- * Determine if the given string is a valid phone number or not
- * @param email An email to validate
- * @returns boolean - Is the email valid or not
+ * Determine if value is a valid email
+ *
+ * @param email - The email address to validate
+ * @returns boolean - Whether the email is syntactically valid
  */
 export const isValidEmail = (email: string): boolean => {
-  return validator.isEmail(email);
+  if (typeof email !== "string") return false;
+
+  // Trim and normalize
+  const normalized = email.trim();
+
+  // Basic sanity checks
+  if (normalized.length < 3 || normalized.length > 320) return false;
+
+  // Split into local part and domain part
+  const parts = normalized.split("@");
+  if (parts.length !== 2) return false;
+
+  const [localPart, domainPart] = parts;
+
+  // Validate local part (before @)
+  // - May contain letters, numbers, dots, underscores, hyphens, plus signs
+  // - Cannot start or end with a dot
+  // - Cannot have consecutive dots
+  if (
+    !/^[A-Za-z0-9._%+-]+$/.test(localPart) ||
+    localPart.startsWith(".") ||
+    localPart.endsWith(".") ||
+    localPart.includes("..")
+  ) {
+    return false;
+  }
+
+  // Validate domain part (after @)
+  // - Must contain at least one dot (e.g. example.com)
+  // - No leading/trailing hyphens or dots
+  // - Only valid domain characters
+  if (
+    !/^[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/.test(domainPart) ||
+    domainPart.startsWith("-") ||
+    domainPart.endsWith("-") ||
+    domainPart.startsWith(".") ||
+    domainPart.endsWith(".")
+  ) {
+    return false;
+  }
+
+  return true;
 };
 
 /**
