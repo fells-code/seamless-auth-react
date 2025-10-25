@@ -10,6 +10,7 @@ import React, {
 
 import { fetchWithAuth } from './fetchWithAuth';
 import LoadingSpinner from './LoadingSpinner';
+import { usePreviousSignIn } from './hooks/usePreviousSignIn';
 
 interface User {
   id: string;
@@ -31,6 +32,8 @@ export interface AuthContextType {
   hasRole: (role: string) => boolean | undefined;
   apiHost: string;
   token: AuthToken | null;
+  markSignedIn: () => void;
+  hasSignedInBefore: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -50,13 +53,19 @@ export const useAuth = (): AuthContextType => {
 interface AuthProviderProps {
   children: ReactNode;
   apiHost: string;
+  autoDetectPreviousSignin?: boolean;
 }
 
-export const AuthProvider: React.FC<AuthProviderProps> = ({ children, apiHost }) => {
+export const AuthProvider: React.FC<AuthProviderProps> = ({
+  children,
+  apiHost,
+  autoDetectPreviousSignin = true,
+}) => {
   const [user, setUser] = useState<User | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
   const [loading, setLoading] = useState<boolean>(true);
   const [token, setToken] = useState<AuthToken | null>(null);
+  const { hasSignedInBefore, markSignedIn } = usePreviousSignIn();
 
   const logout = useCallback(async () => {
     if (user) {
@@ -122,8 +131,13 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children, apiHost })
 
   useEffect(() => {
     validateToken();
-    setLoading(false);
   }, []);
+
+  useEffect(() => {
+    if (user && isAuthenticated) {
+      markSignedIn();
+    }
+  }, [user, isAuthenticated]);
 
   if (loading) {
     return (
@@ -143,6 +157,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children, apiHost })
         hasRole,
         apiHost,
         token,
+        markSignedIn,
+        hasSignedInBefore: autoDetectPreviousSignin ? hasSignedInBefore : false,
       }}
     >
       <InternalAuthProvider value={{ validateToken, setLoading }}>

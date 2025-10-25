@@ -10,7 +10,7 @@ import { isPasskeySupported, isValidEmail, isValidPhoneNumber } from './utils';
 
 const Login: React.FC = () => {
   const navigate = useNavigate();
-  const { apiHost } = useAuth();
+  const { apiHost, hasSignedInBefore } = useAuth();
   const { validateToken } = useInternalAuth();
   const [identifier, setIdentifier] = useState<string>('');
   const [email, setEmail] = useState<string>('');
@@ -29,7 +29,11 @@ const Login: React.FC = () => {
     }
 
     checkSupport();
-  }, []);
+
+    if (hasSignedInBefore) {
+      setMode('login');
+    }
+  }, [hasSignedInBefore]);
 
   const handleEmailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const email = e.target.value;
