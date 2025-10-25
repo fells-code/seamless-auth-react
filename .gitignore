@@ -5,3 +5,6 @@
 node_modules/
 dist/
 coverage/
+
+!.vscode/settings.json
+!.vscode/extensions.json

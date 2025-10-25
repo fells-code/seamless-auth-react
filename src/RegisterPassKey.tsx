@@ -2,43 +2,41 @@ import {
   type RegistrationResponseJSON,
   startRegistration,
   WebAuthnError,
-} from "@simplewebauthn/browser";
-import { useAuth } from "AuthProvider";
-import { useInternalAuth } from "context/InternalAuthContext";
-import React, { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+} from '@simplewebauthn/browser';
+import { useAuth } from '@/AuthProvider';
+import { useInternalAuth } from '@/context/InternalAuthContext';
+import React, { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 
-import styles from "./styles/registerPasskey.module.css";
-import { isPasskeySupported } from "./utils";
+import styles from '@/styles/registerPasskey.module.css';
+import { isPasskeySupported } from './utils';
 
 const RegisterPasskey: React.FC = () => {
   const { apiHost } = useAuth();
   const { validateToken } = useInternalAuth();
   const navigate = useNavigate();
-  const [status, setStatus] = useState<
-    "idle" | "success" | "error" | "loading"
-  >("idle");
-  const [message, setMessage] = useState("");
+  const [status, setStatus] = useState<'idle' | 'success' | 'error' | 'loading'>('idle');
+  const [message, setMessage] = useState('');
   const [passkeyAvailable, setPasskeyAvailable] = useState(false);
 
   const handlePasskeyRegister = async () => {
-    setStatus("loading");
+    setStatus('loading');
 
     try {
       const challengeRes = await fetch(
         `${apiHost}webAuthn/generate-registration-options`,
         {
-          method: "GET",
+          method: 'GET',
           headers: {
-            "Content-Type": "application/json",
+            'Content-Type': 'application/json',
           },
-          credentials: "include",
+          credentials: 'include',
         }
       );
 
       if (!challengeRes.ok) {
-        setStatus("error");
-        setMessage("Something went wrong registering passkey.");
+        setStatus('error');
+        setMessage('Something went wrong registering passkey.');
         return;
       }
 
@@ -52,49 +50,46 @@ const RegisterPasskey: React.FC = () => {
       } catch (error) {
         if (error instanceof WebAuthnError) {
           console.error(
-            `Error occurred with webAuthn, ${error.name} - ${error.cause} - ${error.code}-${error.stack}`
+            `Error occurred with webAuthn, ${error.name} - ${error.code}-${error.stack}`
           );
-          setStatus("error");
+          setStatus('error');
           setMessage(`Error: ${error.name}`);
         } else {
-          console.error("A problem happened.", error);
-          setStatus("error");
+          console.error('A problem happened.', error);
+          setStatus('error');
           setMessage(`Error: ${error}`);
         }
         return;
       }
 
-      setStatus("success");
-      setMessage("Passkey registered successfully.");
-      navigate("/");
+      setStatus('success');
+      setMessage('Passkey registered successfully.');
+      navigate('/');
     } catch (err) {
       console.error(err);
-      setStatus("error");
-      setMessage("Something went wrong registering passkey.");
+      setStatus('error');
+      setMessage('Something went wrong registering passkey.');
     }
   };
 
   const verifyPassKey = async (attResp: RegistrationResponseJSON) => {
     try {
-      const verificationResp = await fetch(
-        `${apiHost}webAuthn/verify-registration`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            attestationResponse: attResp,
-          }),
-          credentials: "include",
-        }
-      );
+      const verificationResp = await fetch(`${apiHost}webAuthn/verify-registration`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          attestationResponse: attResp,
+        }),
+        credentials: 'include',
+      });
 
       const verificationJSON = await verificationResp.json();
 
       if (!verificationResp.ok) {
-        setStatus("error");
-        setMessage("Something went wrong registering passkey.");
+        setStatus('error');
+        setMessage('Something went wrong registering passkey.');
         return;
       }
 
@@ -118,7 +113,7 @@ const RegisterPasskey: React.FC = () => {
   return (
     <div className={styles.container}>
       <div className={styles.card}>
-        {passkeyAvailable === null ? (
+        {!passkeyAvailable ? (
           <div className={styles.loading}>
             <div className={styles.spinner}></div>
             <span>Checking for Passkey Support...</span>
@@ -126,24 +121,21 @@ const RegisterPasskey: React.FC = () => {
         ) : (
           passkeyAvailable && (
             <div className={styles.supported}>
-              <h2 className={styles.title}>
-                Secure Your Account with a Passkey
-              </h2>
+              <h2 className={styles.title}>Secure Your Account with a Passkey</h2>
               <p className={styles.description}>
-                Your device supports passkeys! Register one to skip passwords
-                forever.
+                Your device supports passkeys! Register one to skip passwords forever.
               </p>
               <button
                 onClick={handlePasskeyRegister}
-                disabled={status === "loading"}
+                disabled={status === 'loading'}
                 className={styles.button}
               >
-                {status === "loading" ? "Registering..." : "Register Passkey"}
+                {status === 'loading' ? 'Registering...' : 'Register Passkey'}
               </button>
               {message && (
                 <p
                   className={`${styles.message} ${
-                    status === "success" ? styles.success : styles.error
+                    status === 'success' ? styles.success : styles.error
                   }`}
                 >
                   {message}

@@ -1,41 +1,41 @@
-import { useAuth } from "AuthProvider";
-import { useInternalAuth } from "context/InternalAuthContext";
-import React, { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useAuth } from '@/AuthProvider';
+import { useInternalAuth } from '@/context/InternalAuthContext';
+import React, { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 
-import styles from "./styles/mfaLogin.module.css";
+import styles from './styles/mfaLogin.module.css';
 
 const MfaLogin: React.FC = () => {
   const { apiHost } = useAuth();
   const { validateToken } = useInternalAuth();
   const navigate = useNavigate();
-  const [OTP, setOTP] = useState("");
-  const [error, setError] = useState("");
+  const [OTP, setOTP] = useState('');
+  const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const [resendMsg, setResendMsg] = useState("");
+  const [resendMsg, setResendMsg] = useState('');
   const [timeLeft, setTimeLeft] = useState(300);
   const [selectedMethod, setSelectedMethod] = useState<string | null>(null);
 
-  const maskedPhone = "****1234";
-  const maskedEmail = "j***@example.com";
+  const maskedPhone = '****1234';
+  const maskedEmail = 'j***@example.com';
 
   const formatTime = (seconds: number) => {
     const m = Math.floor(seconds / 60)
       .toString()
-      .padStart(2, "0");
-    const s = (seconds % 60).toString().padStart(2, "0");
+      .padStart(2, '0');
+    const s = (seconds % 60).toString().padStart(2, '0');
     return `${m}:${s}`;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError("");
+    setError('');
     setLoading(true);
 
     try {
       await verifyOTP();
     } catch {
-      setError("Unexpected error occurred.");
+      setError('Unexpected error occurred.');
     } finally {
       setLoading(false);
     }
@@ -43,46 +43,46 @@ const MfaLogin: React.FC = () => {
 
   const verifyOTP = async () => {
     const endpoint =
-      selectedMethod === "phone"
-        ? "otp/verify-login-phone-otp"
-        : "otp/verify-login-email-otp";
+      selectedMethod === 'phone'
+        ? 'otp/verify-login-phone-otp'
+        : 'otp/verify-login-email-otp';
 
     try {
       const response = await fetch(`${apiHost}${endpoint}`, {
-        method: "POST",
+        method: 'POST',
         headers: {
-          "Content-Type": "application/json",
+          'Content-Type': 'application/json',
         },
         body: JSON.stringify({ verificationToken: OTP }),
-        credentials: "include",
+        credentials: 'include',
       });
 
       if (!response.ok) {
-        setError("Verification failed.");
+        setError('Verification failed.');
         return;
       }
 
       await validateToken();
-      navigate("/");
+      navigate('/');
     } catch (err) {
-      console.error("Error verifying OTP", err);
-      setError("Verification failed.");
+      console.error('Error verifying OTP', err);
+      setError('Verification failed.');
     }
   };
 
   const sendOTP = async (target: string) => {
-    setError("");
+    setError('');
     const endpoint =
-      target === "phone"
-        ? "otp/generate-login-phone-otp"
-        : "otp/generate-login-email-otp";
+      target === 'phone'
+        ? 'otp/generate-login-phone-otp'
+        : 'otp/generate-login-email-otp';
 
     const response = await fetch(`${apiHost}${endpoint}`, {
-      method: "GET",
+      method: 'GET',
       headers: {
-        "Content-Type": "application/json",
+        'Content-Type': 'application/json',
       },
-      credentials: "include",
+      credentials: 'include',
     });
 
     if (!response.ok) {
@@ -90,15 +90,13 @@ const MfaLogin: React.FC = () => {
         `Failed to send ${target} code. If this persists, refresh the page and try again.`
       );
     } else {
-      setResendMsg(
-        `Verification ${target === "phone" ? "SMS" : "email"} has been sent.`
-      );
+      setResendMsg(`Verification ${target === 'phone' ? 'SMS' : 'email'} has been sent.`);
     }
   };
 
   useEffect(() => {
     const interval = setInterval(() => {
-      setTimeLeft((prev) => (prev > 0 ? prev - 1 : 0));
+      setTimeLeft(prev => (prev > 0 ? prev - 1 : 0));
     }, 1000);
     return () => clearInterval(interval);
   }, []);
@@ -113,11 +111,11 @@ const MfaLogin: React.FC = () => {
         <div className={styles.buttonGroup}>
           <button
             onClick={() => {
-              setSelectedMethod("phone");
-              sendOTP("phone");
+              setSelectedMethod('phone');
+              sendOTP('phone');
             }}
             className={`${styles.button} ${
-              selectedMethod === "phone" ? styles.selected : ""
+              selectedMethod === 'phone' ? styles.selected : ''
             }`}
           >
             Send code to phone: <span className="font-mono">{maskedPhone}</span>
@@ -125,11 +123,11 @@ const MfaLogin: React.FC = () => {
 
           <button
             onClick={() => {
-              setSelectedMethod("email");
-              sendOTP("email");
+              setSelectedMethod('email');
+              sendOTP('email');
             }}
             className={`${styles.button} ${
-              selectedMethod === "email" ? styles.selected : ""
+              selectedMethod === 'email' ? styles.selected : ''
             }`}
           >
             Send code to email: <span className="font-mono">{maskedEmail}</span>
@@ -151,14 +149,14 @@ const MfaLogin: React.FC = () => {
               maxLength={6}
               className={styles.input}
               placeholder="••••••"
-              onChange={(e) => setOTP(e.target.value)}
+              onChange={e => setOTP(e.target.value)}
             />
             <button
               onClick={handleSubmit}
               className={styles.submit}
               disabled={!OTP || OTP.length < 6 || loading}
             >
-              {loading ? "Verifying..." : "Verify"}
+              {loading ? 'Verifying...' : 'Verify'}
             </button>
           </>
         )}

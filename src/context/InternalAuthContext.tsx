@@ -1,19 +1,11 @@
-import {
-  createContext,
-  Dispatch,
-  ReactNode,
-  SetStateAction,
-  useContext,
-} from "react";
+import { createContext, Dispatch, ReactNode, SetStateAction, useContext } from 'react';
 
 interface InternalAuthContextType {
   validateToken: () => Promise<void>;
   setLoading: Dispatch<SetStateAction<boolean>>;
 }
 
-const InternalAuthContext = createContext<InternalAuthContextType | undefined>(
-  undefined
-);
+const InternalAuthContext = createContext<InternalAuthContextType | undefined>(undefined);
 
 export const InternalAuthProvider = ({
   value,
@@ -23,9 +15,7 @@ export const InternalAuthProvider = ({
   children: ReactNode;
 }) => {
   return (
-    <InternalAuthContext.Provider value={value}>
-      {children}
-    </InternalAuthContext.Provider>
+    <InternalAuthContext.Provider value={value}>{children}</InternalAuthContext.Provider>
   );
 };
 
@@ -33,7 +23,7 @@ export const InternalAuthProvider = ({
 export const useInternalAuth = () => {
   const context = useContext(InternalAuthContext);
   if (!context) {
-    throw new Error("useInternalAuth must be used within InternalAuthProvider");
+    throw new Error('useInternalAuth must be used within InternalAuthProvider');
   }
   return context;
 };

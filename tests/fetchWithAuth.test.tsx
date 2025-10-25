@@ -1,86 +1,61 @@
-import { fetchWithAuth } from "../src/fetchWithAuth";
+import { fetchWithAuth } from '../src/fetchWithAuth';
 
-beforeEach(() => {
-  localStorage.clear();
-  global.fetch = jest.fn();
-});
+describe('fetchWithAuth', () => {
+  const originalFetch = global.fetch;
 
-afterEach(() => {
-  jest.restoreAllMocks();
-});
-
-describe("fetchWithAuth", () => {
-  const apiHost = "http://localhost:5000/";
-  const mockUrl = "http://localhost:5000/test";
-  const mockResponse = { success: true };
-
-  it("throws an error if no auth token is available", async () => {
-    await expect(fetchWithAuth(mockUrl, apiHost)).rejects.toThrow(
-      "No token available. Please log in again."
-    );
+  beforeEach(() => {
+    global.fetch = jest.fn();
   });
 
-  it("makes a request with the auth token", async () => {
-    localStorage.setItem("authToken", "test-token");
-    (fetch as jest.Mock).mockResolvedValue({
-      ok: true,
-      json: () => mockResponse,
+  afterEach(() => {
+    jest.resetAllMocks();
+    global.fetch = originalFetch;
+  });
+
+  it('should call fetch with credentials=include and pass through headers', async () => {
+    const mockResponse = { ok: true } as Response;
+    (global.fetch as jest.Mock).mockResolvedValue(mockResponse);
+
+    const input = 'https://api.example.com/test';
+    const init = { headers: { Authorization: 'Bearer token' } };
+
+    const result = await fetchWithAuth(input, init);
+
+    expect(global.fetch).toHaveBeenCalledWith(input, {
+      ...init,
+      credentials: 'include',
+      headers: { Authorization: 'Bearer token' },
     });
 
-    const response = await fetchWithAuth(mockUrl, apiHost);
-    expect(fetch).toHaveBeenCalledWith(
-      mockUrl,
-      expect.objectContaining({
-        headers: expect.objectContaining({
-          Authorization: "Bearer test-token",
-        }),
-      })
-    );
-    expect(response.ok).toBe(true);
+    expect(result).toBe(mockResponse);
   });
 
-  it("attempts to refresh the token if a 403 response is received", async () => {
-    localStorage.setItem("authToken", "old-token");
-    localStorage.setItem("refreshToken", "refresh-token");
+  it('should include credentials even if init is undefined', async () => {
+    const mockResponse = { ok: true } as Response;
+    (global.fetch as jest.Mock).mockResolvedValue(mockResponse);
 
-    (fetch as jest.Mock)
-      .mockResolvedValueOnce({ status: 403 }) // First request fails with 403
-      .mockResolvedValueOnce({
-        ok: true,
-        json: () => ({ accessToken: "new-token" }),
-      }) // Refresh token request
-      .mockResolvedValueOnce({ ok: true, json: () => mockResponse }); // Retried request
+    await fetchWithAuth('https://api.example.com/without-init');
 
-    const response = await fetchWithAuth(mockUrl, apiHost);
-    expect(localStorage.getItem("authToken")).toBe("new-token");
-    expect(fetch).toHaveBeenCalledTimes(3);
-    expect(fetch).toHaveBeenNthCalledWith(
-      2,
-      `${apiHost}auth/refresh-token`,
-      expect.any(Object)
-    );
-    expect(fetch).toHaveBeenNthCalledWith(
-      3,
-      mockUrl,
-      expect.objectContaining({
-        headers: expect.objectContaining({ Authorization: "Bearer new-token" }),
-      })
-    );
-    expect(response.ok).toBe(true);
+    expect(global.fetch).toHaveBeenCalledWith('https://api.example.com/without-init', {
+      credentials: 'include',
+      headers: {},
+    });
   });
 
-  it("removes tokens and throws an error if token refresh fails", async () => {
-    localStorage.setItem("authToken", "old-token");
-    localStorage.setItem("refreshToken", "refresh-token");
+  it('should throw an error if response.ok is false', async () => {
+    const mockResponse = { ok: false } as Response;
+    (global.fetch as jest.Mock).mockResolvedValue(mockResponse);
 
-    (fetch as jest.Mock)
-      .mockResolvedValueOnce({ status: 403 }) // First request fails
-      .mockResolvedValueOnce({ ok: false }); // Refresh token request fails
-
-    await expect(fetchWithAuth(mockUrl, apiHost)).rejects.toThrow(
-      "Session expired. Please log in again."
+    await expect(fetchWithAuth('https://api.example.com/fail')).rejects.toThrow(
+      'Failed to make API call to auth server.'
     );
-    expect(localStorage.getItem("authToken")).toBeNull();
-    expect(localStorage.getItem("refreshToken")).toBeNull();
+  });
+
+  it('should propagate fetch rejections (network errors)', async () => {
+    (global.fetch as jest.Mock).mockRejectedValue(new Error('Network down'));
+
+    await expect(fetchWithAuth('https://api.example.com/fail')).rejects.toThrow(
+      'Network down'
+    );
   });
 });

@@ -1,6 +1,6 @@
-import React, { useEffect, useRef } from "react";
+import React, { useEffect, useRef } from 'react';
 
-import styles from "./styles/termsModal.module.css";
+import styles from './styles/termsModal.module.css';
 
 interface TermsModalProps {
   isOpen: boolean;
@@ -12,16 +12,16 @@ const TermsModal: React.FC<TermsModalProps> = ({ isOpen, onClose }) => {
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
+      if (e.key === 'Escape') onClose();
     };
 
     if (isOpen) {
-      document.addEventListener("keydown", handleKeyDown);
+      document.addEventListener('keydown', handleKeyDown);
       modalRef.current?.focus();
     }
 
     return () => {
-      document.removeEventListener("keydown", handleKeyDown);
+      document.removeEventListener('keydown', handleKeyDown);
     };
   }, [isOpen, onClose]);
 
@@ -48,38 +48,36 @@ const TermsModal: React.FC<TermsModalProps> = ({ isOpen, onClose }) => {
             <strong>Effective Date:</strong> June 01, 2025
           </p>
           <p>
-            By providing your phone number to SeamlessAuth, a Fells Code LLC
-            product, you agree to receive SMS messages for identity
-            verification, authentication, and account security.
+            By providing your phone number to SeamlessAuth, a Fells Code LLC product, you
+            agree to receive SMS messages for identity verification, authentication, and
+            account security.
           </p>
           <p>
-            <strong>1. Purpose:</strong> SMS is used only for account security
-            (OTP, MFA). No marketing messages.
+            <strong>1. Purpose:</strong> SMS is used only for account security (OTP, MFA).
+            No marketing messages.
           </p>
           <p>
             <strong>2. Frequency:</strong> Based on login and account activity.
           </p>
           <p>
-            <strong>3. Opt-Out:</strong> Contact support@seamlessauth.com to opt
-            out.
+            <strong>3. Opt-Out:</strong> Contact support@seamlessauth.com to opt out.
           </p>
           <p>
             <strong>4. Fees:</strong> Standard carrier rates may apply.
           </p>
           <p>
-            <strong>5. Supported Carriers:</strong> Most major providers
-            supported, delivery not guaranteed.
+            <strong>5. Supported Carriers:</strong> Most major providers supported,
+            delivery not guaranteed.
           </p>
           <p>
-            <strong>6. Privacy:</strong> Your phone number is not shared or
-            sold. See our Privacy Policy.
+            <strong>6. Privacy:</strong> Your phone number is not shared or sold. See our
+            Privacy Policy.
           </p>
           <p>
-            <strong>7. Changes:</strong> Terms may be updated with notice on
-            this page.
+            <strong>7. Changes:</strong> Terms may be updated with notice on this page.
           </p>
           <p>
-            Questions? Email us at{" "}
+            Questions? Email us at{' '}
             <a className={styles.link} href="mailto:support@seamlessauth.com">
               support@seamlessauth.com
             </a>

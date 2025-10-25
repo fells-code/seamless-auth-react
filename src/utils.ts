@@ -1,4 +1,4 @@
-import parsePhoneNumberFromString from "libphonenumber-js";
+import parsePhoneNumberFromString from 'libphonenumber-js';
 
 /**
  * isValidEmail
@@ -9,7 +9,7 @@ import parsePhoneNumberFromString from "libphonenumber-js";
  * @returns boolean - Whether the email is syntactically valid
  */
 export const isValidEmail = (email: string): boolean => {
-  if (typeof email !== "string") return false;
+  if (typeof email !== 'string') return false;
 
   // Trim and normalize
   const normalized = email.trim();
@@ -18,34 +18,29 @@ export const isValidEmail = (email: string): boolean => {
   if (normalized.length < 3 || normalized.length > 320) return false;
 
   // Split into local part and domain part
-  const parts = normalized.split("@");
+  const parts = normalized.split('@');
   if (parts.length !== 2) return false;
 
   const [localPart, domainPart] = parts;
 
   // Validate local part (before @)
-  // - May contain letters, numbers, dots, underscores, hyphens, plus signs
-  // - Cannot start or end with a dot
-  // - Cannot have consecutive dots
   if (
     !/^[A-Za-z0-9._%+-]+$/.test(localPart) ||
-    localPart.startsWith(".") ||
-    localPart.endsWith(".") ||
-    localPart.includes("..")
+    localPart.startsWith('.') ||
+    localPart.endsWith('.') ||
+    localPart.includes('..')
   ) {
     return false;
   }
 
   // Validate domain part (after @)
-  // - Must contain at least one dot (e.g. example.com)
-  // - No leading/trailing hyphens or dots
-  // - Only valid domain characters
   if (
     !/^[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/.test(domainPart) ||
-    domainPart.startsWith("-") ||
-    domainPart.endsWith("-") ||
-    domainPart.startsWith(".") ||
-    domainPart.endsWith(".")
+    domainPart.startsWith('-') ||
+    domainPart.endsWith('-') ||
+    domainPart.startsWith('.') ||
+    domainPart.endsWith('.') ||
+    domainPart.includes('..')
   ) {
     return false;
   }
@@ -72,13 +67,13 @@ export const isValidPhoneNumber = (phone: string): boolean => {
 export async function isPasskeySupported(): Promise<boolean> {
   if (
     window.PublicKeyCredential &&
-    typeof window.PublicKeyCredential
-      .isUserVerifyingPlatformAuthenticatorAvailable === "function"
+    typeof window.PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable ===
+      'function'
   ) {
     try {
       return await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable();
     } catch (error) {
-      console.error("Error checking passkey support:", error);
+      console.error('Error checking passkey support:', error);
       return false;
     }
   }

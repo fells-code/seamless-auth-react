@@ -4,7 +4,7 @@ export const fetchWithAuth = async (
 ): Promise<Response> => {
   const requestInit: RequestInit = {
     ...init,
-    credentials: "include",
+    credentials: 'include',
     headers: {
       ...(init?.headers || {}),
     },

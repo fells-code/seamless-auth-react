@@ -1,12 +1,12 @@
-name: Release
+name: Beta Release
 
 on:
   push:
     branches:
-      - main
+      - dev
 
 jobs:
-  release:
+  release-beta:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -16,8 +16,8 @@ jobs:
           registry-url: https://registry.npmjs.org/
       - run: npm ci
       - run: npm run build
-      - name: Semantic Release (main)
+      - name: Semantic Release (beta)
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
-        run: npx semantic-release
+        run: npx semantic-release --branches dev --tag-format 'beta@${version}'

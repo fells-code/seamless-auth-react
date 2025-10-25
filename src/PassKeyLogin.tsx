@@ -1,10 +1,10 @@
-import { startAuthentication } from "@simplewebauthn/browser";
-import { useAuth } from "AuthProvider";
-import { useInternalAuth } from "context/InternalAuthContext";
-import React from "react";
-import { useNavigate } from "react-router-dom";
+import { startAuthentication } from '@simplewebauthn/browser';
+import { useAuth } from '@/AuthProvider';
+import { useInternalAuth } from '@/context/InternalAuthContext';
+import React from 'react';
+import { useNavigate } from 'react-router-dom';
 
-import styles from "./styles/passKeyLogin.module.css";
+import styles from './styles/passKeyLogin.module.css';
 
 const PassKeyLogin: React.FC = () => {
   const navigate = useNavigate();
@@ -13,17 +13,14 @@ const PassKeyLogin: React.FC = () => {
 
   const handlePasskeyLogin = async () => {
     try {
-      const response = await fetch(
-        `${apiHost}webAuthn/generate-authentication-options`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          credentials: "include",
-        }
-      );
+      const response = await fetch(`${apiHost}webAuthn/generate-authentication-options`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+      });
 
       if (!response.ok) {
-        console.error("Something went wrong getting webauthn options");
+        console.error('Something went wrong getting webauthn options');
         return;
       }
 
@@ -33,31 +30,31 @@ const PassKeyLogin: React.FC = () => {
       const verificationResponse = await fetch(
         `${apiHost}webAuthn/verify-authentication`,
         {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ assertionResponse: credential }),
-          credentials: "include",
+          credentials: 'include',
         }
       );
 
       if (!verificationResponse.ok) {
-        console.error("Failed to verify passkey");
+        console.error('Failed to verify passkey');
       }
 
       const verificationResult = await verificationResponse.json();
 
-      if (verificationResult.message === "Success") {
+      if (verificationResult.message === 'Success') {
         if (verificationResult.token) {
           await validateToken();
-          navigate("/");
+          navigate('/');
           return;
         }
-        navigate("/mfaLogin");
+        navigate('/mfaLogin');
       } else {
-        console.error("Passkey login failed:", verificationResult.message);
+        console.error('Passkey login failed:', verificationResult.message);
       }
     } catch (error) {
-      console.error("Passkey login error:", error);
+      console.error('Passkey login error:', error);
     }
   };
 

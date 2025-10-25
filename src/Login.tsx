@@ -1,25 +1,25 @@
-import { startAuthentication } from "@simplewebauthn/browser";
-import { useAuth } from "AuthProvider";
-import PhoneInputWithCountryCode from "components/phoneInput";
-import { useInternalAuth } from "context/InternalAuthContext";
-import React, { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { startAuthentication } from '@simplewebauthn/browser';
+import { useAuth } from '@/AuthProvider';
+import PhoneInputWithCountryCode from '@/components/phoneInput';
+import { useInternalAuth } from '@/context/InternalAuthContext';
+import React, { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 
-import styles from "./styles/login.module.css";
-import { isPasskeySupported, isValidEmail, isValidPhoneNumber } from "./utils";
+import styles from './styles/login.module.css';
+import { isPasskeySupported, isValidEmail, isValidPhoneNumber } from './utils';
 
 const Login: React.FC = () => {
   const navigate = useNavigate();
   const { apiHost } = useAuth();
   const { validateToken } = useInternalAuth();
-  const [identifier, setIdentifier] = useState<string>("");
-  const [email, setEmail] = useState<string>("");
-  const [mode, setMode] = useState<"login" | "register">("register");
-  const [phone, setPhone] = useState<string>("");
-  const [formErrors, setFormErrors] = useState<string>("");
-  const [phoneError, setPhoneError] = useState<string>("");
-  const [emailError, setEmailError] = useState<string>("");
-  const [identifierError, setIdentifierError] = useState<string>("");
+  const [identifier, setIdentifier] = useState<string>('');
+  const [email, setEmail] = useState<string>('');
+  const [mode, setMode] = useState<'login' | 'register'>('register');
+  const [phone, setPhone] = useState<string>('');
+  const [formErrors, setFormErrors] = useState<string>('');
+  const [phoneError, setPhoneError] = useState<string>('');
+  const [emailError, setEmailError] = useState<string>('');
+  const [identifierError, setIdentifierError] = useState<string>('');
   const [passkeyAvailable, setPasskeyAvailable] = useState(false);
 
   useEffect(() => {
@@ -42,7 +42,7 @@ const Login: React.FC = () => {
   };
 
   const canSubmit = (): boolean | undefined => {
-    if (mode === "login" && identifier) {
+    if (mode === 'login' && identifier) {
       return isValidEmail(identifier) || isValidPhoneNumber(identifier);
     }
 
@@ -51,17 +51,14 @@ const Login: React.FC = () => {
 
   const handlePasskeyLogin = async () => {
     try {
-      const response = await fetch(
-        `${apiHost}webAuthn/generate-authentication-options`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          credentials: "include",
-        }
-      );
+      const response = await fetch(`${apiHost}webAuthn/generate-authentication-options`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+      });
 
       if (!response.ok) {
-        console.error("Something went wrong getting webauthn options");
+        console.error('Something went wrong getting webauthn options');
         return;
       }
 
@@ -71,87 +68,87 @@ const Login: React.FC = () => {
       const verificationResponse = await fetch(
         `${apiHost}webAuthn/verify-authentication`,
         {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ assertionResponse: credential }),
-          credentials: "include",
+          credentials: 'include',
         }
       );
 
       if (!verificationResponse.ok) {
-        console.error("Failed to verify passkey");
+        console.error('Failed to verify passkey');
       }
 
       const verificationResult = await verificationResponse.json();
 
-      if (verificationResult.message === "Success") {
+      if (verificationResult.message === 'Success') {
         if (verificationResult.token) {
           await validateToken();
-          navigate("/");
+          navigate('/');
           return;
         }
-        navigate("/mfaLogin");
+        navigate('/mfaLogin');
       } else {
-        console.error("Passkey login failed:", verificationResult.message);
+        console.error('Passkey login failed:', verificationResult.message);
       }
     } catch (error) {
-      console.error("Passkey login error:", error);
+      console.error('Passkey login error:', error);
     }
   };
 
   const login = async () => {
-    setFormErrors("");
+    setFormErrors('');
 
     try {
       const response = await fetch(`${apiHost}auth/login`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ identifier, passkeyAvailable }),
-        credentials: "include",
+        credentials: 'include',
       });
 
       if (!response.ok) {
-        setFormErrors("Failed to send login link. Please try again.");
+        setFormErrors('Failed to send login link. Please try again.');
         return;
       }
 
       await handlePasskeyLogin();
     } catch (err) {
-      console.error("Unexpected login error", err);
+      console.error('Unexpected login error', err);
       setFormErrors(
-        "An unexpected error occured. Try again. If the problem persists, try resetting your password"
+        'An unexpected error occured. Try again. If the problem persists, try resetting your password'
       );
     }
   };
 
   const register = async () => {
-    setFormErrors("");
+    setFormErrors('');
 
     try {
       const response = await fetch(`${apiHost}registration/register`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, phone }),
-        credentials: "include",
+        credentials: 'include',
       });
 
       if (!response.ok) {
-        setFormErrors("Failed to register. Please try again.");
+        setFormErrors('Failed to register. Please try again.');
         return;
       }
 
       const data = await response.json();
 
-      if (data.message === "Success") {
-        navigate("/verifyOTP");
+      if (data.message === 'Success') {
+        navigate('/verifyOTP');
       }
       setFormErrors(
-        "An unexpected error occured. Try again. If the problem persists, try resetting your password"
+        'An unexpected error occured. Try again. If the problem persists, try resetting your password'
       );
     } catch (err) {
-      console.error("Unexpected login error", err);
+      console.error('Unexpected login error', err);
       setFormErrors(
-        "An unexpected error occured. Try again. If the problem persists, try resetting your password"
+        'An unexpected error occured. Try again. If the problem persists, try resetting your password'
       );
     }
   };
@@ -159,26 +156,26 @@ const Login: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
 
-    if (mode === "login") login();
-    if (mode === "register") register();
+    if (mode === 'login') login();
+    if (mode === 'register') register();
   };
 
   return (
     <div className={styles.container}>
       <div className={styles.card}>
         <h2 className={styles.heading}>
-          {mode === "login" ? "Sign In" : "Create Account"}
+          {mode === 'login' ? 'Sign In' : 'Create Account'}
         </h2>
 
         {!passkeyAvailable ? (
           <p className={styles.message}>
-            ❌ This device doesn't support passkey login. You must provide or
-            register a passkey.
+            ❌ This device doesn't support passkey login. You must provide or register a
+            passkey.
           </p>
         ) : (
           <>
             <form onSubmit={handleSubmit}>
-              {mode === "login" && (
+              {mode === 'login' && (
                 <div className={styles.inputGroup}>
                   <label htmlFor="identifier" className={styles.label}>
                     Email Address / Phone Number
@@ -194,12 +191,9 @@ const Login: React.FC = () => {
                     onBlur={() => {
                       if (identifier) {
                         const isValid =
-                          isValidEmail(identifier) ||
-                          isValidPhoneNumber(identifier);
+                          isValidEmail(identifier) || isValidPhoneNumber(identifier);
                         setIdentifierError(
-                          isValid
-                            ? ""
-                            : "Please enter a valid email or phone number"
+                          isValid ? '' : 'Please enter a valid email or phone number'
                         );
                       }
                     }}
@@ -208,13 +202,11 @@ const Login: React.FC = () => {
                   <p className={styles.helperText}>
                     Phone numbers must include a country code e.g. +1
                   </p>
-                  {identifierError && (
-                    <p className={styles.error}>{identifierError}</p>
-                  )}
+                  {identifierError && <p className={styles.error}>{identifierError}</p>}
                 </div>
               )}
 
-              {mode === "register" && (
+              {mode === 'register' && (
                 <>
                   <div className={styles.inputGroup}>
                     <label htmlFor="email" className={styles.label}>
@@ -230,9 +222,7 @@ const Login: React.FC = () => {
                       onBlur={() => {
                         if (email) {
                           const isValid = isValidEmail(email);
-                          setEmailError(
-                            isValid ? "" : "Please enter a valid email"
-                          );
+                          setEmailError(isValid ? '' : 'Please enter a valid email');
                         }
                       }}
                       required
@@ -249,24 +239,20 @@ const Login: React.FC = () => {
                 </>
               )}
 
-              <button
-                type="submit"
-                className={styles.button}
-                disabled={!canSubmit()}
-              >
-                {mode === "login" ? "Login" : "Register"}
+              <button type="submit" className={styles.button} disabled={!canSubmit()}>
+                {mode === 'login' ? 'Login' : 'Register'}
               </button>
 
               {formErrors && <p className={styles.error}>{formErrors}</p>}
 
               <button
                 type="button"
-                onClick={() => setMode(mode === "login" ? "register" : "login")}
+                onClick={() => setMode(mode === 'login' ? 'register' : 'login')}
                 className={styles.toggle}
               >
-                {mode === "login"
+                {mode === 'login'
                   ? "Don't have an account? Create one"
-                  : "Already have an account? Sign in"}
+                  : 'Already have an account? Sign in'}
               </button>
             </form>
           </>

@@ -1,22 +1,22 @@
-import { AsYouType, parsePhoneNumberFromString } from "libphonenumber-js";
-import { useEffect, useState } from "react";
+import { AsYouType, parsePhoneNumberFromString } from 'libphonenumber-js';
+import { useEffect, useState } from 'react';
 
-import styles from "../styles/login.module.css";
-import TermsModal from "../TermsModal";
+import styles from '../styles/login.module.css';
+import TermsModal from '../TermsModal';
 
 const countries = [
-  { code: "US", name: "United States", dialCode: "+1", flag: "🇺🇸" },
-  { code: "CA", name: "Canada", dialCode: "+1", flag: "🇨🇦" },
-  { code: "GB", name: "United Kingdom", dialCode: "+44", flag: "🇬🇧" },
-  { code: "IN", name: "India", dialCode: "+91", flag: "🇮🇳" },
-  { code: "AU", name: "Australia", dialCode: "+61", flag: "🇦🇺" },
+  { code: 'US', name: 'United States', dialCode: '+1', flag: '🇺🇸' },
+  { code: 'CA', name: 'Canada', dialCode: '+1', flag: '🇨🇦' },
+  { code: 'GB', name: 'United Kingdom', dialCode: '+44', flag: '🇬🇧' },
+  { code: 'IN', name: 'India', dialCode: '+91', flag: '🇮🇳' },
+  { code: 'AU', name: 'Australia', dialCode: '+61', flag: '🇦🇺' },
 ];
 
 function getDefaultCountry(): (typeof countries)[number] {
   try {
-    const locale = Intl.DateTimeFormat().resolvedOptions().locale || "en-US";
-    const countryCode = locale.split("-")[1]?.toUpperCase() || "US";
-    return countries.find((c) => c.code === countryCode) || countries[0];
+    const locale = Intl.DateTimeFormat().resolvedOptions().locale || 'en-US';
+    const countryCode = locale.split('-')[1]?.toUpperCase() || 'US';
+    return countries.find(c => c.code === countryCode) || countries[0];
   } catch {
     return countries[0];
   }
@@ -50,24 +50,24 @@ export default function PhoneInputWithCountryCode({
     const formatted = new AsYouType().input(full);
     setPhone(formatted);
 
-    if (phoneError) setPhoneError("");
+    if (phoneError) setPhoneError('');
   };
 
   const handleBlur = () => {
     if (phone) {
       const parsed = parsePhoneNumberFromString(phone);
       const isValid = parsed?.isValid();
-      setPhoneError(isValid ? "" : "Please enter a valid phone number.");
+      setPhoneError(isValid ? '' : 'Please enter a valid phone number.');
     }
   };
 
   const handleCountryChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const country = countries.find((c) => c.code === e.target.value);
+    const country = countries.find(c => c.code === e.target.value);
     if (country) {
       setSelectedCountry(country);
 
       // Rebuild the phone number if necessary
-      const stripped = phone.replace(/^\+\d+/, ""); // remove old country code
+      const stripped = phone.replace(/^\+\d+/, ''); // remove old country code
       const newPhone = new AsYouType().input(country.dialCode + stripped);
       setPhone(newPhone);
     }
@@ -75,7 +75,9 @@ export default function PhoneInputWithCountryCode({
 
   return (
     <div className={styles.inputGroup}>
-      <label className={styles.label}>Phone Number</label>
+      <label id="phone" className={styles.label}>
+        Phone Number
+      </label>
 
       <div className={styles.phoneRow}>
         <select
@@ -83,7 +85,7 @@ export default function PhoneInputWithCountryCode({
           onChange={handleCountryChange}
           className={styles.select}
         >
-          {countries.map((country) => (
+          {countries.map(country => (
             <option key={country.code} value={country.code}>
               {country.flag} ({country.dialCode})
             </option>
@@ -91,6 +93,7 @@ export default function PhoneInputWithCountryCode({
         </select>
 
         <input
+          aria-labelledby="phone"
           type="tel"
           value={phone}
           onChange={handlePhoneChange}
@@ -102,7 +105,7 @@ export default function PhoneInputWithCountryCode({
       </div>
 
       <p className={styles.helperText}>
-        By signing up, you agree to our{" "}
+        By signing up, you agree to our{' '}
         <button onClick={() => setShowModal(true)} className={styles.underline}>
           SMS Terms & Conditions
         </button>
