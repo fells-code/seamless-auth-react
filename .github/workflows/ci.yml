@@ -1,19 +1,30 @@
 name: CI
+
 on:
-  pull_request:
-    branches: [dev, main]
   push:
-    branches: [dev]
+    branches: ['**']
+  pull_request:
+    branches: ['**']
 
 jobs:
   test:
     runs-on: ubuntu-latest
+
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: npm
-      - run: npm ci
-      - run: npm run lint
-      - run: npm test -- --coverage
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Run Tests with Coverage
+        run: npm test -- --coverage
