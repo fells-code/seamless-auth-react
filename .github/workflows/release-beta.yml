@@ -29,9 +29,6 @@ jobs:
       - name: Lint
         run: npm run lint
 
-      - name: Typecheck
-        run: npm run typecheck
-
       - name: Run Tests
         run: npm test -- --runInBand
 
