@@ -13,7 +13,7 @@ jest.mock('@simplewebauthn/browser', () => ({
 }));
 
 jest.mock('@/AuthProvider', () => ({
-  useAuth: () => ({ apiHost: 'https://api.example.com/' }),
+  useAuth: () => ({ apiHost: 'https://api.example.com' }),
 }));
 
 const mockValidateToken = jest.fn();
@@ -115,7 +115,11 @@ describe('Login Component', () => {
     fireEvent.click(screen.getByRole('button', { name: /Register/i }));
 
     await waitFor(() => {
-      expect(screen.getByText(/Failed to register/i)).toBeInTheDocument();
+      expect(
+        screen.getByText(
+          /An unexpected error occured. Try again. If the problem persists, try resetting your password/i
+        )
+      ).toBeInTheDocument();
     });
   });
 
@@ -148,7 +152,7 @@ describe('Login Component', () => {
 
     await waitFor(() => {
       expect(global.fetch).toHaveBeenCalledWith(
-        'https://api.example.com/auth/login',
+        'https://api.example.com/login',
         expect.objectContaining({ method: 'POST' })
       );
     });
@@ -172,7 +176,11 @@ describe('Login Component', () => {
     fireEvent.click(screen.getByRole('button', { name: /Login/i }));
 
     await waitFor(() =>
-      expect(screen.getByText(/Failed to send login link/i)).toBeInTheDocument()
+      expect(
+        screen.getByText(
+          /An unexpected error occured. Try again. If the problem persists, try resetting your password/i
+        )
+      ).toBeInTheDocument()
     );
   });
 });

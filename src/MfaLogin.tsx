@@ -4,9 +4,10 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 import styles from './styles/mfaLogin.module.css';
+import { createFetchWithAuth } from './fetchWithAuth';
 
 const MfaLogin: React.FC = () => {
-  const { apiHost } = useAuth();
+  const { apiHost, mode } = useAuth();
   const { validateToken } = useInternalAuth();
   const navigate = useNavigate();
   const [OTP, setOTP] = useState('');
@@ -18,6 +19,11 @@ const MfaLogin: React.FC = () => {
 
   const maskedPhone = '****1234';
   const maskedEmail = 'j***@example.com';
+
+  const fetchWithAuth = createFetchWithAuth({
+    authMode: mode,
+    authHost: apiHost,
+  });
 
   const formatTime = (seconds: number) => {
     const m = Math.floor(seconds / 60)
@@ -48,7 +54,7 @@ const MfaLogin: React.FC = () => {
         : 'otp/verify-login-email-otp';
 
     try {
-      const response = await fetch(`${apiHost}${endpoint}`, {
+      const response = await fetchWithAuth(`/${endpoint}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -77,20 +83,28 @@ const MfaLogin: React.FC = () => {
         ? 'otp/generate-login-phone-otp'
         : 'otp/generate-login-email-otp';
 
-    const response = await fetch(`${apiHost}${endpoint}`, {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      credentials: 'include',
-    });
+    try {
+      const response = await fetchWithAuth(`/${endpoint}`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+      });
 
-    if (!response.ok) {
+      if (!response.ok) {
+        setError(
+          `Failed to send ${target} code. If this persists, refresh the page and try again.`
+        );
+      } else {
+        setResendMsg(
+          `Verification ${target === 'phone' ? 'SMS' : 'email'} has been sent.`
+        );
+      }
+    } catch {
       setError(
         `Failed to send ${target} code. If this persists, refresh the page and try again.`
       );
-    } else {
-      setResendMsg(`Verification ${target === 'phone' ? 'SMS' : 'email'} has been sent.`);
     }
   };
 

@@ -3,10 +3,11 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 import styles from './styles/verifyOTP.module.css';
+import { createFetchWithAuth } from './fetchWithAuth';
 
 const VerifyOTP: React.FC = () => {
   const navigate = useNavigate();
-  const { apiHost } = useAuth();
+  const { apiHost, mode } = useAuth();
 
   const [emailOtp, setEmailOtp] = useState('');
   const [phoneOtp, setPhoneOtp] = useState('');
@@ -17,6 +18,11 @@ const VerifyOTP: React.FC = () => {
   const [resendMsg, setResendMsg] = useState('');
   const [emailTimeLeft, setEmailTimeLeft] = useState(300);
   const [phoneTimeLeft, setPhoneTimeLeft] = useState(300);
+
+  const fetchWithAuth = createFetchWithAuth({
+    authMode: mode,
+    authHost: apiHost,
+  });
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -47,7 +53,7 @@ const VerifyOTP: React.FC = () => {
     setLoading(true);
     try {
       if (!phoneVerified) {
-        const response = await fetch(`${apiHost}otp/verify-phone-otp`, {
+        const response = await fetchWithAuth(`/otp/verify-phone-otp`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -76,7 +82,7 @@ const VerifyOTP: React.FC = () => {
     setLoading(true);
     try {
       if (!emailVerified) {
-        const response = await fetch(`${apiHost}otp/verify-email-otp`, {
+        const response = await fetchWithAuth(`/otp/verify-email-otp`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -103,7 +109,7 @@ const VerifyOTP: React.FC = () => {
 
   const onResendEmail = async () => {
     setError('');
-    const response = await fetch(`${apiHost}otp/generate-email-otp`, {
+    const response = await fetchWithAuth(`/otp/generate-email-otp`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
@@ -128,7 +134,7 @@ const VerifyOTP: React.FC = () => {
 
   const onResendPhone = async () => {
     setError('');
-    const response = await fetch(`${apiHost}otp/generate-phone-otp`, {
+    const response = await fetchWithAuth(`/otp/generate-phone-otp`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
@@ -272,6 +278,14 @@ const VerifyOTP: React.FC = () => {
 
           <button type="submit" className={styles.button}>
             {loading ? 'Verifying...' : 'Verify & Continue'}
+          </button>
+
+          <button
+            type="button"
+            onClick={() => navigate('/login')}
+            className={styles.toggle}
+          >
+            Back to login
           </button>
         </form>
       </div>

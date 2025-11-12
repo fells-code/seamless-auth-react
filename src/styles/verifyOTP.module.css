@@ -102,3 +102,14 @@
 .button:hover {
   background-color: #1d4ed8;
 }
+
+.toggle {
+  margin-top: 1.5rem;
+  width: 100%;
+  font-size: 0.875rem;
+  color: #60a5fa;
+  text-align: center;
+  background: none;
+  border: none;
+  cursor: pointer;
+}

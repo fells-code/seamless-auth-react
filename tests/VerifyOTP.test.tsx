@@ -1,4 +1,3 @@
-import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import VerifyOTP from '../src/VerifyOTP';
 
@@ -9,7 +8,7 @@ jest.mock('react-router-dom', () => ({
 }));
 
 jest.mock('../src/AuthProvider', () => ({
-  useAuth: () => ({ apiHost: 'https://api.example.com/' }),
+  useAuth: () => ({ apiHost: 'https://api.example.com' }),
 }));
 
 jest.mock(

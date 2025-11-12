@@ -10,29 +10,32 @@ import { useNavigate } from 'react-router-dom';
 
 import styles from '@/styles/registerPasskey.module.css';
 import { isPasskeySupported } from './utils';
+import { createFetchWithAuth } from './fetchWithAuth';
 
 const RegisterPasskey: React.FC = () => {
-  const { apiHost } = useAuth();
+  const { apiHost, mode } = useAuth();
   const { validateToken } = useInternalAuth();
   const navigate = useNavigate();
   const [status, setStatus] = useState<'idle' | 'success' | 'error' | 'loading'>('idle');
   const [message, setMessage] = useState('');
   const [passkeyAvailable, setPasskeyAvailable] = useState(false);
 
+  const fetchWithAuth = createFetchWithAuth({
+    authMode: mode,
+    authHost: apiHost,
+  });
+
   const handlePasskeyRegister = async () => {
     setStatus('loading');
 
     try {
-      const challengeRes = await fetch(
-        `${apiHost}webAuthn/generate-registration-options`,
-        {
-          method: 'GET',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          credentials: 'include',
-        }
-      );
+      const challengeRes = await fetchWithAuth(`/webAuthn/register/start`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+      });
 
       if (!challengeRes.ok) {
         setStatus('error');
@@ -74,7 +77,7 @@ const RegisterPasskey: React.FC = () => {
 
   const verifyPassKey = async (attResp: RegistrationResponseJSON) => {
     try {
-      const verificationResp = await fetch(`${apiHost}webAuthn/verify-registration`, {
+      const verificationResp = await fetchWithAuth(`/webAuthn/register/finish`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

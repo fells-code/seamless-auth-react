@@ -8,7 +8,7 @@ import React, {
   useState,
 } from 'react';
 
-import { fetchWithAuth } from './fetchWithAuth';
+import { AuthMode, createFetchWithAuth } from './fetchWithAuth';
 import LoadingSpinner from './LoadingSpinner';
 import { usePreviousSignIn } from './hooks/usePreviousSignIn';
 
@@ -34,6 +34,7 @@ export interface AuthContextType {
   token: AuthToken | null;
   markSignedIn: () => void;
   hasSignedInBefore: boolean;
+  mode: AuthMode;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -54,23 +55,31 @@ interface AuthProviderProps {
   children: ReactNode;
   apiHost: string;
   autoDetectPreviousSignin?: boolean;
+  mode?: AuthMode;
 }
 
 export const AuthProvider: React.FC<AuthProviderProps> = ({
   children,
   apiHost,
   autoDetectPreviousSignin = true,
+  mode = 'web',
 }) => {
   const [user, setUser] = useState<User | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
   const [loading, setLoading] = useState<boolean>(true);
   const [token, setToken] = useState<AuthToken | null>(null);
   const { hasSignedInBefore, markSignedIn } = usePreviousSignIn();
+  const [authMode] = useState<AuthMode>(mode);
+
+  const fetchWithAuth = createFetchWithAuth({
+    authMode,
+    authHost: apiHost,
+  });
 
   const logout = useCallback(async () => {
     if (user) {
       try {
-        await fetch(`${apiHost}auth/logout`, {
+        await fetchWithAuth(`/logout`, {
           method: 'GET',
           headers: {
             'Content-Type': 'application/json',
@@ -85,11 +94,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({
         setToken(null);
       }
     }
-  }, [apiHost, user]);
+  }, [fetchWithAuth, user]);
 
   const deleteUser = async () => {
     try {
-      const response = await fetchWithAuth(`${apiHost}users/delete`, {
+      const response = await fetchWithAuth(`/users/delete`, {
         method: 'delete',
         credentials: 'include',
       });
@@ -112,7 +121,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({
 
   const validateToken = async () => {
     try {
-      const response = await fetchWithAuth(`${apiHost}users/me`);
+      const response = await fetchWithAuth(`users/me`);
 
       if (response.ok) {
         const { user, token } = await response.json();
@@ -137,7 +146,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({
     if (user && isAuthenticated) {
       markSignedIn();
     }
-  }, [user, isAuthenticated]);
+  }, [user, isAuthenticated, markSignedIn]);
 
   if (loading) {
     return (
@@ -159,6 +168,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({
         token,
         markSignedIn,
         hasSignedInBefore: autoDetectPreviousSignin ? hasSignedInBefore : false,
+        mode,
       }}
     >
       <InternalAuthProvider value={{ validateToken, setLoading }}>

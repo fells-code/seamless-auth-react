@@ -1,7 +1,6 @@
-import React from 'react';
 import { act, render, screen, waitFor } from '@testing-library/react';
 import { AuthProvider, useAuth } from '../src/AuthProvider';
-import { fetchWithAuth } from '../src/fetchWithAuth';
+import { createFetchWithAuth } from '../src/fetchWithAuth';
 
 jest.mock('../src/fetchWithAuth');
 jest.mock('../src/LoadingSpinner', () => () => <div>Loading...</div>);
@@ -9,7 +8,10 @@ jest.mock('@/context/InternalAuthContext', () => ({
   InternalAuthProvider: ({ children }: any) => <div>{children}</div>,
 }));
 
-const mockFetchWithAuth = fetchWithAuth as jest.MockedFunction<typeof fetchWithAuth>;
+// the mock returned fetch function
+const mockFetchWithAuthImpl = jest.fn();
+// make createFetchWithAuth return our mock function
+(createFetchWithAuth as jest.Mock).mockReturnValue(mockFetchWithAuthImpl);
 
 const Consumer = () => {
   const auth = useAuth();
@@ -26,7 +28,7 @@ describe('AuthProvider', () => {
   const apiHost = 'https://api.example.com/';
 
   beforeEach(() => {
-    jest.resetAllMocks();
+    jest.clearAllMocks();
   });
 
   it('renders loading spinner initially', async () => {
@@ -41,7 +43,7 @@ describe('AuthProvider', () => {
   });
 
   it('loads user and token successfully', async () => {
-    mockFetchWithAuth.mockResolvedValueOnce({
+    mockFetchWithAuthImpl.mockResolvedValueOnce({
       ok: true,
       json: async () => ({
         user: { id: '1', email: 'test@example.com', phone: '555-1234', roles: ['admin'] },
@@ -60,13 +62,12 @@ describe('AuthProvider', () => {
     await waitFor(() => {
       expect(screen.getByTestId('user')).toHaveTextContent('test@example.com');
     });
-
     expect(screen.getByTestId('isAuthenticated')).toHaveTextContent('true');
     expect(screen.getByTestId('hasRoleAdmin')).toHaveTextContent('true');
   });
 
   it('logs out if token validation fails (bad response)', async () => {
-    mockFetchWithAuth.mockResolvedValueOnce({ ok: false } as any);
+    mockFetchWithAuthImpl.mockResolvedValueOnce({ ok: false } as any);
 
     await act(async () => {
       render(
@@ -82,7 +83,7 @@ describe('AuthProvider', () => {
   });
 
   it('logs out if token validation throws', async () => {
-    mockFetchWithAuth.mockRejectedValueOnce(new Error('network down'));
+    mockFetchWithAuthImpl.mockRejectedValueOnce(new Error('network down'));
 
     await act(async () => {
       render(

@@ -5,15 +5,21 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 
 import styles from './styles/passKeyLogin.module.css';
+import { createFetchWithAuth } from './fetchWithAuth';
 
 const PassKeyLogin: React.FC = () => {
   const navigate = useNavigate();
-  const { apiHost } = useAuth();
+  const { apiHost, mode } = useAuth();
   const { validateToken } = useInternalAuth();
+
+  const fetchWithAuth = createFetchWithAuth({
+    authMode: mode,
+    authHost: apiHost,
+  });
 
   const handlePasskeyLogin = async () => {
     try {
-      const response = await fetch(`${apiHost}webAuthn/generate-authentication-options`, {
+      const response = await fetchWithAuth(`/webAuthn/login/start`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
@@ -27,15 +33,12 @@ const PassKeyLogin: React.FC = () => {
       const options = await response.json();
       const credential = await startAuthentication({ optionsJSON: options });
 
-      const verificationResponse = await fetch(
-        `${apiHost}webAuthn/verify-authentication`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ assertionResponse: credential }),
-          credentials: 'include',
-        }
-      );
+      const verificationResponse = await fetchWithAuth(`/webAuthn/login/finish`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ assertionResponse: credential }),
+        credentials: 'include',
+      });
 
       if (!verificationResponse.ok) {
         console.error('Failed to verify passkey');
@@ -51,10 +54,10 @@ const PassKeyLogin: React.FC = () => {
         }
         navigate('/mfaLogin');
       } else {
-        console.error('Passkey login failed:', verificationResult.message);
+        console.error(`Passkey login failed`);
       }
-    } catch (error) {
-      console.error('Passkey login error:', error);
+    } catch {
+      console.error('Passkey login error');
     }
   };
 

@@ -1,4 +1,3 @@
-import React from 'react';
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import MfaLogin from '../src/MfaLogin';
 
@@ -10,7 +9,7 @@ jest.mock('react-router-dom', () => ({
 
 const mockValidateToken = jest.fn();
 jest.mock('@/AuthProvider', () => ({
-  useAuth: () => ({ apiHost: 'https://api.example.com/' }),
+  useAuth: () => ({ apiHost: 'https://api.example.com' }),
 }));
 jest.mock('@/context/InternalAuthContext', () => ({
   useInternalAuth: () => ({ validateToken: mockValidateToken }),
@@ -37,7 +36,7 @@ describe('MfaLogin', () => {
   });
 
   it('sends phone OTP when clicking phone button', async () => {
-    (global.fetch as jest.Mock).mockResolvedValueOnce({ ok: true });
+    (global.fetch as jest.Mock).mockResolvedValue({ ok: true });
 
     render(<MfaLogin />);
 

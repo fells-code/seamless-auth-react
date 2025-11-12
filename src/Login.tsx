@@ -7,10 +7,11 @@ import { useNavigate } from 'react-router-dom';
 
 import styles from './styles/login.module.css';
 import { isPasskeySupported, isValidEmail, isValidPhoneNumber } from './utils';
+import { createFetchWithAuth } from './fetchWithAuth';
 
 const Login: React.FC = () => {
   const navigate = useNavigate();
-  const { apiHost, hasSignedInBefore } = useAuth();
+  const { apiHost, hasSignedInBefore, mode: authMode } = useAuth();
   const { validateToken } = useInternalAuth();
   const [identifier, setIdentifier] = useState<string>('');
   const [email, setEmail] = useState<string>('');
@@ -21,6 +22,11 @@ const Login: React.FC = () => {
   const [emailError, setEmailError] = useState<string>('');
   const [identifierError, setIdentifierError] = useState<string>('');
   const [passkeyAvailable, setPasskeyAvailable] = useState(false);
+
+  const fetchWithAuth = createFetchWithAuth({
+    authMode,
+    authHost: apiHost,
+  });
 
   useEffect(() => {
     async function checkSupport() {
@@ -55,7 +61,7 @@ const Login: React.FC = () => {
 
   const handlePasskeyLogin = async () => {
     try {
-      const response = await fetch(`${apiHost}webAuthn/generate-authentication-options`, {
+      const response = await fetchWithAuth(`/webAuthn/login/start`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
@@ -69,15 +75,12 @@ const Login: React.FC = () => {
       const options = await response.json();
       const credential = await startAuthentication({ optionsJSON: options });
 
-      const verificationResponse = await fetch(
-        `${apiHost}webAuthn/verify-authentication`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ assertionResponse: credential }),
-          credentials: 'include',
-        }
-      );
+      const verificationResponse = await fetchWithAuth(`/webAuthn/login/finish`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ assertionResponse: credential }),
+        credentials: 'include',
+      });
 
       if (!verificationResponse.ok) {
         console.error('Failed to verify passkey');
@@ -104,7 +107,7 @@ const Login: React.FC = () => {
     setFormErrors('');
 
     try {
-      const response = await fetch(`${apiHost}auth/login`, {
+      const response = await fetchWithAuth(`/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ identifier, passkeyAvailable }),
@@ -129,7 +132,7 @@ const Login: React.FC = () => {
     setFormErrors('');
 
     try {
-      const response = await fetch(`${apiHost}registration/register`, {
+      const response = await fetchWithAuth(`/registration/register`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, phone }),

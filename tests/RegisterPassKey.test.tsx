@@ -18,7 +18,7 @@ jest.mock('@simplewebauthn/browser', () => ({
 
 const mockValidateToken = jest.fn();
 jest.mock('@/AuthProvider', () => ({
-  useAuth: () => ({ apiHost: 'https://api.example.com/' }),
+  useAuth: () => ({ apiHost: 'https://api.example.com' }),
 }));
 jest.mock('@/context/InternalAuthContext', () => ({
   useInternalAuth: () => ({ validateToken: mockValidateToken }),
@@ -74,11 +74,11 @@ describe('RegisterPasskey', () => {
 
     await waitFor(() => {
       expect(global.fetch).toHaveBeenCalledWith(
-        'https://api.example.com/webAuthn/generate-registration-options',
+        'https://api.example.com/webAuthn/register/start',
         expect.objectContaining({ method: 'GET' })
       );
       expect(global.fetch).toHaveBeenCalledWith(
-        'https://api.example.com/webAuthn/verify-registration',
+        'https://api.example.com/webAuthn/register/finish',
         expect.objectContaining({ method: 'POST' })
       );
     });

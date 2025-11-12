@@ -1,61 +1,55 @@
-import { fetchWithAuth } from '../src/fetchWithAuth';
+import { createFetchWithAuth } from '../src/fetchWithAuth';
 
-describe('fetchWithAuth', () => {
-  const originalFetch = global.fetch;
+// Mock global fetch
+const mockFetch = jest.fn();
+global.fetch = mockFetch as any;
 
+describe('createFetchWithAuth', () => {
   beforeEach(() => {
-    global.fetch = jest.fn();
+    jest.clearAllMocks();
   });
 
-  afterEach(() => {
-    jest.resetAllMocks();
-    global.fetch = originalFetch;
-  });
-
-  it('should call fetch with credentials=include and pass through headers', async () => {
-    const mockResponse = { ok: true } as Response;
-    (global.fetch as jest.Mock).mockResolvedValue(mockResponse);
-
-    const input = 'https://api.example.com/test';
-    const init = { headers: { Authorization: 'Bearer token' } };
-
-    const result = await fetchWithAuth(input, init);
-
-    expect(global.fetch).toHaveBeenCalledWith(input, {
-      ...init,
-      credentials: 'include',
-      headers: { Authorization: 'Bearer token' },
+  it('builds correct URL in web mode', async () => {
+    const fetchWithAuth = createFetchWithAuth({
+      authMode: 'web',
+      authHost: 'https://auth.example.com',
     });
 
-    expect(result).toBe(mockResponse);
+    const mockResponse = { ok: true, status: 200 };
+    mockFetch.mockResolvedValueOnce(mockResponse);
+
+    await fetchWithAuth('/login/start');
+
+    expect(mockFetch).toHaveBeenCalledTimes(1);
+    const [url, options] = mockFetch.mock.calls[0];
+    expect(url).toBe('https://auth.example.com/login/start');
+    expect(options.credentials).toBe('include');
   });
 
-  it('should include credentials even if init is undefined', async () => {
-    const mockResponse = { ok: true } as Response;
-    (global.fetch as jest.Mock).mockResolvedValue(mockResponse);
-
-    await fetchWithAuth('https://api.example.com/without-init');
-
-    expect(global.fetch).toHaveBeenCalledWith('https://api.example.com/without-init', {
-      credentials: 'include',
-      headers: {},
+  it('builds correct URL in server mode', async () => {
+    const fetchWithAuth = createFetchWithAuth({
+      authMode: 'server',
+      authHost: 'https://api.example.com/',
     });
+
+    mockFetch.mockResolvedValueOnce({ ok: true, status: 200 });
+
+    await fetchWithAuth('/auth/me');
+
+    const [url] = mockFetch.mock.calls[0];
+    expect(url).toBe('https://api.example.com/auth/auth/me');
   });
 
-  it('should throw an error if response.ok is false', async () => {
-    const mockResponse = { ok: false } as Response;
-    (global.fetch as jest.Mock).mockResolvedValue(mockResponse);
+  it('throws error when fetch response is not ok', async () => {
+    const fetchWithAuth = createFetchWithAuth({
+      authMode: 'web',
+      authHost: 'https://auth.example.com',
+    });
 
-    await expect(fetchWithAuth('https://api.example.com/fail')).rejects.toThrow(
-      'Failed to make API call to auth server.'
-    );
-  });
+    mockFetch.mockResolvedValueOnce({ ok: false, status: 500 });
 
-  it('should propagate fetch rejections (network errors)', async () => {
-    (global.fetch as jest.Mock).mockRejectedValue(new Error('Network down'));
-
-    await expect(fetchWithAuth('https://api.example.com/fail')).rejects.toThrow(
-      'Network down'
+    await expect(fetchWithAuth('/login')).rejects.toThrow(
+      'Failed to make API call to https://auth.example.com/login'
     );
   });
 });

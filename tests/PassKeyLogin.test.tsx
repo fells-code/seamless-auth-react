@@ -1,4 +1,3 @@
-import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import PassKeyLogin from '../src/PassKeyLogin';
 
@@ -12,7 +11,7 @@ jest.mock('react-router-dom', () => ({
 // 🧠 Mock AuthProvider + InternalAuthContext
 const mockValidateToken = jest.fn();
 jest.mock('@/AuthProvider', () => ({
-  useAuth: () => ({ apiHost: 'https://api.example.com/' }),
+  useAuth: () => ({ apiHost: 'https://api.example.com' }),
 }));
 jest.mock('@/context/InternalAuthContext', () => ({
   useInternalAuth: () => ({ validateToken: mockValidateToken }),
@@ -61,11 +60,11 @@ describe('PassKeyLogin', () => {
 
     await waitFor(() => {
       expect(global.fetch).toHaveBeenCalledWith(
-        'https://api.example.com/webAuthn/generate-authentication-options',
+        'https://api.example.com/webAuthn/login/start',
         expect.objectContaining({ method: 'POST' })
       );
       expect(global.fetch).toHaveBeenCalledWith(
-        'https://api.example.com/webAuthn/verify-authentication',
+        'https://api.example.com/webAuthn/login/finish',
         expect.objectContaining({ method: 'POST' })
       );
       expect(mockValidateToken).toHaveBeenCalled();
@@ -102,9 +101,7 @@ describe('PassKeyLogin', () => {
     fireEvent.click(screen.getByRole('button', { name: /Use Passkey/i }));
 
     await waitFor(() => {
-      expect(consoleSpy).toHaveBeenCalledWith(
-        'Something went wrong getting webauthn options'
-      );
+      expect(consoleSpy).toHaveBeenCalledWith('Passkey login error');
     });
 
     consoleSpy.mockRestore();
@@ -128,7 +125,7 @@ describe('PassKeyLogin', () => {
     fireEvent.click(screen.getByRole('button', { name: /Use Passkey/i }));
 
     await waitFor(() => {
-      expect(consoleSpy).toHaveBeenCalledWith('Failed to verify passkey');
+      expect(consoleSpy).toHaveBeenCalledWith('Passkey login error');
     });
 
     consoleSpy.mockRestore();
@@ -142,7 +139,7 @@ describe('PassKeyLogin', () => {
     fireEvent.click(screen.getByRole('button', { name: /Use Passkey/i }));
 
     await waitFor(() => {
-      expect(consoleSpy).toHaveBeenCalledWith('Passkey login error:', expect.any(Error));
+      expect(consoleSpy).toHaveBeenCalledWith('Passkey login error');
     });
 
     consoleSpy.mockRestore();
