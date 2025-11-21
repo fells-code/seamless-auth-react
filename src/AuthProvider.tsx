@@ -81,10 +81,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({
       try {
         await fetchWithAuth(`/logout`, {
           method: 'GET',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          credentials: 'include',
         });
       } catch {
         console.error('Error during logout');
@@ -100,7 +96,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({
     try {
       const response = await fetchWithAuth(`/users/delete`, {
         method: 'delete',
-        credentials: 'include',
       });
 
       if (response.ok) {
@@ -121,13 +116,14 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({
 
   const validateToken = async () => {
     try {
-      const response = await fetchWithAuth(`users/me`);
+      const response = await fetchWithAuth(`users/me`, {
+        method: 'GET',
+      });
 
       if (response.ok) {
-        const { user, token } = await response.json();
+        const { user } = await response.json();
         setUser(user);
         setIsAuthenticated(true);
-        setToken(token);
       } else {
         logout();
       }

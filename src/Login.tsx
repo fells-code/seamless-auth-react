@@ -63,8 +63,6 @@ const Login: React.FC = () => {
     try {
       const response = await fetchWithAuth(`/webAuthn/login/start`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
       });
 
       if (!response.ok) {
@@ -77,9 +75,7 @@ const Login: React.FC = () => {
 
       const verificationResponse = await fetchWithAuth(`/webAuthn/login/finish`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ assertionResponse: credential }),
-        credentials: 'include',
       });
 
       if (!verificationResponse.ok) {
@@ -89,12 +85,14 @@ const Login: React.FC = () => {
       const verificationResult = await verificationResponse.json();
 
       if (verificationResult.message === 'Success') {
-        if (verificationResult.token) {
-          await validateToken();
-          navigate('/');
+        if (verificationResult.mfaLogin) {
+          navigate('/mfaLogin');
           return;
         }
-        navigate('/mfaLogin');
+        console.log('Verified...', JSON.stringify(verificationResponse));
+        await validateToken();
+        navigate('/');
+        return;
       } else {
         console.error('Passkey login failed:', verificationResult.message);
       }
@@ -109,9 +107,7 @@ const Login: React.FC = () => {
     try {
       const response = await fetchWithAuth(`/login`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ identifier, passkeyAvailable }),
-        credentials: 'include',
       });
 
       if (!response.ok) {
@@ -134,9 +130,7 @@ const Login: React.FC = () => {
     try {
       const response = await fetchWithAuth(`/registration/register`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, phone }),
-        credentials: 'include',
       });
 
       if (!response.ok) {

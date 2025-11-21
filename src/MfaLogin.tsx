@@ -56,11 +56,7 @@ const MfaLogin: React.FC = () => {
     try {
       const response = await fetchWithAuth(`/${endpoint}`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
         body: JSON.stringify({ verificationToken: OTP }),
-        credentials: 'include',
       });
 
       if (!response.ok) {
@@ -86,10 +82,6 @@ const MfaLogin: React.FC = () => {
     try {
       const response = await fetchWithAuth(`/${endpoint}`, {
         method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        credentials: 'include',
       });
 
       if (!response.ok) {
