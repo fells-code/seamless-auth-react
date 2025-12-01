@@ -1,6 +1,6 @@
 .vscode
 coverage
-tests
+tests/
 .babelrc
 .gitignore
 eslint.config.mjs

@@ -1,10 +1,10 @@
-import { Navigate, Route, Routes } from "react-router-dom";
+import { Navigate, Route, Routes } from 'react-router-dom';
 
-import Login from "./Login";
-import MfaLogin from "./MfaLogin";
-import PassKeyLogin from "./PassKeyLogin";
-import RegisterPasskey from "./RegisterPassKey";
-import VerifyOTP from "./VerifyOTP";
+import Login from '@/Login';
+import MfaLogin from '@/MfaLogin';
+import PassKeyLogin from '@/PassKeyLogin';
+import RegisterPasskey from '@/RegisterPassKey';
+import VerifyOTP from '@/VerifyOTP';
 
 export const AuthRoutes = () => (
   <Routes>

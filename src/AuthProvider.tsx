@@ -1,14 +1,16 @@
-import { InternalAuthProvider } from "context/InternalAuthContext";
+import { InternalAuthProvider } from '@/context/InternalAuthContext';
 import React, {
   createContext,
   ReactNode,
+  useCallback,
   useContext,
   useEffect,
   useState,
-} from "react";
+} from 'react';
 
-import { fetchWithAuth } from "./fetchWithAuth";
-import LoadingSpinner from "./LoadingSpinner";
+import { AuthMode, createFetchWithAuth } from './fetchWithAuth';
+import LoadingSpinner from './LoadingSpinner';
+import { usePreviousSignIn } from './hooks/usePreviousSignIn';
 
 interface User {
   id: string;
@@ -30,6 +32,9 @@ export interface AuthContextType {
   hasRole: (role: string) => boolean | undefined;
   apiHost: string;
   token: AuthToken | null;
+  markSignedIn: () => void;
+  hasSignedInBefore: boolean;
+  mode: AuthMode;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -41,7 +46,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export const useAuth = (): AuthContextType => {
   const context = useContext(AuthContext);
   if (!context) {
-    throw new Error("useAuth must be used within an AuthProvider");
+    throw new Error('useAuth must be used within an AuthProvider');
   }
   return context;
 };
@@ -49,26 +54,76 @@ export const useAuth = (): AuthContextType => {
 interface AuthProviderProps {
   children: ReactNode;
   apiHost: string;
+  autoDetectPreviousSignin?: boolean;
+  mode?: AuthMode;
 }
 
 export const AuthProvider: React.FC<AuthProviderProps> = ({
   children,
   apiHost,
+  autoDetectPreviousSignin = true,
+  mode = 'web',
 }) => {
   const [user, setUser] = useState<User | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
   const [loading, setLoading] = useState<boolean>(true);
   const [token, setToken] = useState<AuthToken | null>(null);
+  const { hasSignedInBefore, markSignedIn } = usePreviousSignIn();
+  const [authMode] = useState<AuthMode>(mode);
+
+  const fetchWithAuth = createFetchWithAuth({
+    authMode,
+    authHost: apiHost,
+  });
+
+  const logout = useCallback(async () => {
+    if (user) {
+      try {
+        await fetchWithAuth(`/logout`, {
+          method: 'GET',
+        });
+      } catch {
+        console.error('Error during logout');
+      } finally {
+        setIsAuthenticated(false);
+        setUser(null);
+        setToken(null);
+      }
+    }
+  }, [fetchWithAuth, user]);
+
+  const deleteUser = async () => {
+    try {
+      const response = await fetchWithAuth(`/users/delete`, {
+        method: 'delete',
+      });
+
+      if (response.ok) {
+        setUser(null);
+        setIsAuthenticated(false);
+        setToken(null);
+        return;
+      } else {
+        throw new Error('Could not delete user.');
+      }
+    } catch (error) {
+      console.error('Something went wrong deleting user:', error);
+      throw new Error('Could not delete user.');
+    }
+  };
+
+  const hasRole = (role: string) => user?.roles?.includes(role);
 
   const validateToken = async () => {
     try {
-      const response = await fetchWithAuth(`${apiHost}users/me`);
+      const response = await fetchWithAuth(`users/me`, {
+        method: 'GET',
+      });
 
       if (response.ok) {
-        const { user, token } = await response.json();
+        const { user } = await response.json();
         setUser(user);
         setIsAuthenticated(true);
-        setToken(token);
       } else {
         logout();
       }
@@ -81,54 +136,13 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({
 
   useEffect(() => {
     validateToken();
-    setLoading(false);
   }, []);
 
-  const logout = async () => {
-    if (user) {
-      try {
-        await fetch(`${apiHost}auth/logout`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            email: user.email,
-          }),
-          credentials: "include",
-        });
-      } catch {
-        console.error("Error in logout");
-      } finally {
-        setIsAuthenticated(false);
-        setUser(null);
-        setToken(null);
-      }
+  useEffect(() => {
+    if (user && isAuthenticated) {
+      markSignedIn();
     }
-  };
-
-  const deleteUser = async () => {
-    try {
-      const response = await fetchWithAuth(`${apiHost}users/delete`, {
-        method: "delete",
-        credentials: "include",
-      });
-
-      if (response.ok) {
-        setUser(null);
-        setIsAuthenticated(false);
-        setToken(null);
-        return;
-      } else {
-        throw new Error("Could not delete user.");
-      }
-    } catch (error) {
-      console.error("Something went wrong deleting user:", error);
-      throw new Error("Could not delete user.");
-    }
-  };
-
-  const hasRole = (role: string) => user?.roles?.includes(role);
+  }, [user, isAuthenticated, markSignedIn]);
 
   if (loading) {
     return (
@@ -148,6 +162,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({
         hasRole,
         apiHost,
         token,
+        markSignedIn,
+        hasSignedInBefore: autoDetectPreviousSignin ? hasSignedInBefore : false,
+        mode,
       }}
     >
       <InternalAuthProvider value={{ validateToken, setLoading }}>

@@ -1,0 +1,60 @@
+name: CI & Beta Publish
+
+on:
+  push:
+    branches: [dev]
+
+jobs:
+  build-and-publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      id-token: write # for npm provenance (optional)
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: Clean install deps
+        run: |
+          rm -rf node_modules package-lock.json
+          npm cache clean --force
+          npm install --ignore-scripts=false --foreground-scripts --no-audit
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Run Tests
+        run: npm test -- --runInBand
+
+      - name: Build
+        env:
+          npm_config_ignore_optional: 'false'
+        run: npm run build
+
+      # Bump prerelease & publish
+      - name: Version bump (beta)
+        if: success()
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          npm version prerelease --preid=beta --no-git-tag-version
+          echo "NEW_VERSION=$(node -p "require('./package.json').version")" >> $GITHUB_ENV
+
+      - name: Publish to npm (beta tag)
+        if: success()
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: npm publish --tag beta
+
+      - name: Commit & push version bump
+        if: success()
+        run: |
+          git add package.json package-lock.json
+          git commit -m "ci: bump to $NEW_VERSION [beta]"
+          git push origin dev

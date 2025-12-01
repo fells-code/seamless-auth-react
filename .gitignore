@@ -1,5 +1,10 @@
 .vscode/
+.DS_Store
+.npmrc
+
 node_modules/
 dist/
 coverage/
-.DS_Store
+
+!.vscode/settings.json
+!.vscode/extensions.json

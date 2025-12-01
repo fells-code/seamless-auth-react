@@ -1,4 +1,4 @@
-import { AuthRoutes } from "AuthRoutes";
-
-import { AuthProvider, useAuth } from "./AuthProvider";
+import { AuthContextType, AuthProvider, useAuth } from '@/AuthProvider';
+import { AuthRoutes } from '@/AuthRoutes';
 export { AuthProvider, AuthRoutes, useAuth };
+export type { AuthContextType };

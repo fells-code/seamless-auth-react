@@ -1,41 +1,49 @@
-import babel from "@rollup/plugin-babel";
-import commonjs from "@rollup/plugin-commonjs";
-import resolve from "@rollup/plugin-node-resolve";
-import terser from "@rollup/plugin-terser";
-import typescript from "@rollup/plugin-typescript";
-import peerDepsExternal from "rollup-plugin-peer-deps-external";
-import postcss from "rollup-plugin-postcss";
+import alias from '@rollup/plugin-alias';
+import commonjs from '@rollup/plugin-commonjs';
+import terser from '@rollup/plugin-terser';
+import typescript from '@rollup/plugin-typescript';
+import path from 'path';
+import peerDepsExternal from 'rollup-plugin-peer-deps-external';
+import postcss from 'rollup-plugin-postcss';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 export default [
   {
-    input: "src/index.ts",
+    input: 'src/index.ts',
     output: {
-      dir: "dist",
-      entryFileNames: "[name].[format].js",
-      format: "esm",
+      file: 'dist/index.js',
+      format: 'esm',
       sourcemap: true,
     },
+    external: [
+      'react',
+      'react-dom',
+      'react-router-dom',
+
+      '@simplewebauthn/browser',
+      'libphonenumber-js',
+    ],
     plugins: [
       peerDepsExternal(),
-      resolve({ extensions: [".ts", ".tsx"] }),
+      alias({
+        entries: [{ find: '@', replacement: path.resolve(__dirname, 'src') }],
+      }),
       commonjs(),
       typescript({
-        tsconfig: "./tsconfig.json",
+        tsconfig: './tsconfig.json',
       }),
       postcss({
         modules: {
-          generateScopedName: "[name]__[local]___[hash:base64:5]",
+          generateScopedName: '[name]__[local]___[hash:base64:5]',
         },
         extract: false,
         inject: true,
         minimize: true,
       }),
-      babel({
-        babelHelpers: "bundled",
-        extensions: [".ts", ".tsx", ".js", ".jsx"],
-        presets: ["@babel/preset-env", "@babel/preset-react"],
-        exclude: "node_modules/**",
-      }),
+
       terser(),
     ],
   },

@@ -1,6 +1,11 @@
-[![npm version](https://img.shields.io/npm/v/@seamless-auth/react.svg?label=%40seamless-auth%2Freact)](https://www.npmjs.com/package/@seamless-auth/react)
-
 # Seamless Auth React
+
+# @seamless-auth/react
+
+[![npm version](https://img.shields.io/npm/v/@seamless-auth/react.svg?label=%40seamless-auth%2Freact)](https://www.npmjs.com/package/@seamless-auth/react)
+[![build](https://github.com/fells-code/seamless-auth-react/actions/workflows/release.yml/badge.svg)](https://github.com/fells-code/seamless-auth-react/actions/workflows/release.yml)
+[![coverage](https://img.shields.io/codecov/c/github/fells-code/seamless-auth-react)](https://app.codecov.io/gh/fells-code/seamless-auth-react)
+[![license](https://img.shields.io/github/license/fells-code/seamless-auth-react)](./LICENSE)
 
 A drop-in authentication provider for React applications, designed to handle login, multi-factor authentication, passkeys, and user session validation using your own backend.
 
@@ -27,8 +32,8 @@ npm install seamless-auth-react
 ### 1. Wrap your app with `AuthProvider`
 
 ```tsx
-import { AuthProvider } from "seamless-auth-react";
-import { BrowserRouter } from "react-router-dom";
+import { AuthProvider } from 'seamless-auth-react';
+import { BrowserRouter } from 'react-router-dom';
 
 <BrowserRouter>
   <AuthProvider apiHost="https://your.api/">
@@ -40,7 +45,7 @@ import { BrowserRouter } from "react-router-dom";
 ### 2. Use `useAuth()` to access auth state
 
 ```tsx
-import { useAuth } from "seamless-auth-react";
+import { useAuth } from 'seamless-auth-react';
 
 const Dashboard = () => {
   const { user, logout } = useAuth();
@@ -56,8 +61,8 @@ const Dashboard = () => {
 ### 3. Use `<AuthRoutes />` for handling login/mfa/passkey screens
 
 ```tsx
-import { Routes, Route } from "react-router-dom";
-import { useAuth, AuthRoutes } from "seamless-auth-react";
+import { Routes, Route } from 'react-router-dom';
+import { useAuth, AuthRoutes } from 'seamless-auth-react';
 
 const AppRoutes = () => {
   const { isAuthenticated } = useAuth();
