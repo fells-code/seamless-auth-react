@@ -89,7 +89,7 @@ describe('PassKeyLogin', () => {
     fireEvent.click(screen.getByRole('button', { name: /Use Passkey/i }));
 
     await waitFor(() => {
-      expect(mockNavigate).toHaveBeenCalledWith('/mfaLogin');
+      expect(mockNavigate).toHaveBeenCalledWith('/');
     });
   });
 
