@@ -26,6 +26,7 @@ jest.mock('@/context/InternalAuthContext', () => ({
 
 jest.mock('../src/utils', () => ({
   isPasskeySupported: () => jest.fn().mockResolvedValue(true),
+  parseUserAgent: () => jest.fn(),
 }));
 
 let consoleErrorSpy: jest.SpyInstance;

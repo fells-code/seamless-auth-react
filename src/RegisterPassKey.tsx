@@ -9,7 +9,7 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 import styles from '@/styles/registerPasskey.module.css';
-import { isPasskeySupported } from './utils';
+import { isPasskeySupported, parseUserAgent } from './utils';
 import { createFetchWithAuth } from './fetchWithAuth';
 
 const RegisterPasskey: React.FC = () => {
@@ -27,6 +27,11 @@ const RegisterPasskey: React.FC = () => {
 
   const handlePasskeyRegister = async () => {
     setStatus('loading');
+    const friendlyName = prompt(
+      "Name this device (e.g., 'MacBook Pro', 'iPhone', 'YubiKey')"
+    );
+
+    const { platform, browser, deviceInfo } = parseUserAgent();
 
     try {
       const challengeRes = await fetchWithAuth(`/webAuthn/register/start`, {
@@ -49,7 +54,7 @@ const RegisterPasskey: React.FC = () => {
       try {
         attResp = await startRegistration({ optionsJSON: options });
 
-        await verifyPassKey(attResp);
+        await verifyPassKey(attResp, { friendlyName, platform, browser, deviceInfo });
       } catch (error) {
         if (error instanceof WebAuthnError) {
           console.error(
@@ -75,7 +80,15 @@ const RegisterPasskey: React.FC = () => {
     }
   };
 
-  const verifyPassKey = async (attResp: RegistrationResponseJSON) => {
+  const verifyPassKey = async (
+    attResp: RegistrationResponseJSON,
+    metadata: {
+      friendlyName: string | null;
+      platform: string;
+      browser: string;
+      deviceInfo: string;
+    }
+  ) => {
     try {
       const verificationResp = await fetchWithAuth(`/webAuthn/register/finish`, {
         method: 'POST',
@@ -84,6 +97,7 @@ const RegisterPasskey: React.FC = () => {
         },
         body: JSON.stringify({
           attestationResponse: attResp,
+          metadata,
         }),
         credentials: 'include',
       });

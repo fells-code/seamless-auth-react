@@ -11,8 +11,12 @@ import React, {
 import { AuthMode, createFetchWithAuth } from './fetchWithAuth';
 import LoadingSpinner from './LoadingSpinner';
 import { usePreviousSignIn } from './hooks/usePreviousSignIn';
+import {
+  AuthenticatorTransportFuture,
+  CredentialDeviceType,
+} from '@simplewebauthn/browser';
 
-interface User {
+export interface User {
   id: string;
   email: string;
   phone: string;
@@ -35,6 +39,22 @@ export interface AuthContextType {
   markSignedIn: () => void;
   hasSignedInBefore: boolean;
   mode: AuthMode;
+  credentials: Credential[];
+  updateCredential: (credential: Credential) => Promise<Credential>;
+  deleteCredential: (credentialId: string) => Promise<void>;
+}
+
+export interface Credential {
+  id: string;
+  counter: number;
+  transports?: AuthenticatorTransportFuture[];
+  deviceType: CredentialDeviceType;
+  backedup: boolean;
+  friendlyName: string | null;
+  lastUsedAt: Date | null;
+  platform: string | null;
+  browser: string | null;
+  deviceInfo: string | null;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -65,6 +85,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({
   mode = 'web',
 }) => {
   const [user, setUser] = useState<User | null>(null);
+  const [credentials, setCredentials] = useState<Credential[]>([]);
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
   const [loading, setLoading] = useState<boolean>(true);
   const [token, setToken] = useState<AuthToken | null>(null);
@@ -121,8 +142,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({
       });
 
       if (response.ok) {
-        const { user } = await response.json();
+        const { user, credentials } = await response.json();
         setUser(user);
+        setCredentials(credentials);
+
         setIsAuthenticated(true);
       } else {
         logout();
@@ -132,6 +155,36 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({
     } finally {
       setLoading(false);
     }
+  };
+
+  const updateCredential = async (credential: Credential) => {
+    const response = await fetchWithAuth(`users/credentials`, {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ friendlyName: credential.friendlyName, id: credential.id }),
+    });
+
+    if (response.ok) {
+      return response.json();
+    }
+
+    throw new Error('Failed to update credential');
+  };
+
+  const deleteCredential = async (credentialId: string) => {
+    const response = await fetchWithAuth(`users/credentials`, {
+      method: 'DELETE',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: credentialId }),
+    });
+
+    if (response.ok) {
+      return response.json();
+    }
+
+    throw new Error('Failed to update credential');
   };
 
   useEffect(() => {
@@ -165,6 +218,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({
         markSignedIn,
         hasSignedInBefore: autoDetectPreviousSignin ? hasSignedInBefore : false,
         mode,
+        credentials,
+        updateCredential,
+        deleteCredential,
       }}
     >
       <InternalAuthProvider value={{ validateToken, setLoading }}>
