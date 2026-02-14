@@ -102,17 +102,13 @@ const RegisterPasskey: React.FC = () => {
         credentials: 'include',
       });
 
-      const verificationJSON = await verificationResp.json();
-
       if (!verificationResp.ok) {
         setStatus('error');
         setMessage('Something went wrong registering passkey.');
         return;
       }
 
-      if (verificationJSON?.verified) {
-        await validateToken();
-      }
+      await validateToken();
     } catch (error) {
       console.error(`An error occurred: ${error}`);
     }
