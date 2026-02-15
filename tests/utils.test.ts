@@ -1,4 +1,9 @@
-import { isValidEmail, isValidPhoneNumber, isPasskeySupported } from '../src/utils';
+import {
+  isValidEmail,
+  isValidPhoneNumber,
+  isPasskeySupported,
+  parseUserAgent,
+} from '../src/utils';
 
 jest.mock('libphonenumber-js', () => ({
   __esModule: true,
@@ -96,5 +101,82 @@ describe('isPasskeySupported', () => {
       expect.any(Error)
     );
     consoleSpy.mockRestore();
+  });
+});
+
+describe('parseUserAgent', () => {
+  const setUserAgent = (ua: string) => {
+    Object.defineProperty(window.navigator, 'userAgent', {
+      value: ua,
+      configurable: true,
+    });
+  };
+
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
+  it('detects iOS + Safari', () => {
+    setUserAgent(
+      'Mozilla/5.0 (iPhone; CPU iPhone OS 16_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.0 Mobile Safari/604.1'
+    );
+
+    const result = parseUserAgent();
+
+    expect(result.platform).toBe('ios');
+    expect(result.browser).toBe('safari');
+    expect(result.deviceInfo).toBe('ios • safari');
+  });
+
+  it('detects Android + Chrome', () => {
+    setUserAgent(
+      'Mozilla/5.0 (Linux; Android 13; Pixel) AppleWebKit/537.36 Chrome/120.0 Mobile Safari/537.36'
+    );
+
+    const result = parseUserAgent();
+
+    expect(result.platform).toBe('android');
+    expect(result.browser).toBe('chrome');
+    expect(result.deviceInfo).toBe('android • chrome');
+  });
+
+  it('detects macOS + Chrome', () => {
+    setUserAgent(
+      'Mozilla/5.0 (Mac OS X 13_0) AppleWebKit/537.36 Chrome/120.0 Safari/537.36'
+    );
+
+    const result = parseUserAgent();
+
+    expect(result.platform).toBe('mac');
+    expect(result.browser).toBe('chrome');
+  });
+
+  it('detects Windows + Edge', () => {
+    setUserAgent(
+      'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120.0 Edg/120.0 Safari/537.36'
+    );
+
+    const result = parseUserAgent();
+
+    expect(result.platform).toBe('windows');
+    expect(result.browser).toBe('edge');
+  });
+
+  it('detects Linux + Firefox', () => {
+    setUserAgent('Mozilla/5.0 (X11; Linux x86_64) Gecko/20100101 Firefox/120.0');
+
+    const result = parseUserAgent();
+
+    expect(result.platform).toBe('linux');
+    expect(result.browser).toBe('firefox');
+  });
+
+  it('falls back to unknown when no match', () => {
+    setUserAgent('SomeRandomAgentString');
+
+    const result = parseUserAgent();
+
+    expect(result.platform).toBe('unknown');
+    expect(result.browser).toBe('unknown');
   });
 });

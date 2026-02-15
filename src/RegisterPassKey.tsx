@@ -11,108 +11,28 @@ import { useNavigate } from 'react-router-dom';
 import styles from '@/styles/registerPasskey.module.css';
 import { isPasskeySupported, parseUserAgent } from './utils';
 import { createFetchWithAuth } from './fetchWithAuth';
+import DeviceNameModal from './components/DeviceNameModal';
 
 const RegisterPasskey: React.FC = () => {
   const { apiHost, mode } = useAuth();
   const { validateToken } = useInternalAuth();
   const navigate = useNavigate();
+
   const [status, setStatus] = useState<'idle' | 'success' | 'error' | 'loading'>('idle');
   const [message, setMessage] = useState('');
   const [passkeyAvailable, setPasskeyAvailable] = useState(false);
+
+  const [showDeviceModal, setShowDeviceModal] = useState(false);
+  const [pendingMetadata, setPendingMetadata] = useState<{
+    platform: string;
+    browser: string;
+    deviceInfo: string;
+  } | null>(null);
 
   const fetchWithAuth = createFetchWithAuth({
     authMode: mode,
     authHost: apiHost,
   });
-
-  const handlePasskeyRegister = async () => {
-    setStatus('loading');
-    const friendlyName = prompt(
-      "Name this device (e.g., 'MacBook Pro', 'iPhone', 'YubiKey')"
-    );
-
-    const { platform, browser, deviceInfo } = parseUserAgent();
-
-    try {
-      const challengeRes = await fetchWithAuth(`/webAuthn/register/start`, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        credentials: 'include',
-      });
-
-      if (!challengeRes.ok) {
-        setStatus('error');
-        setMessage('Something went wrong registering passkey.');
-        return;
-      }
-
-      const options = await challengeRes.json();
-
-      let attResp: RegistrationResponseJSON;
-      try {
-        attResp = await startRegistration({ optionsJSON: options });
-
-        await verifyPassKey(attResp, { friendlyName, platform, browser, deviceInfo });
-      } catch (error) {
-        if (error instanceof WebAuthnError) {
-          console.error(
-            `Error occurred with webAuthn, ${error.name} - ${error.code}-${error.stack}`
-          );
-          setStatus('error');
-          setMessage(`Error: ${error.name}`);
-        } else {
-          console.error('A problem happened.', error);
-          setStatus('error');
-          setMessage(`Error: ${error}`);
-        }
-        return;
-      }
-
-      setStatus('success');
-      setMessage('Passkey registered successfully.');
-      navigate('/');
-    } catch (err) {
-      console.error(err);
-      setStatus('error');
-      setMessage('Something went wrong registering passkey.');
-    }
-  };
-
-  const verifyPassKey = async (
-    attResp: RegistrationResponseJSON,
-    metadata: {
-      friendlyName: string | null;
-      platform: string;
-      browser: string;
-      deviceInfo: string;
-    }
-  ) => {
-    try {
-      const verificationResp = await fetchWithAuth(`/webAuthn/register/finish`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          attestationResponse: attResp,
-          metadata,
-        }),
-        credentials: 'include',
-      });
-
-      if (!verificationResp.ok) {
-        setStatus('error');
-        setMessage('Something went wrong registering passkey.');
-        return;
-      }
-
-      await validateToken();
-    } catch (error) {
-      console.error(`An error occurred: ${error}`);
-    }
-  };
 
   useEffect(() => {
     async function checkSupport() {
@@ -123,28 +43,114 @@ const RegisterPasskey: React.FC = () => {
     checkSupport();
   }, []);
 
+  const openDeviceModal = () => {
+    const { platform, browser, deviceInfo } = parseUserAgent();
+
+    setPendingMetadata({ platform, browser, deviceInfo });
+    setShowDeviceModal(true);
+  };
+
+  const continueRegistration = async (friendlyName: string) => {
+    if (!pendingMetadata) return;
+
+    const { platform, browser, deviceInfo } = pendingMetadata;
+
+    setStatus('loading');
+
+    try {
+      const challengeRes = await fetchWithAuth(`/webAuthn/register/start`, {
+        method: 'GET',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+      });
+
+      if (!challengeRes.ok) {
+        throw new Error('Failed to fetch challenge');
+      }
+
+      const options = await challengeRes.json();
+
+      let attResp: RegistrationResponseJSON;
+
+      try {
+        attResp = await startRegistration({ optionsJSON: options });
+      } catch (error) {
+        if (error instanceof WebAuthnError) {
+          throw new Error(error.name);
+        }
+        throw error;
+      }
+
+      await verifyPassKey(attResp, {
+        friendlyName,
+        platform,
+        browser,
+        deviceInfo,
+      });
+
+      setStatus('success');
+      setMessage('Passkey registered successfully.');
+      navigate('/');
+    } catch (error) {
+      console.error(error);
+      setStatus('error');
+      setMessage('Error registering passkey.');
+    } finally {
+      setShowDeviceModal(false);
+      setPendingMetadata(null);
+    }
+  };
+
+  const verifyPassKey = async (
+    attResp: RegistrationResponseJSON,
+    metadata: {
+      friendlyName: string;
+      platform: string;
+      browser: string;
+      deviceInfo: string;
+    }
+  ) => {
+    const verificationResp = await fetchWithAuth(`/webAuthn/register/finish`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        attestationResponse: attResp,
+        metadata,
+      }),
+      credentials: 'include',
+    });
+
+    if (!verificationResp.ok) {
+      throw new Error('Verification failed');
+    }
+
+    await validateToken();
+  };
+
   return (
-    <div className={styles.container}>
-      <div className={styles.card}>
-        {!passkeyAvailable ? (
-          <div className={styles.loading}>
-            <div className={styles.spinner}></div>
-            <span>Checking for Passkey Support...</span>
-          </div>
-        ) : (
-          passkeyAvailable && (
+    <>
+      <div className={styles.container}>
+        <div className={styles.card}>
+          {!passkeyAvailable ? (
+            <div className={styles.loading}>
+              <div className={styles.spinner}></div>
+              <span>Checking for Passkey Support...</span>
+            </div>
+          ) : (
             <div className={styles.supported}>
               <h2 className={styles.title}>Secure Your Account with a Passkey</h2>
               <p className={styles.description}>
                 Your device supports passkeys! Register one to skip passwords forever.
               </p>
+
               <button
-                onClick={handlePasskeyRegister}
+                onClick={openDeviceModal}
                 disabled={status === 'loading'}
                 className={styles.button}
               >
                 {status === 'loading' ? 'Registering...' : 'Register Passkey'}
               </button>
+
               {message && (
                 <p
                   className={`${styles.message} ${
@@ -155,10 +161,19 @@ const RegisterPasskey: React.FC = () => {
                 </p>
               )}
             </div>
-          )
-        )}
+          )}
+        </div>
       </div>
-    </div>
+
+      <DeviceNameModal
+        isOpen={showDeviceModal}
+        onCancel={() => {
+          setShowDeviceModal(false);
+          setPendingMetadata(null);
+        }}
+        onConfirm={continueRegistration}
+      />
+    </>
   );
 };
 
