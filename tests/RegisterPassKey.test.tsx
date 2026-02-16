@@ -1,142 +1,176 @@
-import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
-import RegisterPasskey from '@/RegisterPassKey';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import RegisterPasskey from '../src/RegisterPassKey';
 
 const mockNavigate = jest.fn();
+const mockValidateToken = jest.fn();
+const mockFetch = jest.fn();
+const mockStartRegistration = jest.fn();
+
 jest.mock('react-router-dom', () => ({
   ...jest.requireActual('react-router-dom'),
   useNavigate: () => mockNavigate,
 }));
 
-const mockStartRegistration = jest.fn();
+jest.mock('@/AuthProvider', () => ({
+  useAuth: () => ({
+    apiHost: 'https://api.example.com',
+    mode: 'server',
+  }),
+}));
+
+jest.mock('@/context/InternalAuthContext', () => ({
+  useInternalAuth: () => ({
+    validateToken: mockValidateToken,
+  }),
+}));
+
+jest.mock('@/fetchWithAuth', () => ({
+  createFetchWithAuth: () => mockFetch,
+}));
+
+jest.mock('@/utils', () => ({
+  isPasskeySupported: jest.fn().mockResolvedValue(true),
+  parseUserAgent: jest.fn().mockReturnValue({
+    platform: 'macOS',
+    browser: 'Chrome',
+    deviceInfo: 'MacBook Pro',
+  }),
+}));
+
 jest.mock('@simplewebauthn/browser', () => ({
   startRegistration: (...args: any[]) => mockStartRegistration(...args),
   WebAuthnError: class WebAuthnError extends Error {
-    code = 400;
     name = 'WebAuthnError';
   },
 }));
 
-const mockValidateToken = jest.fn();
-jest.mock('@/AuthProvider', () => ({
-  useAuth: () => ({ apiHost: 'https://api.example.com' }),
-}));
-jest.mock('@/context/InternalAuthContext', () => ({
-  useInternalAuth: () => ({ validateToken: mockValidateToken }),
-}));
-
-jest.mock('../src/utils', () => ({
-  isPasskeySupported: () => jest.fn().mockResolvedValue(true),
-}));
-
-let consoleErrorSpy: jest.SpyInstance;
+// Mock modal so we control confirm manually
+jest.mock('@/components/DeviceNameModal', () => (props: any) => {
+  if (!props.isOpen) return null;
+  return (
+    <div>
+      <button onClick={() => props.onConfirm('My Device')}>Confirm</button>
+      <button onClick={props.onCancel}>Cancel</button>
+    </div>
+  );
+});
 
 beforeEach(() => {
-  consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
-  jest.resetAllMocks();
-  global.fetch = jest.fn() as any;
+  jest.clearAllMocks();
 });
-afterEach(() => {
-  // Restore the original console.error after each test
-  consoleErrorSpy.mockRestore();
-});
-describe('RegisterPasskey', () => {
-  it('renders UI when passkey support is true', async () => {
-    await act(async () => {
-      render(<RegisterPasskey />);
-    });
 
-    expect(screen.getByText(/Secure Your Account with a Passkey/i)).toBeInTheDocument();
+describe('RegisterPasskey', () => {
+  it('renders supported UI', async () => {
+    render(<RegisterPasskey />);
+    expect(await screen.findByText(/Secure Your Account/i)).toBeInTheDocument();
   });
 
-  it('handles successful passkey registration flow', async () => {
-    (global.fetch as jest.Mock)
-      // generate-registration-options
+  it('opens modal when clicking register', async () => {
+    render(<RegisterPasskey />);
+
+    const btn = await screen.findByText(/Register Passkey/i);
+    fireEvent.click(btn);
+
+    expect(await screen.findByText('Confirm')).toBeInTheDocument();
+  });
+
+  it('handles successful registration flow', async () => {
+    mockFetch
       .mockResolvedValueOnce({
         ok: true,
         json: async () => ({ challenge: 'xyz' }),
       })
-      // verify-registration
       .mockResolvedValueOnce({
         ok: true,
-        json: async () => ({ verified: true }),
       });
 
-    mockStartRegistration.mockResolvedValueOnce({ credential: 'abc' });
-
-    await act(async () => {
-      render(<RegisterPasskey />);
+    mockStartRegistration.mockResolvedValueOnce({
+      id: 'cred',
     });
 
-    waitFor(async () => {
-      const button = await screen.findByRole('button', { name: /Register Passkey/i });
-      fireEvent.click(button);
+    render(<RegisterPasskey />);
+
+    fireEvent.click(await screen.findByText(/Register Passkey/i));
+    fireEvent.click(await screen.findByText('Confirm'));
+
+    await waitFor(() => {
+      expect(mockFetch).toHaveBeenCalledWith(
+        '/webAuthn/register/start',
+        expect.any(Object)
+      );
     });
 
     await waitFor(() => {
-      expect(global.fetch).toHaveBeenCalledWith(
-        'https://api.example.com/webAuthn/register/start',
-        expect.objectContaining({ method: 'GET' })
-      );
-      expect(global.fetch).toHaveBeenCalledWith(
-        'https://api.example.com/webAuthn/register/finish',
-        expect.objectContaining({ method: 'POST' })
+      expect(mockFetch).toHaveBeenCalledWith(
+        '/webAuthn/register/finish',
+        expect.any(Object)
       );
     });
 
     expect(mockValidateToken).toHaveBeenCalled();
     expect(mockNavigate).toHaveBeenCalledWith('/');
-    expect(screen.getByText(/Passkey registered successfully/i)).toBeInTheDocument();
   });
 
-  it('shows error when challenge request fails', async () => {
-    (global.fetch as jest.Mock).mockResolvedValueOnce({ ok: false });
+  it('handles challenge failure', async () => {
+    mockFetch.mockResolvedValueOnce({ ok: false });
 
-    await act(async () => {
-      render(<RegisterPasskey />);
-    });
-    const button = await screen.findByRole('button', { name: /Register Passkey/i });
-    fireEvent.click(button);
+    render(<RegisterPasskey />);
+
+    fireEvent.click(await screen.findByText(/Register Passkey/i));
+    fireEvent.click(await screen.findByText('Confirm'));
 
     await waitFor(() => {
-      expect(
-        screen.getByText(/Something went wrong registering passkey/i)
-      ).toBeInTheDocument();
+      expect(screen.getByText(/Error registering passkey/i)).toBeInTheDocument();
     });
   });
 
-  it('shows error if startRegistration throws WebAuthnError', async () => {
-    (global.fetch as jest.Mock).mockResolvedValueOnce({
+  it('handles WebAuthnError', async () => {
+    mockFetch.mockResolvedValueOnce({
       ok: true,
       json: async () => ({ challenge: 'xyz' }),
     });
-    mockStartRegistration.mockRejectedValueOnce(
-      new (require('@simplewebauthn/browser').WebAuthnError)('Failure')
-    );
 
-    await act(async () => {
-      render(<RegisterPasskey />);
-    });
-    const button = await screen.findByRole('button', { name: /Register Passkey/i });
-    fireEvent.click(button);
+    const { WebAuthnError } = require('@simplewebauthn/browser');
+    mockStartRegistration.mockRejectedValueOnce(new WebAuthnError('Failure'));
+
+    render(<RegisterPasskey />);
+
+    fireEvent.click(await screen.findByText(/Register Passkey/i));
+    fireEvent.click(await screen.findByText('Confirm'));
 
     await waitFor(() => {
-      expect(screen.getByText(/Error: WebAuthnError/i)).toBeInTheDocument();
+      expect(screen.getByText(/Error registering passkey/i)).toBeInTheDocument();
     });
   });
 
-  it('handles unexpected error in registration flow', async () => {
-    (global.fetch as jest.Mock).mockRejectedValueOnce(new Error('Network down'));
+  it('handles verification failure', async () => {
+    mockFetch
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ challenge: 'xyz' }),
+      })
+      .mockResolvedValueOnce({
+        ok: false,
+      });
 
-    await act(async () => {
-      render(<RegisterPasskey />);
-    });
-    const button = await screen.findByRole('button', { name: /Register Passkey/i });
-    fireEvent.click(button);
+    mockStartRegistration.mockResolvedValueOnce({});
+
+    render(<RegisterPasskey />);
+
+    fireEvent.click(await screen.findByText(/Register Passkey/i));
+    fireEvent.click(await screen.findByText('Confirm'));
 
     await waitFor(() => {
-      expect(
-        screen.getByText(/Something went wrong registering passkey/i)
-      ).toBeInTheDocument();
+      expect(screen.getByText(/Error registering passkey/i)).toBeInTheDocument();
     });
+  });
+
+  it('handles canceling modal', async () => {
+    render(<RegisterPasskey />);
+
+    fireEvent.click(await screen.findByText(/Register Passkey/i));
+    fireEvent.click(await screen.findByText('Cancel'));
+
+    expect(screen.queryByText('Confirm')).not.toBeInTheDocument();
   });
 });

@@ -63,7 +63,7 @@ const TermsModal: React.FC<TermsModalProps> = ({ isOpen, onClose }) => {
             <strong>3. Opt-Out:</strong> Contact support@seamlessauth.com to opt out.
           </p>
           <p>
-            <strong>4. Fees:</strong> Standard carrier rates may apply.
+            <strong>4. Fees:</strong> Message and data rates may apply.
           </p>
           <p>
             <strong>5. Supported Carriers:</strong> Most major providers supported,

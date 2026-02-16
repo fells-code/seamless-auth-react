@@ -89,7 +89,6 @@ const Login: React.FC = () => {
           navigate('/mfaLogin');
           return;
         }
-        console.log('Verified...', JSON.stringify(verificationResponse));
         await validateToken();
         navigate('/');
         return;

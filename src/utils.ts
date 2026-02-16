@@ -79,3 +79,25 @@ export async function isPasskeySupported(): Promise<boolean> {
   }
   return false;
 }
+
+export function parseUserAgent() {
+  const ua = navigator.userAgent.toLowerCase();
+
+  let platform = 'unknown';
+  let browser = 'unknown';
+
+  if (/iphone|ipad|ipod/.test(ua)) platform = 'ios';
+  else if (/android/.test(ua)) platform = 'android';
+  else if (/mac os/.test(ua)) platform = 'mac';
+  else if (/windows/.test(ua)) platform = 'windows';
+  else if (/linux/.test(ua)) platform = 'linux';
+
+  if (/chrome/.test(ua)) browser = 'chrome';
+  if (/safari/.test(ua) && !/chrome/.test(ua)) browser = 'safari';
+  if (/firefox/.test(ua)) browser = 'firefox';
+  if (/edg/.test(ua)) browser = 'edge';
+
+  const deviceInfo = `${platform} • ${browser}`;
+
+  return { platform, browser, deviceInfo };
+}
