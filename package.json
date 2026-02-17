@@ -42,8 +42,8 @@
     "type": "git",
     "url": "https://github.com/fells-code/seamless-auth-react.git"
   },
-  "author": "Brandon Corbett <brandon.corbett@fellscode.com>",
-  "license": "ISC",
+  "author": "Fells Code, LLC",
+  "license": "AGPL-3.0-only",
   "bugs": {
     "url": "https://github.com/fells-code/seamless-auth-react/issues"
   },
