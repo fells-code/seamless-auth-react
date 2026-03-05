@@ -53,6 +53,23 @@ const VerifyEmailOTP: React.FC = () => {
   useEffect(() => {
     const interval = setInterval(() => {
       // TODO: REPLACE with a fetch with auth to magic link poll
+      async function pollMagicLink() {
+        try {
+          const response = await fetchWithAuth(`/magic-link/poll`, {
+            method: 'GET',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+          });
+          console.log(response);
+          if (response.ok) {
+            setEmailVerified(true);
+          }
+        } catch (error) {
+          console.log('error', error);
+        }
+      }
+      pollMagicLink();
       setEmailTimeLeft(prev => (prev > 0 ? prev - 1 : 0));
     }, 1000);
 
