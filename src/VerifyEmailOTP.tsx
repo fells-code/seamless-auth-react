@@ -62,7 +62,7 @@ const VerifyEmailOTP: React.FC = () => {
             },
           });
           console.log(response);
-          if (response.ok) {
+          if (response.status === 200) {
             setEmailVerified(true);
           }
         } catch (error) {
