@@ -1,13 +1,14 @@
 import { useAuth } from '@/AuthProvider';
 import React, { useEffect, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { useSearchParams } from 'react-router-dom';
 
 import styles from './styles/verifyOTP.module.css';
 import { createFetchWithAuth } from './fetchWithAuth';
 import LoadingSpinner from './LoadingSpinner';
 
 const VerifyMagicLink: React.FC = () => {
-  const { token } = useParams();
+  const [searchParams] = useSearchParams();
+  const token = searchParams.get('token');
   const { apiHost, mode } = useAuth();
 
   const [error, setError] = useState('');
@@ -40,6 +41,9 @@ const VerifyMagicLink: React.FC = () => {
     };
     if (token) {
       verify();
+    } else {
+      //TODO This needs to be show to the user if the token can't be found.
+      console.error('No token found', token);
     }
   }, [token]);
 
