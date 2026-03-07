@@ -89,6 +89,8 @@ const VerifyEmailOTP: React.FC = () => {
     if (emailVerified) {
       if (passkeyAvailable) {
         navigate('/registerPasskey');
+      } else {
+        navigate('/');
       }
 
       validateToken().then(() => navigate('/'));
