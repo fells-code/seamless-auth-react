@@ -5,9 +5,10 @@ import { useInternalAuth } from '@/context/InternalAuthContext';
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
-import styles from './styles/login.module.css';
-import { isPasskeySupported, isValidEmail, isValidPhoneNumber } from './utils';
-import { createFetchWithAuth } from './fetchWithAuth';
+import styles from '@/styles/login.module.css';
+import { isPasskeySupported, isValidEmail, isValidPhoneNumber } from '../utils';
+import { createFetchWithAuth } from '@/fetchWithAuth';
+import AuthFallbackOptions from '@/components/AuthFallbackOptions';
 
 const Login: React.FC = () => {
   const navigate = useNavigate();
@@ -22,8 +23,7 @@ const Login: React.FC = () => {
   const [emailError, setEmailError] = useState<string>('');
   const [identifierError, setIdentifierError] = useState<string>('');
   const [passkeyAvailable, setPasskeyAvailable] = useState(false);
-  // TODO: Make offer magic link link selection cleaner and polished
-  const [offerMagicLink, setOfferMagicLink] = useState<boolean>(false);
+  const [showFallbackOptions, setShowFallbackOptions] = useState(false);
 
   const fetchWithAuth = createFetchWithAuth({
     authMode,
@@ -33,8 +33,7 @@ const Login: React.FC = () => {
   useEffect(() => {
     async function checkSupport() {
       const supported = await isPasskeySupported();
-      // TODO: Don't forget to undo this before merging!
-      setPasskeyAvailable(false);
+      setPasskeyAvailable(supported);
     }
 
     checkSupport();
@@ -106,28 +105,26 @@ const Login: React.FC = () => {
   const login = async () => {
     setFormErrors('');
 
+    const response = await fetchWithAuth(`/login`, {
+      method: 'POST',
+      body: JSON.stringify({ identifier, passkeyAvailable }),
+    });
+
+    if (!response.ok) {
+      setFormErrors('Failed to send login link. Please try again.');
+      return;
+    }
+
+    if (!passkeyAvailable) {
+      setShowFallbackOptions(true);
+      return;
+    }
+
     try {
-      const response = await fetchWithAuth(`/login`, {
-        method: 'POST',
-        body: JSON.stringify({ identifier, passkeyAvailable }),
-      });
-
-      if (!response.ok) {
-        setFormErrors('Failed to send login link. Please try again.');
-        return;
-      }
-
-      if (!passkeyAvailable) {
-        // TODO: Make offer magic link link selection cleaner and polished
-        setOfferMagicLink(true);
-      } else {
-        await handlePasskeyLogin();
-      }
+      await handlePasskeyLogin();
     } catch (err) {
-      console.error('Unexpected login error', err);
-      setFormErrors(
-        'An unexpected error occured. Try again. If the problem persists, try resetting your password'
-      );
+      console.error('Passkey login failed', err);
+      setShowFallbackOptions(true);
     }
   };
 
@@ -158,6 +155,43 @@ const Login: React.FC = () => {
       setFormErrors(
         'An unexpected error occured. Try again. If the problem persists, try resetting your password'
       );
+    }
+  };
+
+  const sendMagicLink = async () => {
+    try {
+      const response = await fetchWithAuth(`/magic-link`, {
+        method: 'GET',
+      });
+
+      if (!response.ok) {
+        setFormErrors('Failed to send magic link.');
+        return;
+      }
+
+      navigate('/magic-link-sent');
+    } catch (err) {
+      console.error(err);
+      setFormErrors('Failed to send magic link.');
+    }
+  };
+
+  const sendPhoneOtp = async () => {
+    try {
+      const response = await fetchWithAuth(`/login/phone-otp`, {
+        method: 'POST',
+        body: JSON.stringify({ identifier }),
+      });
+
+      if (!response.ok) {
+        setFormErrors('Failed to send OTP.');
+        return;
+      }
+
+      navigate('/verifyPhoneOTP');
+    } catch (err) {
+      console.error(err);
+      setFormErrors('Failed to send OTP.');
     }
   };
 
@@ -204,19 +238,18 @@ const Login: React.FC = () => {
                 <p className={styles.helperText}>
                   Phone numbers must include a country code e.g. +1
                 </p>
-                {/* UPDATE this to send them to poll magiclink page or just do passkey login attempt */}
-                {/* // TODO: Make offer magic link link selection cleaner and polished */}
-                {/* // TODO Styling changes here to look nice and such */}
-                {offerMagicLink && (
-                  <p className={styles.message}>
-                    This device or browser doesn't look like it supports passkey login.
-                    <a>Send me a login Link</a> or <a>Try passkey login</a>
-                  </p>
+                {showFallbackOptions && (
+                  <AuthFallbackOptions
+                    identifier={identifier}
+                    onMagicLink={sendMagicLink}
+                    onPhoneOtp={sendPhoneOtp}
+                    onPasskeyRetry={handlePasskeyLogin}
+                  />
                 )}
+
                 {identifierError && <p className={styles.error}>{identifierError}</p>}
               </div>
             )}
-
             {mode === 'register' && (
               <>
                 <div className={styles.inputGroup}>
@@ -249,13 +282,10 @@ const Login: React.FC = () => {
                 />
               </>
             )}
-
             <button type="submit" className={styles.button} disabled={!canSubmit()}>
               {mode === 'login' ? 'Login' : 'Register'}
             </button>
-
             {formErrors && <p className={styles.error}>{formErrors}</p>}
-
             <button
               type="button"
               onClick={() => setMode(mode === 'login' ? 'register' : 'login')}

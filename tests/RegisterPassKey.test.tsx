@@ -1,5 +1,5 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import RegisterPasskey from '../src/RegisterPassKey';
+import RegisterPasskey from '../src/views/PassKeyRegistration';
 
 const mockNavigate = jest.fn();
 const mockValidateToken = jest.fn();

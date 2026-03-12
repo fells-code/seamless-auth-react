@@ -1,6 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 
-import styles from './styles/termsModal.module.css';
+import styles from '@/styles/termsModal.module.css';
 
 interface TermsModalProps {
   isOpen: boolean;

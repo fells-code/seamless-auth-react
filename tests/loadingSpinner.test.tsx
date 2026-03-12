@@ -3,7 +3,7 @@ import '@testing-library/jest-dom';
 import { render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 
-import LoadingSpinner from '../src/LoadingSpinner';
+import LoadingSpinner from '../src/components/LoadingSpinner';
 
 describe('Login Component', () => {
   it('renders the login form correctly', () => {

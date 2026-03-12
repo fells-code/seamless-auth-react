@@ -4,8 +4,8 @@ import { useInternalAuth } from '@/context/InternalAuthContext';
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 
-import styles from './styles/passKeyLogin.module.css';
-import { createFetchWithAuth } from './fetchWithAuth';
+import styles from '@/styles/passKeyLogin.module.css';
+import { createFetchWithAuth } from '../fetchWithAuth';
 
 const PassKeyLogin: React.FC = () => {
   const navigate = useNavigate();

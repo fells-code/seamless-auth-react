@@ -2,10 +2,11 @@ import { useAuth } from '@/AuthProvider';
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
-import styles from './styles/verifyOTP.module.css';
-import { createFetchWithAuth } from './fetchWithAuth';
+import styles from '@/styles/verifyOTP.module.css';
+import { createFetchWithAuth } from '../fetchWithAuth';
+import OtpInput from '@/components/OtpInput';
 
-const VerifyPhoneOTP: React.FC = () => {
+const PhoneRegistration: React.FC = () => {
   const navigate = useNavigate();
   const { apiHost, mode } = useAuth();
 
@@ -123,10 +124,27 @@ const VerifyPhoneOTP: React.FC = () => {
   }, []);
 
   useEffect(() => {
+    const nextStep = async () => {
+      const response = await fetchWithAuth(`/otp/generate-email-otp`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        setError(
+          'Failed to send Email code. If this persists, refresh the page and try registering again.'
+        );
+        return;
+      } else {
+        navigate('/verifyEmailOTP');
+      }
+    };
     if (phoneVerified) {
-      navigate('/verifyEmailOTP');
+      nextStep();
     }
-  }, [phoneVerified, navigate]);
+  }, [phoneVerified, navigate, fetchWithAuth]);
 
   return (
     <div className={styles.container}>
@@ -145,21 +163,7 @@ const VerifyPhoneOTP: React.FC = () => {
                 Code expires in: {formatTime(phoneTimeLeft)}
               </span>
             </label>
-            <input
-              id="phoneCode"
-              type="text"
-              maxLength={6}
-              pattern="\d{6}"
-              inputMode="numeric"
-              value={phoneOtp}
-              autoComplete="off"
-              onChange={e => {
-                setPhoneOtp(e.target.value);
-                setPhoneVerified(null);
-              }}
-              className={styles.input}
-              required
-            />
+            <OtpInput length={6} value={phoneOtp} onChange={setPhoneOtp} />
             <button
               type="button"
               onClick={() => handleResend()}
@@ -186,4 +190,4 @@ const VerifyPhoneOTP: React.FC = () => {
   );
 };
 
-export default VerifyPhoneOTP;
+export default PhoneRegistration;

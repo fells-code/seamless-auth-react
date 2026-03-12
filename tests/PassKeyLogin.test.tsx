@@ -1,5 +1,5 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import PassKeyLogin from '../src/PassKeyLogin';
+import PassKeyLogin from '../src/views/PassKeyLogin';
 
 // 🧠 Mock react-router navigate
 const mockNavigate = jest.fn();
