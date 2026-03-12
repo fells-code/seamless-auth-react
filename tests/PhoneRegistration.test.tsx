@@ -12,7 +12,7 @@ jest.mock('react-router-dom', () => ({
   useNavigate: jest.fn(),
 }));
 
-jest.mock('@/components/OTPInput', () => (props: any) => (
+jest.mock('@/components/OtpInput', () => (props: any) => (
   <input
     data-testid="otp-input"
     value={props.value}

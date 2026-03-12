@@ -4,7 +4,7 @@ import { AuthRoutes } from '../src/AuthRoutes';
 
 jest.mock('@/views/Login', () => () => <div>Login Page</div>);
 jest.mock('@/views/PassKeyLogin', () => () => <div>Passkey Login Page</div>);
-jest.mock('@/views/PasskeyRegistration', () => () => <div>Register Passkey Page</div>);
+jest.mock('@/views/PassKeyRegistration', () => () => <div>Register Passkey Page</div>);
 jest.mock('@/views/PhoneRegistration', () => () => <div>Verify Phone Page</div>);
 
 describe('AuthRoutes', () => {
