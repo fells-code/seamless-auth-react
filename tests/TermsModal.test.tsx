@@ -1,5 +1,5 @@
 import { render, screen, fireEvent } from '@testing-library/react';
-import TermsModal from '../src/TermsModal';
+import TermsModal from '../src/components/TermsModal';
 
 describe('TermsModal', () => {
   it('does not render when isOpen is false', () => {

@@ -9,7 +9,7 @@ import React, {
 } from 'react';
 
 import { AuthMode, createFetchWithAuth } from './fetchWithAuth';
-import LoadingSpinner from './LoadingSpinner';
+import LoadingSpinner from './components/LoadingSpinner';
 import { usePreviousSignIn } from './hooks/usePreviousSignIn';
 import {
   AuthenticatorTransportFuture,

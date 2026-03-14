@@ -1,6 +1,5 @@
 import { createFetchWithAuth } from '../src/fetchWithAuth';
 
-// Mock global fetch
 const mockFetch = jest.fn();
 global.fetch = mockFetch as any;
 

@@ -9,11 +9,11 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 import styles from '@/styles/registerPasskey.module.css';
-import { isPasskeySupported, parseUserAgent } from './utils';
-import { createFetchWithAuth } from './fetchWithAuth';
-import DeviceNameModal from './components/DeviceNameModal';
+import { isPasskeySupported, parseUserAgent } from '@/utils';
+import { createFetchWithAuth } from '@/fetchWithAuth';
+import DeviceNameModal from '@/components/DeviceNameModal';
 
-const RegisterPasskey: React.FC = () => {
+const PasskeyRegistration: React.FC = () => {
   const { apiHost, mode } = useAuth();
   const { validateToken } = useInternalAuth();
   const navigate = useNavigate();
@@ -177,4 +177,4 @@ const RegisterPasskey: React.FC = () => {
   );
 };
 
-export default RegisterPasskey;
+export default PasskeyRegistration;

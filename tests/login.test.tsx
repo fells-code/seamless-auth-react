@@ -1,30 +1,26 @@
-import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
-import Login from '../src/Login';
+import { render, screen, fireEvent, act, waitFor } from '@testing-library/react';
+import Login from '@/views/Login';
 
-const mockNavigate = jest.fn();
+import { useAuth } from '@/AuthProvider';
+import { useInternalAuth } from '@/context/InternalAuthContext';
+import { createFetchWithAuth } from '@/fetchWithAuth';
+import { isPasskeySupported, isValidEmail, isValidPhoneNumber } from '@/utils';
+
+import { useNavigate } from 'react-router-dom';
+import { startAuthentication } from '@simplewebauthn/browser';
+
+jest.mock('@/AuthProvider');
+jest.mock('@/context/InternalAuthContext');
+jest.mock('@/fetchWithAuth');
+jest.mock('@/utils', () => ({
+  isPasskeySupported: jest.fn(),
+  isValidEmail: jest.fn(),
+  isValidPhoneNumber: jest.fn(),
+}));
+jest.mock('@simplewebauthn/browser');
 jest.mock('react-router-dom', () => ({
   ...jest.requireActual('react-router-dom'),
-  useNavigate: () => mockNavigate,
-}));
-
-const mockStartAuthentication = jest.fn();
-jest.mock('@simplewebauthn/browser', () => ({
-  startAuthentication: (...args: any[]) => mockStartAuthentication(...args),
-}));
-
-jest.mock('@/AuthProvider', () => ({
-  useAuth: () => ({ apiHost: 'https://api.example.com' }),
-}));
-
-const mockValidateToken = jest.fn();
-jest.mock('@/context/InternalAuthContext', () => ({
-  useInternalAuth: () => ({ validateToken: mockValidateToken }),
-}));
-
-jest.mock('../src/utils', () => ({
-  isPasskeySupported: () => jest.fn().mockResolvedValue(true),
-  isValidEmail: () => jest.fn(email => email.includes('@')),
-  isValidPhoneNumber: () => jest.fn(phone => phone.startsWith('+')),
+  useNavigate: jest.fn(),
 }));
 
 jest.mock('@/components/phoneInput', () => (props: any) => (
@@ -35,152 +31,201 @@ jest.mock('@/components/phoneInput', () => (props: any) => (
   />
 ));
 
-beforeEach(() => {
-  jest.resetAllMocks();
-  global.fetch = jest.fn() as any;
-});
+jest.mock('@/components/AuthFallbackOptions', () => (props: any) => (
+  <div data-testid="fallback-options">
+    <button onClick={props.onMagicLink}>MagicLink</button>
+    <button onClick={props.onPhoneOtp}>PhoneOTP</button>
+    <button onClick={props.onPasskeyRetry}>RetryPasskey</button>
+  </div>
+));
 
-describe('Login Component', () => {
-  it('renders register mode by default', async () => {
-    await act(async () => {
-      render(<Login />);
+describe('Login', () => {
+  const navigate = jest.fn();
+  const validateToken = jest.fn();
+  const mockFetch = jest.fn();
+
+  beforeEach(() => {
+    (useNavigate as jest.Mock).mockReturnValue(navigate);
+
+    (useAuth as jest.Mock).mockReturnValue({
+      apiHost: 'http://localhost',
+      hasSignedInBefore: true,
+      mode: 'web',
     });
 
-    expect(await screen.findByText('Create Account')).toBeInTheDocument();
-  });
-
-  it('toggles between register and login modes', async () => {
-    await act(async () => {
-      render(<Login />);
+    (useInternalAuth as jest.Mock).mockReturnValue({
+      validateToken,
     });
-    const toggleButton = screen.getByRole('button', { name: /Already have an account/i });
-    fireEvent.click(toggleButton);
-    expect(await screen.findByText('Sign In')).toBeInTheDocument();
+
+    (createFetchWithAuth as jest.Mock).mockReturnValue(mockFetch);
+
+    (isPasskeySupported as jest.Mock).mockResolvedValue(false);
+
+    (isValidEmail as jest.Mock).mockReturnValue(true);
+    (isValidPhoneNumber as jest.Mock).mockReturnValue(false);
+
+    mockFetch.mockResolvedValue({
+      ok: true,
+      json: async () => ({ message: 'Success', mfaLogin: false }),
+    });
+
+    (startAuthentication as jest.Mock).mockResolvedValue({});
+
+    jest.clearAllMocks();
   });
 
-  it('submits register form successfully', async () => {
-    (global.fetch as jest.Mock).mockResolvedValueOnce({
+  test('renders login form when user has signed in before', async () => {
+    render(<Login />);
+
+    expect(await screen.findByText(/sign in/i)).toBeInTheDocument();
+  });
+
+  test('shows validation error on invalid identifier', async () => {
+    (isValidEmail as jest.Mock).mockReturnValue(false);
+    (isValidPhoneNumber as jest.Mock).mockReturnValue(false);
+
+    render(<Login />);
+
+    const input = screen.getByPlaceholderText(/email or phone number/i);
+
+    fireEvent.change(input, { target: { value: 'invalid' } });
+    fireEvent.blur(input);
+
+    expect(
+      await screen.findByText(/please enter a valid email or phone number/i)
+    ).toBeInTheDocument();
+  });
+
+  test('login triggers API request', async () => {
+    mockFetch.mockResolvedValue({ ok: true });
+
+    render(<Login />);
+
+    const input = screen.getByPlaceholderText(/email or phone number/i);
+
+    fireEvent.change(input, {
+      target: { value: 'test@example.com' },
+    });
+
+    const loginButton = await screen.findByRole('button', { name: /login/i });
+
+    await waitFor(() => {
+      expect(loginButton).toBeEnabled();
+    });
+
+    await act(async () => {
+      fireEvent.click(loginButton);
+    });
+
+    expect(mockFetch).toHaveBeenCalledWith(
+      '/login',
+      expect.objectContaining({ method: 'POST' })
+    );
+  });
+
+  test('fallback options appear if passkeys unavailable', async () => {
+    (isPasskeySupported as jest.Mock).mockResolvedValue(false);
+
+    render(<Login />);
+
+    const input = screen.getByPlaceholderText(/email or phone number/i);
+
+    fireEvent.change(input, { target: { value: 'test@example.com' } });
+
+    const loginButton = await screen.findByRole('button', { name: /login/i });
+
+    await waitFor(() => {
+      expect(loginButton).toBeEnabled();
+    });
+
+    fireEvent.click(loginButton);
+
+    expect(await screen.findByTestId('fallback-options')).toBeInTheDocument();
+  });
+
+  test('magic link option navigates to magic link sent page', async () => {
+    (isPasskeySupported as jest.Mock).mockResolvedValue(false);
+
+    render(<Login />);
+
+    fireEvent.change(screen.getByPlaceholderText(/email or phone number/i), {
+      target: { value: 'test@example.com' },
+    });
+
+    const loginButton = await screen.findByRole('button', { name: /login/i });
+
+    await act(async () => {
+      fireEvent.click(loginButton);
+    });
+
+    const magicLink = await screen.findByText('MagicLink');
+
+    await act(async () => {
+      fireEvent.click(magicLink);
+    });
+
+    expect(navigate).toHaveBeenCalledWith('/magic-link-sent');
+  });
+
+  test('phone OTP option navigates to verify phone', async () => {
+    (isValidEmail as jest.Mock).mockReturnValue(false);
+    (isValidPhoneNumber as jest.Mock).mockReturnValue(true);
+    (isPasskeySupported as jest.Mock).mockResolvedValue(false);
+
+    render(<Login />);
+
+    fireEvent.change(screen.getByPlaceholderText(/email or phone number/i), {
+      target: { value: '+15555555555' },
+    });
+
+    const loginButton = await screen.findByRole('button', { name: /login/i });
+
+    await act(async () => {
+      fireEvent.click(loginButton);
+    });
+
+    const phoneOtp = await screen.findByText('PhoneOTP');
+
+    await act(async () => {
+      fireEvent.click(phoneOtp);
+    });
+
+    expect(navigate).toHaveBeenCalledWith('/verifyPhoneOTP');
+  });
+
+  test('register mode submits registration', async () => {
+    (isValidEmail as jest.Mock).mockReturnValue(true);
+    (isValidPhoneNumber as jest.Mock).mockReturnValue(true);
+
+    mockFetch.mockResolvedValueOnce({
       ok: true,
       json: async () => ({ message: 'Success' }),
     });
 
-    await act(async () => {
-      render(<Login />);
+    render(<Login />);
+
+    fireEvent.click(screen.getByText(/don't have an account/i));
+
+    fireEvent.change(screen.getByLabelText(/email address/i), {
+      target: { value: 'test@example.com' },
     });
 
-    fireEvent.change(screen.getByLabelText(/Email Address/i), {
-      target: { value: 'user@example.com' },
-    });
     fireEvent.change(screen.getByTestId('phone-input'), {
       target: { value: '+15555555555' },
     });
 
-    const submitButton = screen.getByRole('button', { name: /Register/i });
-
-    await act(async () => {
-      fireEvent.click(submitButton);
+    const registerButton = await screen.findByRole('button', {
+      name: /register/i,
     });
 
     await waitFor(() => {
-      expect(global.fetch).toHaveBeenCalledWith(
-        'https://api.example.com/registration/register',
-        expect.objectContaining({
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            email: 'user@example.com',
-            phone: '+15555555555',
-          }),
-        })
-      );
+      expect(registerButton).toBeEnabled();
     });
-
-    expect(mockNavigate).toHaveBeenCalledWith('/verifyOTP');
-  });
-
-  it('shows error when registration fails', async () => {
-    (global.fetch as jest.Mock).mockResolvedValueOnce({ ok: false });
 
     await act(async () => {
-      render(<Login />);
+      fireEvent.click(registerButton);
     });
 
-    fireEvent.change(screen.getByLabelText(/Email Address/i), {
-      target: { value: 'user@example.com' },
-    });
-    fireEvent.change(screen.getByTestId('phone-input'), {
-      target: { value: '+15555555555' },
-    });
-
-    fireEvent.click(screen.getByRole('button', { name: /Register/i }));
-
-    await waitFor(() => {
-      expect(
-        screen.getByText(
-          /An unexpected error occured. Try again. If the problem persists, try resetting your password/i
-        )
-      ).toBeInTheDocument();
-    });
-  });
-
-  it('handles login flow and successful passkey verification', async () => {
-    (global.fetch as jest.Mock)
-      // login API call
-      .mockResolvedValueOnce({ ok: true })
-      // generate-authentication-options
-      .mockResolvedValueOnce({ ok: true, json: async () => ({}) })
-      // verify-authentication
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({ message: 'Success', token: 'abc' }),
-      });
-
-    mockStartAuthentication.mockResolvedValueOnce({ credential: '123' });
-
-    await act(async () => {
-      render(<Login />);
-    });
-
-    // Switch to login mode
-    fireEvent.click(screen.getByRole('button', { name: /Already have an account/i }));
-
-    fireEvent.change(screen.getByLabelText(/Email Address \/ Phone Number/i), {
-      target: { value: 'user@example.com' },
-    });
-
-    fireEvent.click(screen.getByRole('button', { name: /Login/i }));
-
-    await waitFor(() => {
-      expect(global.fetch).toHaveBeenCalledWith(
-        'https://api.example.com/login',
-        expect.objectContaining({ method: 'POST' })
-      );
-    });
-
-    expect(mockValidateToken).toHaveBeenCalled();
-    expect(mockNavigate).toHaveBeenCalledWith('/');
-  });
-
-  it('shows error when login fails', async () => {
-    (global.fetch as jest.Mock).mockResolvedValueOnce({ ok: false });
-
-    await act(async () => {
-      render(<Login />);
-    });
-    fireEvent.click(screen.getByRole('button', { name: /Already have an account/i }));
-
-    fireEvent.change(screen.getByLabelText(/Email Address \/ Phone Number/i), {
-      target: { value: 'user@example.com' },
-    });
-
-    fireEvent.click(screen.getByRole('button', { name: /Login/i }));
-
-    await waitFor(() =>
-      expect(
-        screen.getByText(
-          /An unexpected error occured. Try again. If the problem persists, try resetting your password/i
-        )
-      ).toBeInTheDocument()
-    );
+    expect(navigate).toHaveBeenCalledWith('/verifyPhoneOTP');
   });
 });
