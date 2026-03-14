@@ -1,6 +1,5 @@
-import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import PhoneInputWithCountryCode from '../src/components/phoneInput';
+import PhoneInputWithCountryCode from '@/components/phoneInput';
 
 jest.mock('libphonenumber-js', () => ({
   AsYouType: jest.fn().mockImplementation(() => ({
@@ -10,7 +9,7 @@ jest.mock('libphonenumber-js', () => ({
 }));
 
 jest.mock(
-  '../src/TermsModal',
+  '@/components/TermsModal',
   () => (props: any) =>
     props.isOpen ? <div data-testid="terms-modal">Modal Open</div> : null
 );

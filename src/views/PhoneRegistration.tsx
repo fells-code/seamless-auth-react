@@ -2,21 +2,19 @@ import { useAuth } from '@/AuthProvider';
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
-import styles from './styles/verifyOTP.module.css';
-import { createFetchWithAuth } from './fetchWithAuth';
+import styles from '@/styles/verifyOTP.module.css';
+import { createFetchWithAuth } from '../fetchWithAuth';
+import OtpInput from '@/components/OtpInput';
 
-const VerifyOTP: React.FC = () => {
+const PhoneRegistration: React.FC = () => {
   const navigate = useNavigate();
   const { apiHost, mode } = useAuth();
 
-  const [emailOtp, setEmailOtp] = useState('');
   const [phoneOtp, setPhoneOtp] = useState('');
   const [phoneVerified, setPhoneVerified] = useState<boolean | null>(null);
-  const [emailVerified, setEmailVerified] = useState<boolean | null>(null);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [resendMsg, setResendMsg] = useState('');
-  const [emailTimeLeft, setEmailTimeLeft] = useState(300);
   const [phoneTimeLeft, setPhoneTimeLeft] = useState(300);
 
   const fetchWithAuth = createFetchWithAuth({
@@ -28,11 +26,6 @@ const VerifyOTP: React.FC = () => {
     e.preventDefault();
     setError('');
 
-    if (emailOtp.length !== 6) {
-      setError('Please enter a valid code.');
-      return;
-    }
-
     if (phoneOtp.length !== 6) {
       setError('Please enter a valid code.');
       return;
@@ -40,7 +33,6 @@ const VerifyOTP: React.FC = () => {
 
     setLoading(true);
     try {
-      verifyEmailOTP();
       verifyPhoneOTP();
     } catch {
       setError('Unexpected error occurred.');
@@ -78,60 +70,6 @@ const VerifyOTP: React.FC = () => {
     setLoading(false);
   };
 
-  const verifyEmailOTP = async () => {
-    setLoading(true);
-    try {
-      if (!emailVerified) {
-        const response = await fetchWithAuth(`/otp/verify-email-otp`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            verificationToken: emailOtp,
-          }),
-          credentials: 'include',
-        });
-
-        if (!response.ok) {
-          setError('Verification failed.');
-        } else {
-          setEmailVerified(true);
-        }
-      }
-    } catch (error: unknown) {
-      console.error(error);
-      setError('Verification failed.');
-    }
-
-    setLoading(false);
-  };
-
-  const onResendEmail = async () => {
-    setError('');
-    const response = await fetchWithAuth(`/otp/generate-email-otp`, {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    });
-
-    const data = await response.json();
-
-    if (!response.ok) {
-      setError(
-        'Failed to send Email code. If this persists, refresh the page and try again.'
-      );
-      return;
-    } else {
-      setResendMsg('Verification email has been resent.');
-      if (data.token) {
-        // Set a new token
-        localStorage.setItem('token', data.token);
-      }
-    }
-  };
-
   const onResendPhone = async () => {
     setError('');
     const response = await fetchWithAuth(`/otp/generate-phone-otp`, {
@@ -157,15 +95,10 @@ const VerifyOTP: React.FC = () => {
     }
   };
 
-  const handleResend = (type: 'email' | 'phone') => {
+  const handleResend = async () => {
     setResendMsg('');
-    if (type === 'email') {
-      onResendEmail();
-      setResendMsg('Verification email has been resent.');
-    } else {
-      onResendPhone();
-      setResendMsg('Verification SMS has been resent.');
-    }
+    await onResendPhone();
+    setResendMsg('Verification SMS has been resent.');
   };
 
   const getStatusIcon = (verified: boolean | null) => {
@@ -184,14 +117,6 @@ const VerifyOTP: React.FC = () => {
 
   useEffect(() => {
     const interval = setInterval(() => {
-      setEmailTimeLeft(prev => (prev > 0 ? prev - 1 : 0));
-    }, 1000);
-
-    return () => clearInterval(interval);
-  }, []);
-
-  useEffect(() => {
-    const interval = setInterval(() => {
       setPhoneTimeLeft(prev => (prev > 0 ? prev - 1 : 0));
     }, 1000);
 
@@ -199,52 +124,38 @@ const VerifyOTP: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    if (emailVerified && phoneVerified) {
-      navigate('/registerPasskey');
+    const nextStep = async () => {
+      const response = await fetchWithAuth(`/otp/generate-email-otp`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        setError(
+          'Failed to send Email code. If this persists, refresh the page and try registering again.'
+        );
+        return;
+      } else {
+        navigate('/verifyEmailOTP');
+      }
+    };
+    if (phoneVerified) {
+      nextStep();
     }
-  }, [emailVerified, phoneVerified, navigate]);
+  }, [phoneVerified, navigate, fetchWithAuth]);
 
   return (
     <div className={styles.container}>
       <div className={styles.card}>
-        <h2 className={styles.title}>Verify Your Contact Info</h2>
-        <p className={styles.subtitle}>
-          Enter the codes sent to your email and phone number.
-        </p>
+        <h2 className={styles.title}>Verify Your Phone Number</h2>
+        <p className={styles.subtitle}>Enter the code sent to your phone number.</p>
 
         {error && <p className={styles.error}>{error}</p>}
         {resendMsg && <p className={styles.success}>{resendMsg}</p>}
 
         <form onSubmit={handleSubmit} className={styles.form}>
-          <div>
-            <label htmlFor="emailCode" className={styles.label}>
-              Email Verification Code {getStatusIcon(emailVerified)} -{' '}
-              <span className={styles.timer}>
-                Code expires in: {formatTime(emailTimeLeft)}
-              </span>
-            </label>
-            <input
-              id="emailCode"
-              type="text"
-              maxLength={6}
-              value={emailOtp}
-              autoComplete="off"
-              onChange={e => {
-                setEmailOtp(e.target.value);
-                setEmailVerified(null);
-              }}
-              className={styles.input}
-              required
-            />
-            <button
-              type="button"
-              onClick={() => handleResend('email')}
-              className={styles.resend}
-            >
-              Resend code to email
-            </button>
-          </div>
-
           <div>
             <label htmlFor="phoneCode" className={styles.label}>
               Phone Verification Code {getStatusIcon(phoneVerified)} -{' '}
@@ -252,24 +163,10 @@ const VerifyOTP: React.FC = () => {
                 Code expires in: {formatTime(phoneTimeLeft)}
               </span>
             </label>
-            <input
-              id="phoneCode"
-              type="text"
-              maxLength={6}
-              pattern="\d{6}"
-              inputMode="numeric"
-              value={phoneOtp}
-              autoComplete="off"
-              onChange={e => {
-                setPhoneOtp(e.target.value);
-                setPhoneVerified(null);
-              }}
-              className={styles.input}
-              required
-            />
+            <OtpInput length={6} value={phoneOtp} onChange={setPhoneOtp} />
             <button
               type="button"
-              onClick={() => handleResend('phone')}
+              onClick={() => handleResend()}
               className={styles.resend}
             >
               Resend code to phone
@@ -293,4 +190,4 @@ const VerifyOTP: React.FC = () => {
   );
 };
 
-export default VerifyOTP;
+export default PhoneRegistration;

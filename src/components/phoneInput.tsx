@@ -2,7 +2,7 @@ import { AsYouType, parsePhoneNumberFromString } from 'libphonenumber-js';
 import { useEffect, useState } from 'react';
 
 import styles from '../styles/login.module.css';
-import TermsModal from '../TermsModal';
+import TermsModal from './TermsModal';
 
 const countries = [
   { code: 'US', name: 'United States', dialCode: '+1', flag: '🇺🇸' },

@@ -5,9 +5,10 @@ import { useInternalAuth } from '@/context/InternalAuthContext';
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
-import styles from './styles/login.module.css';
-import { isPasskeySupported, isValidEmail, isValidPhoneNumber } from './utils';
-import { createFetchWithAuth } from './fetchWithAuth';
+import styles from '@/styles/login.module.css';
+import { isPasskeySupported, isValidEmail, isValidPhoneNumber } from '../utils';
+import { createFetchWithAuth } from '@/fetchWithAuth';
+import AuthFallbackOptions from '@/components/AuthFallbackOptions';
 
 const Login: React.FC = () => {
   const navigate = useNavigate();
@@ -22,6 +23,7 @@ const Login: React.FC = () => {
   const [emailError, setEmailError] = useState<string>('');
   const [identifierError, setIdentifierError] = useState<string>('');
   const [passkeyAvailable, setPasskeyAvailable] = useState(false);
+  const [showFallbackOptions, setShowFallbackOptions] = useState(false);
 
   const fetchWithAuth = createFetchWithAuth({
     authMode,
@@ -103,23 +105,26 @@ const Login: React.FC = () => {
   const login = async () => {
     setFormErrors('');
 
+    const response = await fetchWithAuth(`/login`, {
+      method: 'POST',
+      body: JSON.stringify({ identifier, passkeyAvailable }),
+    });
+
+    if (!response.ok) {
+      setFormErrors('Failed to send login link. Please try again.');
+      return;
+    }
+
+    if (!passkeyAvailable) {
+      setShowFallbackOptions(true);
+      return;
+    }
+
     try {
-      const response = await fetchWithAuth(`/login`, {
-        method: 'POST',
-        body: JSON.stringify({ identifier, passkeyAvailable }),
-      });
-
-      if (!response.ok) {
-        setFormErrors('Failed to send login link. Please try again.');
-        return;
-      }
-
       await handlePasskeyLogin();
     } catch (err) {
-      console.error('Unexpected login error', err);
-      setFormErrors(
-        'An unexpected error occured. Try again. If the problem persists, try resetting your password'
-      );
+      console.error('Passkey login failed', err);
+      setShowFallbackOptions(true);
     }
   };
 
@@ -140,7 +145,7 @@ const Login: React.FC = () => {
       const data = await response.json();
 
       if (data.message === 'Success') {
-        navigate('/verifyOTP');
+        navigate('/verifyPhoneOTP');
       }
       setFormErrors(
         'An unexpected error occured. Try again. If the problem persists, try resetting your password'
@@ -150,6 +155,43 @@ const Login: React.FC = () => {
       setFormErrors(
         'An unexpected error occured. Try again. If the problem persists, try resetting your password'
       );
+    }
+  };
+
+  const sendMagicLink = async () => {
+    try {
+      const response = await fetchWithAuth(`/magic-link`, {
+        method: 'GET',
+      });
+
+      if (!response.ok) {
+        setFormErrors('Failed to send magic link.');
+        return;
+      }
+
+      navigate('/magic-link-sent');
+    } catch (err) {
+      console.error(err);
+      setFormErrors('Failed to send magic link.');
+    }
+  };
+
+  const sendPhoneOtp = async () => {
+    try {
+      const response = await fetchWithAuth(`/login/phone-otp`, {
+        method: 'POST',
+        body: JSON.stringify({ identifier }),
+      });
+
+      if (!response.ok) {
+        setFormErrors('Failed to send OTP.');
+        return;
+      }
+
+      navigate('/verifyPhoneOTP');
+    } catch (err) {
+      console.error(err);
+      setFormErrors('Failed to send OTP.');
     }
   };
 
@@ -167,96 +209,94 @@ const Login: React.FC = () => {
           {mode === 'login' ? 'Sign In' : 'Create Account'}
         </h2>
 
-        {!passkeyAvailable ? (
-          <p className={styles.message}>
-            ❌ This device doesn't support passkey login. You must provide or register a
-            passkey.
-          </p>
-        ) : (
-          <>
-            <form onSubmit={handleSubmit}>
-              {mode === 'login' && (
+        <>
+          <form onSubmit={handleSubmit}>
+            {mode === 'login' && (
+              <div className={styles.inputGroup}>
+                <label htmlFor="identifier" className={styles.label}>
+                  Email Address / Phone Number
+                </label>
+                <input
+                  id="identifier"
+                  type="text"
+                  value={identifier}
+                  onChange={handleIdentifierChange}
+                  autoComplete="off"
+                  placeholder="Email or Phone Number"
+                  className={styles.input}
+                  onBlur={() => {
+                    if (identifier) {
+                      const isValid =
+                        isValidEmail(identifier) || isValidPhoneNumber(identifier);
+                      setIdentifierError(
+                        isValid ? '' : 'Please enter a valid email or phone number'
+                      );
+                    }
+                  }}
+                  required
+                />
+                <p className={styles.helperText}>
+                  Phone numbers must include a country code e.g. +1
+                </p>
+                {showFallbackOptions && (
+                  <AuthFallbackOptions
+                    identifier={identifier}
+                    onMagicLink={sendMagicLink}
+                    onPhoneOtp={sendPhoneOtp}
+                    onPasskeyRetry={handlePasskeyLogin}
+                  />
+                )}
+
+                {identifierError && <p className={styles.error}>{identifierError}</p>}
+              </div>
+            )}
+            {mode === 'register' && (
+              <>
                 <div className={styles.inputGroup}>
-                  <label htmlFor="identifier" className={styles.label}>
-                    Email Address / Phone Number
+                  <label htmlFor="email" className={styles.label}>
+                    Email Address
                   </label>
                   <input
-                    id="identifier"
-                    type="text"
-                    value={identifier}
-                    onChange={handleIdentifierChange}
+                    id="email"
+                    type="email"
+                    value={email}
+                    onChange={handleEmailChange}
                     autoComplete="off"
-                    placeholder="Email or Phone Number"
                     className={styles.input}
                     onBlur={() => {
-                      if (identifier) {
-                        const isValid =
-                          isValidEmail(identifier) || isValidPhoneNumber(identifier);
-                        setIdentifierError(
-                          isValid ? '' : 'Please enter a valid email or phone number'
-                        );
+                      if (email) {
+                        const isValid = isValidEmail(email);
+                        setEmailError(isValid ? '' : 'Please enter a valid email');
                       }
                     }}
                     required
                   />
-                  <p className={styles.helperText}>
-                    Phone numbers must include a country code e.g. +1
-                  </p>
-                  {identifierError && <p className={styles.error}>{identifierError}</p>}
+                  {emailError && <p className={styles.error}>{emailError}</p>}
                 </div>
-              )}
 
-              {mode === 'register' && (
-                <>
-                  <div className={styles.inputGroup}>
-                    <label htmlFor="email" className={styles.label}>
-                      Email Address
-                    </label>
-                    <input
-                      id="email"
-                      type="email"
-                      value={email}
-                      onChange={handleEmailChange}
-                      autoComplete="off"
-                      className={styles.input}
-                      onBlur={() => {
-                        if (email) {
-                          const isValid = isValidEmail(email);
-                          setEmailError(isValid ? '' : 'Please enter a valid email');
-                        }
-                      }}
-                      required
-                    />
-                    {emailError && <p className={styles.error}>{emailError}</p>}
-                  </div>
-
-                  <PhoneInputWithCountryCode
-                    phone={phone}
-                    setPhone={setPhone}
-                    phoneError={phoneError}
-                    setPhoneError={setPhoneError}
-                  />
-                </>
-              )}
-
-              <button type="submit" className={styles.button} disabled={!canSubmit()}>
-                {mode === 'login' ? 'Login' : 'Register'}
-              </button>
-
-              {formErrors && <p className={styles.error}>{formErrors}</p>}
-
-              <button
-                type="button"
-                onClick={() => setMode(mode === 'login' ? 'register' : 'login')}
-                className={styles.toggle}
-              >
-                {mode === 'login'
-                  ? "Don't have an account? Create one"
-                  : 'Already have an account? Sign in'}
-              </button>
-            </form>
-          </>
-        )}
+                <PhoneInputWithCountryCode
+                  phone={phone}
+                  setPhone={setPhone}
+                  phoneError={phoneError}
+                  setPhoneError={setPhoneError}
+                />
+              </>
+            )}
+            <button type="submit" className={styles.button} disabled={!canSubmit()}>
+              {mode === 'login' ? 'Login' : 'Register'}
+            </button>
+            {formErrors && <p className={styles.error}>{formErrors}</p>}
+            <button
+              type="button"
+              onClick={() => setMode(mode === 'login' ? 'register' : 'login')}
+              className={styles.toggle}
+            >
+              {mode === 'login'
+                ? "Don't have an account? Create one"
+                : 'Already have an account? Sign in'}
+            </button>
+          </form>
+        </>
       </div>
     </div>
   );

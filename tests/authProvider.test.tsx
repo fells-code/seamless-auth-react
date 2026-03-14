@@ -3,7 +3,7 @@ import { AuthProvider, useAuth } from '../src/AuthProvider';
 import { createFetchWithAuth } from '../src/fetchWithAuth';
 
 jest.mock('../src/fetchWithAuth');
-jest.mock('../src/LoadingSpinner', () => () => <div>Loading...</div>);
+jest.mock('../src/components/LoadingSpinner', () => () => <div>Loading...</div>);
 jest.mock('@/context/InternalAuthContext', () => ({
   InternalAuthProvider: ({ children }: any) => <div>{children}</div>,
 }));
