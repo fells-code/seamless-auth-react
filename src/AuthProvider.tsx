@@ -42,6 +42,7 @@ export interface AuthContextType {
   credentials: Credential[];
   updateCredential: (credential: Credential) => Promise<Credential>;
   deleteCredential: (credentialId: string) => Promise<void>;
+  fetchWithAuth(input: string, init?: RequestInit): Promise<Response>;
 }
 
 export interface Credential {
@@ -221,6 +222,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({
         credentials,
         updateCredential,
         deleteCredential,
+        fetchWithAuth,
       }}
     >
       <InternalAuthProvider value={{ validateToken, setLoading }}>

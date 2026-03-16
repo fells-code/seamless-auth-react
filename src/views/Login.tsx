@@ -4,7 +4,7 @@ import PhoneInputWithCountryCode from '@/components/phoneInput';
 import { useInternalAuth } from '@/context/InternalAuthContext';
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-
+import { login } from '../utils';
 import styles from '@/styles/login.module.css';
 import { isPasskeySupported, isValidEmail, isValidPhoneNumber } from '../utils';
 import { createFetchWithAuth } from '@/fetchWithAuth';
@@ -12,7 +12,7 @@ import AuthFallbackOptions from '@/components/AuthFallbackOptions';
 
 const Login: React.FC = () => {
   const navigate = useNavigate();
-  const { apiHost, hasSignedInBefore, mode: authMode } = useAuth();
+  const { apiHost, hasSignedInBefore, mode: authMode, fetchWithAuth } = useAuth();
   const { validateToken } = useInternalAuth();
   const [identifier, setIdentifier] = useState<string>('');
   const [email, setEmail] = useState<string>('');
@@ -25,15 +25,17 @@ const Login: React.FC = () => {
   const [passkeyAvailable, setPasskeyAvailable] = useState(false);
   const [showFallbackOptions, setShowFallbackOptions] = useState(false);
 
-  const fetchWithAuth = createFetchWithAuth({
-    authMode,
-    authHost: apiHost,
-  });
+  // const fetchWithAuth = createFetchWithAuth({
+  //   authMode,
+  //   authHost: apiHost,
+  // });
 
   useEffect(() => {
     async function checkSupport() {
       const supported = await isPasskeySupported();
+      // console.log('checking passkey', supported);
       setPasskeyAvailable(supported);
+      console.log('checking passkey', supported);
     }
 
     checkSupport();
@@ -99,32 +101,6 @@ const Login: React.FC = () => {
       }
     } catch (error) {
       console.error('Passkey login error:', error);
-    }
-  };
-
-  const login = async () => {
-    setFormErrors('');
-
-    const response = await fetchWithAuth(`/login`, {
-      method: 'POST',
-      body: JSON.stringify({ identifier, passkeyAvailable }),
-    });
-
-    if (!response.ok) {
-      setFormErrors('Failed to send login link. Please try again.');
-      return;
-    }
-
-    if (!passkeyAvailable) {
-      setShowFallbackOptions(true);
-      return;
-    }
-
-    try {
-      await handlePasskeyLogin();
-    } catch (err) {
-      console.error('Passkey login failed', err);
-      setShowFallbackOptions(true);
     }
   };
 
@@ -198,7 +174,14 @@ const Login: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
 
-    if (mode === 'login') login();
+    if (mode === 'login') {
+      if (passkeyAvailable) {
+        const res = login(fetchWithAuth, identifier, passkeyAvailable);
+      } else {
+        setShowFallbackOptions(true);
+        console.log(setShowFallbackOptions);
+      }
+    }
     if (mode === 'register') register();
   };
 
