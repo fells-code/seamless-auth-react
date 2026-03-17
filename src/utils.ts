@@ -103,35 +103,36 @@ export function parseUserAgent() {
   return { platform, browser, deviceInfo };
 }
 
-export const login = async (
-  fetchWithAuth: (input: string, init?: RequestInit) => Promise<Response>,
-  identifier: string,
-  passkeyAvailable: boolean
-) => {
-  // setFormErrors('');
+// export const login = async (
+//   fetchWithAuth: (input: string, init?: RequestInit) => Promise<Response>,
+//   identifier: string,
+//   passkeyAvailable: boolean
+// ) => {
+//   // setFormErrors('');
 
-  const response = await fetchWithAuth(`/login`, {
-    method: 'POST',
-    body: JSON.stringify({ identifier, passkeyAvailable }),
-  });
+//   const response = await fetchWithAuth(`/login`, {
+//     method: 'POST',
+//     body: JSON.stringify({ identifier, passkeyAvailable }),
+//   });
+//   console.log('response from /login', response);
+//   // if (!response.ok) {
+//   //   setFormErrors('Failed to send login link. Please try again.');
+//   //   return;
+//   // }
 
-  // if (!response.ok) {
-  //   setFormErrors('Failed to send login link. Please try again.');
-  //   return;
-  // }
+//   if (!passkeyAvailable) {
+//   //   setShowFallbackOptions(true);
+//     console.log
+//     return;
+//   }
 
-  // if (!passkeyAvailable) {
-  //   setShowFallbackOptions(true);
-  //   return;
-  // }
-
-  try {
-    await handlePasskeyLogin(fetchWithAuth);
-  } catch (err) {
-    console.error('Passkey login failed', err);
-    // setShowFallbackOptions(true);
-  }
-};
+//   try {
+//     await handlePasskeyLogin(fetchWithAuth);
+//   } catch (err) {
+//     console.error('Passkey login failed', err);
+//     // setShowFallbackOptions(true);
+//   }
+// };
 
 const handlePasskeyLogin = async (
   fetchWithAuth: (input: string, init?: RequestInit) => Promise<Response>

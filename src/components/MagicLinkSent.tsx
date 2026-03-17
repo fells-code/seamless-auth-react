@@ -32,7 +32,7 @@ const MagicLinkSent: React.FC = () => {
   const resend = async () => {
     if (cooldown > 0) return;
 
-    await fetchWithAuth(`/magic-link`, {
+    await fetchWithAuth(`/magiclinks`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
@@ -47,7 +47,7 @@ const MagicLinkSent: React.FC = () => {
 
     channel.onmessage = async event => {
       if (event.data?.type === 'MAGIC_LINK_AUTH_SUCCESS') {
-        const response = await fetchWithAuth(`/magic-link/check`, {
+        const response = await fetchWithAuth(`/magiclinks/check`, {
           method: 'GET',
           headers: {
             'Content-Type': 'application/json',
@@ -68,7 +68,7 @@ const MagicLinkSent: React.FC = () => {
   useEffect(() => {
     const interval = setInterval(async () => {
       try {
-        const response = await fetchWithAuth(`/magic-link/check`, {
+        const response = await fetchWithAuth(`/magiclinks/check`, {
           method: 'GET',
           headers: {
             'Content-Type': 'application/json',

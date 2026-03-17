@@ -1,4 +1,5 @@
 import { InternalAuthProvider } from '@/context/InternalAuthContext';
+import { startAuthentication } from '@simplewebauthn/browser';
 import React, {
   createContext,
   ReactNode,
@@ -42,7 +43,8 @@ export interface AuthContextType {
   credentials: Credential[];
   updateCredential: (credential: Credential) => Promise<Credential>;
   deleteCredential: (credentialId: string) => Promise<void>;
-  fetchWithAuth(input: string, init?: RequestInit): Promise<Response>;
+  login: (identifier: string, passkeyAvailable: boolean) => Promise<Response>;
+  handlePasskeyLogin: () => Promise<string>;
 }
 
 export interface Credential {
@@ -97,6 +99,79 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({
     authMode,
     authHost: apiHost,
   });
+
+  const login = async (
+    identifier: string,
+    passkeyAvailable: boolean
+  ): Promise<Response> => {
+    const response = await fetchWithAuth(`/login`, {
+      method: 'POST',
+      body: JSON.stringify({ identifier, passkeyAvailable }),
+    });
+    if (!passkeyAvailable) {
+      //   setShowFallbackOptions(true);
+      console.log('stopped early');
+      return response;
+    }
+
+    try {
+      // await handlePasskeyLogin();
+      // Another ticket?
+      return response;
+    } catch (err) {
+      console.error('Passkey login failed', err);
+      // setShowFallbackOptions(true);
+      return response;
+    }
+  };
+
+  const handlePasskeyLogin = async () => {
+    try {
+      const response = await fetchWithAuth(`/webAuthn/login/start`, {
+        method: 'POST',
+      });
+
+      if (!response.ok) {
+        console.error('Something went wrong getting webauthn options');
+        return 'Failed';
+      }
+
+      const options = await response.json();
+      const credential = await startAuthentication({ optionsJSON: options });
+
+      const verificationResponse = await fetchWithAuth(`/webAuthn/login/finish`, {
+        method: 'POST',
+        body: JSON.stringify({ assertionResponse: credential }),
+      });
+
+      if (!verificationResponse.ok) {
+        console.error('Failed to verify passkey');
+      }
+
+      const verificationResult = await verificationResponse.json();
+
+      if (verificationResult.message === 'Success') {
+        if (verificationResult.mfaLogin) {
+          // navigate('/mfaLogin');
+          // need to return "Success"
+
+          return 'Success';
+        }
+        await validateToken();
+        // navigate('/');
+        // need to return validateToken response/message
+        return 'Token';
+      } else {
+        console.error('Passkey login failed:', verificationResult.message);
+        // return failed
+        return 'Failed';
+      }
+    } catch (error) {
+      console.error('Passkey login error:', error);
+      // throw error?
+      return 'Error';
+    }
+  };
 
   const logout = useCallback(async () => {
     if (user) {
@@ -222,7 +297,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({
         credentials,
         updateCredential,
         deleteCredential,
-        fetchWithAuth,
+        login,
+        handlePasskeyLogin,
       }}
     >
       <InternalAuthProvider value={{ validateToken, setLoading }}>
