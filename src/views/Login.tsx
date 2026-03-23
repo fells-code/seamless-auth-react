@@ -141,7 +141,7 @@ const Login: React.FC = () => {
 
   const sendMagicLink = async () => {
     try {
-      const response = await fetchWithAuth(`/magiclinks`, {
+      const response = await fetchWithAuth(`/magic-links`, {
         method: 'GET',
       });
 
@@ -150,7 +150,7 @@ const Login: React.FC = () => {
         return;
       }
 
-      navigate('/magiclinks-sent');
+      navigate('/magic-links-sent');
     } catch (err) {
       console.error(err);
       setFormErrors('Failed to send magic link.');

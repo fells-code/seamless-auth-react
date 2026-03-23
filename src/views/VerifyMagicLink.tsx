@@ -21,7 +21,7 @@ const VerifyMagicLink: React.FC = () => {
 
   useEffect(() => {
     const verify = async () => {
-      const response = await fetchWithAuth(`/magiclinks/verify/${token}`, {
+      const response = await fetchWithAuth(`/magic-links/verify/${token}`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
