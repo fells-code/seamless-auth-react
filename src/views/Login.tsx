@@ -141,7 +141,7 @@ const Login: React.FC = () => {
 
   const sendMagicLink = async () => {
     try {
-      const response = await fetchWithAuth(`/magic-links`, {
+      const response = await fetchWithAuth(`/magic-link`, {
         method: 'GET',
       });
 
@@ -181,8 +181,13 @@ const Login: React.FC = () => {
 
     if (mode === 'login') {
       const res = login(identifier, passkeyAvailable);
+
       if (passkeyAvailable) {
         console.log('herro');
+        const passkeyResult = await handlePasskeyLogin();
+        if (passkeyResult) {
+          navigate('/');
+        }
       } else {
         setShowFallbackOptions(true);
         console.log(setShowFallbackOptions);

@@ -44,7 +44,7 @@ export interface AuthContextType {
   updateCredential: (credential: Credential) => Promise<Credential>;
   deleteCredential: (credentialId: string) => Promise<void>;
   login: (identifier: string, passkeyAvailable: boolean) => Promise<Response>;
-  handlePasskeyLogin: () => Promise<string>;
+  handlePasskeyLogin: () => Promise<boolean>;
 }
 
 export interface Credential {
@@ -131,11 +131,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({
         method: 'POST',
       });
 
-      if (!response.ok) {
-        console.error('Something went wrong getting webauthn options');
-        return 'Failed';
-      }
-
       const options = await response.json();
       const credential = await startAuthentication({ optionsJSON: options });
 
@@ -154,22 +149,22 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({
         if (verificationResult.mfaLogin) {
           // navigate('/mfaLogin');
           // need to return "Success"
-
-          return 'Success';
+          // can just return a  bool, if success true otherwise false anywhere else
+          return true;
         }
         await validateToken();
         // navigate('/');
         // need to return validateToken response/message
-        return 'Token';
+        return false;
       } else {
         console.error('Passkey login failed:', verificationResult.message);
         // return failed
-        return 'Failed';
+        return false;
       }
     } catch (error) {
       console.error('Passkey login error:', error);
       // throw error?
-      return 'Error';
+      return false;
     }
   };
 
