@@ -110,13 +110,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({
     });
     if (!passkeyAvailable) {
       //   setShowFallbackOptions(true);
-      console.log('stopped early');
       return response;
     }
 
     try {
-      // await handlePasskeyLogin();
-      // Another ticket?
       return response;
     } catch (err) {
       console.error('Passkey login failed', err);

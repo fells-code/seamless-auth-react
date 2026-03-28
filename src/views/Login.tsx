@@ -1,7 +1,5 @@
-import { startAuthentication } from '@simplewebauthn/browser';
 import { useAuth } from '@/AuthProvider';
 import PhoneInputWithCountryCode from '@/components/phoneInput';
-import { useInternalAuth } from '@/context/InternalAuthContext';
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import styles from '@/styles/login.module.css';
@@ -18,7 +16,6 @@ const Login: React.FC = () => {
     login,
     handlePasskeyLogin,
   } = useAuth();
-  const { validateToken } = useInternalAuth();
   const [identifier, setIdentifier] = useState<string>('');
   const [email, setEmail] = useState<string>('');
   const [mode, setMode] = useState<'login' | 'register'>('register');
@@ -38,9 +35,7 @@ const Login: React.FC = () => {
   useEffect(() => {
     async function checkSupport() {
       const supported = await isPasskeySupported();
-      // console.log('checking passkey', supported);
       setPasskeyAvailable(supported);
-      console.log('checking passkey', supported);
     }
 
     checkSupport();
@@ -150,7 +145,7 @@ const Login: React.FC = () => {
         return;
       }
 
-      navigate('/magic-links-sent');
+      navigate('/magiclinks-sent');
     } catch (err) {
       console.error(err);
       setFormErrors('Failed to send magic link.');
@@ -180,17 +175,15 @@ const Login: React.FC = () => {
     e.preventDefault();
 
     if (mode === 'login') {
-      const res = login(identifier, passkeyAvailable);
+      login(identifier, passkeyAvailable);
 
       if (passkeyAvailable) {
-        console.log('herro');
         const passkeyResult = await handlePasskeyLogin();
         if (passkeyResult) {
           navigate('/');
         }
       } else {
         setShowFallbackOptions(true);
-        console.log(setShowFallbackOptions);
       }
     }
     if (mode === 'register') register();

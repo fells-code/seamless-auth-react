@@ -1,6 +1,4 @@
 import parsePhoneNumberFromString from 'libphonenumber-js';
-import { startAuthentication } from '@simplewebauthn/browser';
-import { createFetchWithAuth } from './fetchWithAuth';
 /**
  * isValidEmail
  *
@@ -102,78 +100,3 @@ export function parseUserAgent() {
 
   return { platform, browser, deviceInfo };
 }
-
-// export const login = async (
-//   fetchWithAuth: (input: string, init?: RequestInit) => Promise<Response>,
-//   identifier: string,
-//   passkeyAvailable: boolean
-// ) => {
-//   // setFormErrors('');
-
-//   const response = await fetchWithAuth(`/login`, {
-//     method: 'POST',
-//     body: JSON.stringify({ identifier, passkeyAvailable }),
-//   });
-//   console.log('response from /login', response);
-//   // if (!response.ok) {
-//   //   setFormErrors('Failed to send login link. Please try again.');
-//   //   return;
-//   // }
-
-//   if (!passkeyAvailable) {
-//   //   setShowFallbackOptions(true);
-//     console.log
-//     return;
-//   }
-
-//   try {
-//     await handlePasskeyLogin(fetchWithAuth);
-//   } catch (err) {
-//     console.error('Passkey login failed', err);
-//     // setShowFallbackOptions(true);
-//   }
-// };
-
-const handlePasskeyLogin = async (
-  fetchWithAuth: (input: string, init?: RequestInit) => Promise<Response>
-) => {
-  try {
-    const response = await fetchWithAuth(`/webAuthn/login/start`, {
-      method: 'POST',
-    });
-
-    if (!response.ok) {
-      console.error('Something went wrong getting webauthn options');
-      return;
-    }
-
-    const options = await response.json();
-    const credential = await startAuthentication({ optionsJSON: options });
-
-    const verificationResponse = await fetchWithAuth(`/webAuthn/login/finish`, {
-      method: 'POST',
-      body: JSON.stringify({ assertionResponse: credential }),
-    });
-
-    if (!verificationResponse.ok) {
-      console.error('Failed to verify passkey');
-    }
-
-    const verificationResult = await verificationResponse.json();
-
-    // let them handle the below
-    // if (verificationResult.message === 'Success') {
-    //   if (verificationResult.mfaLogin) {
-    //     navigate('/mfaLogin');
-    //     return;
-    //   }
-    //   await validateToken();
-    //   navigate('/');
-    //   return;
-    // } else {
-    //   console.error('Passkey login failed:', verificationResult.message);
-    // }
-  } catch (error) {
-    console.error('Passkey login error:', error);
-  }
-};
