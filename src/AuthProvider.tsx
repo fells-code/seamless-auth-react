@@ -9,7 +9,6 @@ import React, {
 } from 'react';
 
 import { AuthMode, createFetchWithAuth } from './fetchWithAuth';
-import LoadingSpinner from './components/LoadingSpinner';
 import { usePreviousSignIn } from './hooks/usePreviousSignIn';
 import {
   AuthenticatorTransportFuture,
@@ -42,6 +41,7 @@ export interface AuthContextType {
   credentials: Credential[];
   updateCredential: (credential: Credential) => Promise<Credential>;
   deleteCredential: (credentialId: string) => Promise<void>;
+  loading: boolean;
 }
 
 export interface Credential {
@@ -136,6 +136,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({
   const hasRole = (role: string) => user?.roles?.includes(role);
 
   const validateToken = async () => {
+    setLoading(true);
     try {
       const response = await fetchWithAuth(`users/me`, {
         method: 'GET',
@@ -197,19 +198,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({
     }
   }, [user, isAuthenticated, markSignedIn]);
 
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-100">
-        <LoadingSpinner />;
-      </div>
-    );
-  }
-
   return (
     <AuthContext.Provider
       value={{
         user,
         logout,
+        loading,
         deleteUser,
         isAuthenticated,
         hasRole,
