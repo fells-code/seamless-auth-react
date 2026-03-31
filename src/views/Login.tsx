@@ -24,6 +24,7 @@ const Login: React.FC = () => {
   const [identifierError, setIdentifierError] = useState<string>('');
   const [passkeyAvailable, setPasskeyAvailable] = useState(false);
   const [showFallbackOptions, setShowFallbackOptions] = useState(false);
+  const [bootstrapToken, setBootstrapToken] = useState<string | null>(null);
 
   const fetchWithAuth = createFetchWithAuth({
     authMode,
@@ -40,6 +41,14 @@ const Login: React.FC = () => {
 
     if (hasSignedInBefore) {
       setMode('login');
+    }
+
+    const params = new URLSearchParams(window.location.search);
+    const token = params.get('bootstrapToken');
+
+    if (token && token.length > 10) {
+      setBootstrapToken(token);
+      console.log('Bootstrap token detected in URL');
     }
   }, [hasSignedInBefore]);
 
@@ -134,7 +143,11 @@ const Login: React.FC = () => {
     try {
       const response = await fetchWithAuth(`/registration/register`, {
         method: 'POST',
-        body: JSON.stringify({ email, phone }),
+        body: JSON.stringify({
+          email,
+          phone,
+          ...(bootstrapToken ? { bootstrapToken } : {}),
+        }),
       });
 
       if (!response.ok) {
