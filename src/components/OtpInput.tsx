@@ -4,16 +4,28 @@ import styles from '@/styles/otpInput.module.css';
 interface Props {
   length?: number;
   value: string;
+  inputMode?: 'numeric' | 'text';
   onChange: (value: string) => void;
 }
 
-const OtpInput: React.FC<Props> = ({ length = 6, value, onChange }) => {
+const OtpInput: React.FC<Props> = ({
+  length = 6,
+  value,
+  inputMode = 'numeric',
+  onChange,
+}) => {
   const inputs = useRef<Array<HTMLInputElement | null>>([]);
 
   const values = value.split('').concat(Array(length).fill('')).slice(0, length);
 
   const handleChange = (index: number, char: string) => {
-    if (!/^\d?$/.test(char)) return;
+    if (inputMode === 'numeric') {
+      if (!/^\d?$/.test(char)) return;
+    }
+
+    if (inputMode === 'text') {
+      if (!/[a-z]/i.test(char)) return;
+    }
 
     const newValue = value.substring(0, index) + char + value.substring(index + 1);
 
@@ -48,7 +60,7 @@ const OtpInput: React.FC<Props> = ({ length = 6, value, onChange }) => {
           key={i}
           ref={el => (inputs.current[i] = el)}
           type="text"
-          inputMode="numeric"
+          inputMode={inputMode}
           maxLength={1}
           value={digit || ''}
           className={styles.otpInput}
