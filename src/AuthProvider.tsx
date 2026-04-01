@@ -108,18 +108,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({
       method: 'POST',
       body: JSON.stringify({ identifier, passkeyAvailable }),
     });
-    if (!passkeyAvailable) {
-      //   setShowFallbackOptions(true);
-      return response;
-    }
 
-    try {
-      return response;
-    } catch (err) {
-      console.error('Passkey login failed', err);
-      // setShowFallbackOptions(true);
-      return response;
-    }
+    return response;
   };
 
   const handlePasskeyLogin = async () => {
@@ -144,23 +134,16 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({
 
       if (verificationResult.message === 'Success') {
         if (verificationResult.mfaLogin) {
-          // navigate('/mfaLogin');
-          // need to return "Success"
-          // can just return a  bool, if success true otherwise false anywhere else
           return true;
         }
         await validateToken();
-        // navigate('/');
-        // need to return validateToken response/message
         return false;
       } else {
         console.error('Passkey login failed:', verificationResult.message);
-        // return failed
         return false;
       }
     } catch (error) {
       console.error('Passkey login error:', error);
-      // throw error?
       return false;
     }
   };

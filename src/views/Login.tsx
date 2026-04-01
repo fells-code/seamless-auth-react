@@ -63,47 +63,6 @@ const Login: React.FC = () => {
     return isValidEmail(email) && isValidPhoneNumber(phone);
   };
 
-  // const handlePasskeyLogin = async () => {
-  //   try {
-  //     const response = await fetchWithAuth(`/webAuthn/login/start`, {
-  //       method: 'POST',
-  //     });
-
-  //     if (!response.ok) {
-  //       console.error('Something went wrong getting webauthn options');
-  //       return;
-  //     }
-
-  //     const options = await response.json();
-  //     const credential = await startAuthentication({ optionsJSON: options });
-
-  //     const verificationResponse = await fetchWithAuth(`/webAuthn/login/finish`, {
-  //       method: 'POST',
-  //       body: JSON.stringify({ assertionResponse: credential }),
-  //     });
-
-  //     if (!verificationResponse.ok) {
-  //       console.error('Failed to verify passkey');
-  //     }
-
-  //     const verificationResult = await verificationResponse.json();
-
-  //     if (verificationResult.message === 'Success') {
-  //       if (verificationResult.mfaLogin) {
-  //         navigate('/mfaLogin');
-  //         return;
-  //       }
-  //       await validateToken();
-  //       navigate('/');
-  //       return;
-  //     } else {
-  //       console.error('Passkey login failed:', verificationResult.message);
-  //     }
-  //   } catch (error) {
-  //     console.error('Passkey login error:', error);
-  //   }
-  // };
-
   const register = async () => {
     setFormErrors('');
 
@@ -175,9 +134,9 @@ const Login: React.FC = () => {
     e.preventDefault();
 
     if (mode === 'login') {
-      login(identifier, passkeyAvailable);
+      const loginRes = await login(identifier, passkeyAvailable);
 
-      if (passkeyAvailable) {
+      if (loginRes.ok && passkeyAvailable) {
         const passkeyResult = await handlePasskeyLogin();
         if (passkeyResult) {
           navigate('/');
