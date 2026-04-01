@@ -17,6 +17,14 @@ jest.mock('react-router-dom', () => ({
   useNavigate: jest.fn(),
 }));
 
+jest.mock('@/components/OtpInput', () => (props: any) => (
+  <input
+    data-testid="otp-input"
+    value={props.value}
+    onChange={e => props.onChange(e.target.value)}
+  />
+));
+
 describe('EmailRegistration', () => {
   const navigate = jest.fn();
   const validateToken = jest.fn();
@@ -57,12 +65,11 @@ describe('EmailRegistration', () => {
   test('shows validation error if OTP is not 6 digits', async () => {
     render(<EmailRegistration />);
 
-    fireEvent.change(screen.getByLabelText(/email verification code/i), {
-      target: { value: '123' },
+    fireEvent.change(screen.getByTestId('otp-input'), {
+      target: { value: 'ABC' },
     });
 
     fireEvent.click(screen.getByRole('button', { name: /verify & continue/i }));
-
     expect(screen.getByText(/please enter a valid code/i)).toBeInTheDocument();
   });
 
@@ -71,8 +78,8 @@ describe('EmailRegistration', () => {
 
     render(<EmailRegistration />);
 
-    fireEvent.change(screen.getByLabelText(/email verification code/i), {
-      target: { value: '123456' },
+    fireEvent.change(screen.getByTestId('otp-input'), {
+      target: { value: 'ABCDEF' },
     });
 
     await act(async () => {
@@ -124,8 +131,8 @@ describe('EmailRegistration', () => {
       expect(isPasskeySupported).toHaveBeenCalled();
     });
 
-    fireEvent.change(screen.getByLabelText(/email verification code/i), {
-      target: { value: '123456' },
+    fireEvent.change(screen.getByTestId('otp-input'), {
+      target: { value: 'ABCDEF' },
     });
 
     await act(async () => {
@@ -145,8 +152,8 @@ describe('EmailRegistration', () => {
 
     render(<EmailRegistration />);
 
-    fireEvent.change(screen.getByLabelText(/email verification code/i), {
-      target: { value: '123456' },
+    fireEvent.change(screen.getByTestId('otp-input'), {
+      target: { value: 'ABCDEF' },
     });
 
     await act(async () => {
