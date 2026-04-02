@@ -35,7 +35,7 @@ const VerifyMagicLink: React.FC = () => {
           return;
         }
       } catch (error) {
-        console.log(error);
+        console.error(error);
       }
 
       const channel = new BroadcastChannel('seamless-auth');
