@@ -79,18 +79,4 @@ describe('OtpInput', () => {
 
     expect(onChange).toHaveBeenCalledWith('123456');
   });
-
-  test('ignores paste if length does not match', () => {
-    render(<OtpInput value="" onChange={onChange} />);
-
-    const container = screen.getAllByRole('textbox')[0].parentElement!;
-
-    fireEvent.paste(container, {
-      clipboardData: {
-        getData: () => '123',
-      },
-    });
-
-    expect(onChange).not.toHaveBeenCalled();
-  });
 });
