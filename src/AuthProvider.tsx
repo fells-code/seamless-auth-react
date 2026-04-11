@@ -1,3 +1,9 @@
+/*
+ * Copyright © 2026 Fells Code, LLC
+ * Licensed under the GNU Affero General Public License v3.0
+ * See LICENSE file in the project root for full license information
+ */
+
 import { InternalAuthProvider } from '@/context/InternalAuthContext';
 import { startAuthentication } from '@simplewebauthn/browser';
 import React, {
@@ -10,7 +16,6 @@ import React, {
 } from 'react';
 
 import { AuthMode, createFetchWithAuth } from './fetchWithAuth';
-import LoadingSpinner from './components/LoadingSpinner';
 import { usePreviousSignIn } from './hooks/usePreviousSignIn';
 import {
   AuthenticatorTransportFuture,
@@ -45,6 +50,7 @@ export interface AuthContextType {
   deleteCredential: (credentialId: string) => Promise<void>;
   login: (identifier: string, passkeyAvailable: boolean) => Promise<Response>;
   handlePasskeyLogin: () => Promise<boolean>;
+  loading: boolean;
 }
 
 export interface Credential {
@@ -187,6 +193,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({
   const hasRole = (role: string) => user?.roles?.includes(role);
 
   const validateToken = async () => {
+    setLoading(true);
     try {
       const response = await fetchWithAuth(`users/me`, {
         method: 'GET',
@@ -248,19 +255,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({
     }
   }, [user, isAuthenticated, markSignedIn]);
 
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-100">
-        <LoadingSpinner />;
-      </div>
-    );
-  }
-
   return (
     <AuthContext.Provider
       value={{
         user,
         logout,
+        loading,
         deleteUser,
         isAuthenticated,
         hasRole,

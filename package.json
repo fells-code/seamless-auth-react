@@ -1,6 +1,6 @@
 {
   "name": "@seamless-auth/react",
-  "version": "0.0.7",
+  "version": "0.0.10",
   "description": "A drop-in authentication solution for modern React applications.",
   "type": "module",
   "exports": {
@@ -22,6 +22,7 @@
   "scripts": {
     "build": "rollup -c",
     "test": "jest",
+    "coverage": "npm test -- --coverage",
     "lint": "eslint ./src",
     "format": "prettier --write .",
     "prepare": "husky",
@@ -60,7 +61,7 @@
     "@rollup/plugin-alias": "^5.1.1",
     "@rollup/plugin-commonjs": "^26.0.1",
     "@rollup/plugin-node-resolve": "^15.2.3",
-    "@rollup/plugin-terser": "^0.4.4",
+    "@rollup/plugin-terser": "^1.0.0",
     "@rollup/plugin-typescript": "^11.1.6",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.0",
@@ -90,6 +91,7 @@
   },
   "dependencies": {
     "@simplewebauthn/browser": "^13.1.0",
+    "eslint-plugin-license-header": "^0.9.0",
     "libphonenumber-js": "^1.12.7",
     "ts-node": "^10.9.2"
   },

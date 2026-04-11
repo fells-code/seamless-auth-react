@@ -3,7 +3,6 @@ import { AuthProvider, useAuth } from '../src/AuthProvider';
 import { createFetchWithAuth } from '../src/fetchWithAuth';
 
 jest.mock('../src/fetchWithAuth');
-jest.mock('../src/components/LoadingSpinner', () => () => <div>Loading...</div>);
 jest.mock('@/context/InternalAuthContext', () => ({
   InternalAuthProvider: ({ children }: any) => <div>{children}</div>,
 }));
@@ -29,17 +28,6 @@ describe('AuthProvider', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-  });
-
-  it('renders loading spinner initially', async () => {
-    await act(async () => {
-      render(
-        <AuthProvider apiHost={apiHost}>
-          <div>Child</div>
-        </AuthProvider>
-      );
-    });
-    expect(screen.getByText('Child')).toBeInTheDocument();
   });
 
   it('loads user and token successfully', async () => {

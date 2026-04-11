@@ -1,3 +1,9 @@
+/*
+ * Copyright © 2026 Fells Code, LLC
+ * Licensed under the GNU Affero General Public License v3.0
+ * See LICENSE file in the project root for full license information
+ */
+
 import { useAuth } from '@/AuthProvider';
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -6,6 +12,7 @@ import styles from '@/styles/verifyOTP.module.css';
 import { createFetchWithAuth } from '@/fetchWithAuth';
 import { isPasskeySupported } from '@/utils';
 import { useInternalAuth } from '@/context/InternalAuthContext';
+import OtpInput from '@/components/OtpInput';
 
 const EmailRegistration: React.FC = () => {
   const navigate = useNavigate();
@@ -129,16 +136,11 @@ const EmailRegistration: React.FC = () => {
                 — Code expires in {formatTime(emailTimeLeft)}
               </span>
             </label>
-
-            <input
-              id="emailCode"
-              type="text"
-              maxLength={6}
+            <OtpInput
+              length={6}
               value={emailOtp}
-              autoComplete="off"
-              onChange={e => setEmailOtp(e.target.value)}
-              className={styles.input}
-              required
+              onChange={setEmailOtp}
+              inputMode="text"
             />
 
             <button type="button" onClick={onResendEmail} className={styles.resend}>
