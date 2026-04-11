@@ -1,3 +1,9 @@
+/*
+ * Copyright © 2026 Fells Code, LLC
+ * Licensed under the GNU Affero General Public License v3.0
+ * See LICENSE file in the project root for full license information
+ */
+
 import { act, render, screen, waitFor } from '@testing-library/react';
 import { AuthProvider, useAuth } from '../src/AuthProvider';
 import { createFetchWithAuth } from '../src/fetchWithAuth';
