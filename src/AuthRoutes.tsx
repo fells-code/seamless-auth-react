@@ -22,7 +22,7 @@ export const AuthRoutes = () => (
     <Route path="/verifyEmailOTP" element={<EmailRegistration />} />
     <Route path="/verify-magiclink" element={<VerifyMagicLink />} />
     <Route path="/registerPasskey" element={<PasskeyRegistration />} />
-    <Route path="/magic-link-sent" element={<MagicLinkSent />} />
+    <Route path="/magiclinks-sent" element={<MagicLinkSent />} />
     <Route path="*" element={<Navigate to="/login" replace />} />
   </Routes>
 );

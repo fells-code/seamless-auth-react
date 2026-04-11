@@ -27,17 +27,21 @@ const VerifyMagicLink: React.FC = () => {
 
   useEffect(() => {
     const verify = async () => {
-      const response = await fetchWithAuth(`/magic-link/verify/${token}`, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
+      try {
+        const response = await fetchWithAuth(`/magic-link/verify/${token}`, {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        });
 
-      if (!response.ok) {
-        console.error('Failed to verify token');
-        setError('Failed to verify token');
-        return;
+        if (!response.ok) {
+          console.error('Failed to verify token');
+          setError('Failed to verify token');
+          return;
+        }
+      } catch (error) {
+        console.error(error);
       }
 
       const channel = new BroadcastChannel('seamless-auth');

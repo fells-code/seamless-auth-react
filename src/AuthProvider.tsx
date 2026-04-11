@@ -5,6 +5,7 @@
  */
 
 import { InternalAuthProvider } from '@/context/InternalAuthContext';
+import { startAuthentication } from '@simplewebauthn/browser';
 import React, {
   createContext,
   ReactNode,
@@ -47,6 +48,8 @@ export interface AuthContextType {
   credentials: Credential[];
   updateCredential: (credential: Credential) => Promise<Credential>;
   deleteCredential: (credentialId: string) => Promise<void>;
+  login: (identifier: string, passkeyAvailable: boolean) => Promise<Response>;
+  handlePasskeyLogin: () => Promise<boolean>;
   loading: boolean;
 }
 
@@ -102,6 +105,54 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({
     authMode,
     authHost: apiHost,
   });
+
+  const login = async (
+    identifier: string,
+    passkeyAvailable: boolean
+  ): Promise<Response> => {
+    const response = await fetchWithAuth(`/login`, {
+      method: 'POST',
+      body: JSON.stringify({ identifier, passkeyAvailable }),
+    });
+
+    return response;
+  };
+
+  const handlePasskeyLogin = async () => {
+    try {
+      const response = await fetchWithAuth(`/webAuthn/login/start`, {
+        method: 'POST',
+      });
+
+      const options = await response.json();
+      const credential = await startAuthentication({ optionsJSON: options });
+
+      const verificationResponse = await fetchWithAuth(`/webAuthn/login/finish`, {
+        method: 'POST',
+        body: JSON.stringify({ assertionResponse: credential }),
+      });
+
+      if (!verificationResponse.ok) {
+        console.error('Failed to verify passkey');
+      }
+
+      const verificationResult = await verificationResponse.json();
+
+      if (verificationResult.message === 'Success') {
+        if (verificationResult.mfaLogin) {
+          return true;
+        }
+        await validateToken();
+        return false;
+      } else {
+        console.error('Passkey login failed:', verificationResult.message);
+        return false;
+      }
+    } catch (error) {
+      console.error('Passkey login error:', error);
+      return false;
+    }
+  };
 
   const logout = useCallback(async () => {
     if (user) {
@@ -221,6 +272,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({
         credentials,
         updateCredential,
         deleteCredential,
+        login,
+        handlePasskeyLogin,
       }}
     >
       <InternalAuthProvider value={{ validateToken, setLoading }}>

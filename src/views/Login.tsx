@@ -4,13 +4,10 @@
  * See LICENSE file in the project root for full license information
  */
 
-import { startAuthentication } from '@simplewebauthn/browser';
 import { useAuth } from '@/AuthProvider';
 import PhoneInputWithCountryCode from '@/components/phoneInput';
-import { useInternalAuth } from '@/context/InternalAuthContext';
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-
 import styles from '@/styles/login.module.css';
 import { isPasskeySupported, isValidEmail, isValidPhoneNumber } from '../utils';
 import { createFetchWithAuth } from '@/fetchWithAuth';
@@ -18,8 +15,13 @@ import AuthFallbackOptions from '@/components/AuthFallbackOptions';
 
 const Login: React.FC = () => {
   const navigate = useNavigate();
-  const { apiHost, hasSignedInBefore, mode: authMode } = useAuth();
-  const { validateToken } = useInternalAuth();
+  const {
+    apiHost,
+    hasSignedInBefore,
+    mode: authMode,
+    login,
+    handlePasskeyLogin,
+  } = useAuth();
   const [identifier, setIdentifier] = useState<string>('');
   const [email, setEmail] = useState<string>('');
   const [mode, setMode] = useState<'login' | 'register'>('register');
@@ -76,73 +78,6 @@ const Login: React.FC = () => {
     return isValidEmail(email) && isValidPhoneNumber(phone);
   };
 
-  const handlePasskeyLogin = async () => {
-    try {
-      const response = await fetchWithAuth(`/webAuthn/login/start`, {
-        method: 'POST',
-      });
-
-      if (!response.ok) {
-        console.error('Something went wrong getting webauthn options');
-        return;
-      }
-
-      const options = await response.json();
-      const credential = await startAuthentication({ optionsJSON: options });
-
-      const verificationResponse = await fetchWithAuth(`/webAuthn/login/finish`, {
-        method: 'POST',
-        body: JSON.stringify({ assertionResponse: credential }),
-      });
-
-      if (!verificationResponse.ok) {
-        console.error('Failed to verify passkey');
-      }
-
-      const verificationResult = await verificationResponse.json();
-
-      if (verificationResult.message === 'Success') {
-        if (verificationResult.mfaLogin) {
-          navigate('/mfaLogin');
-          return;
-        }
-        await validateToken();
-        navigate('/');
-        return;
-      } else {
-        console.error('Passkey login failed:', verificationResult.message);
-      }
-    } catch (error) {
-      console.error('Passkey login error:', error);
-    }
-  };
-
-  const login = async () => {
-    setFormErrors('');
-
-    const response = await fetchWithAuth(`/login`, {
-      method: 'POST',
-      body: JSON.stringify({ identifier, passkeyAvailable }),
-    });
-
-    if (!response.ok) {
-      setFormErrors('Failed to send login link. Please try again.');
-      return;
-    }
-
-    if (!passkeyAvailable) {
-      setShowFallbackOptions(true);
-      return;
-    }
-
-    try {
-      await handlePasskeyLogin();
-    } catch (err) {
-      console.error('Passkey login failed', err);
-      setShowFallbackOptions(true);
-    }
-  };
-
   const register = async () => {
     setFormErrors('');
 
@@ -188,7 +123,7 @@ const Login: React.FC = () => {
         return;
       }
 
-      navigate('/magic-link-sent');
+      navigate('/magiclinks-sent');
     } catch (err) {
       console.error(err);
       setFormErrors('Failed to send magic link.');
@@ -217,7 +152,18 @@ const Login: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
 
-    if (mode === 'login') login();
+    if (mode === 'login') {
+      const loginRes = await login(identifier, passkeyAvailable);
+
+      if (loginRes.ok && passkeyAvailable) {
+        const passkeyResult = await handlePasskeyLogin();
+        if (passkeyResult) {
+          navigate('/');
+        }
+      } else {
+        setShowFallbackOptions(true);
+      }
+    }
     if (mode === 'register') register();
   };
 

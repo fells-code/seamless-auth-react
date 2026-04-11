@@ -5,7 +5,6 @@
  */
 
 import parsePhoneNumberFromString from 'libphonenumber-js';
-
 /**
  * isValidEmail
  *

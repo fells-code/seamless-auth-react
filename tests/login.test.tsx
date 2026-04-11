@@ -1,3 +1,9 @@
+/*
+ * Copyright © 2026 Fells Code, LLC
+ * Licensed under the GNU Affero General Public License v3.0
+ * See LICENSE file in the project root for full license information
+ */
+
 import { render, screen, fireEvent, act, waitFor } from '@testing-library/react';
 import Login from '@/views/Login';
 
@@ -51,6 +57,7 @@ describe('Login', () => {
       apiHost: 'http://localhost',
       hasSignedInBefore: true,
       mode: 'web',
+      login: () => jest.fn(),
     });
 
     (useInternalAuth as jest.Mock).mockReturnValue({
@@ -97,8 +104,13 @@ describe('Login', () => {
   });
 
   test('login triggers API request', async () => {
-    mockFetch.mockResolvedValue({ ok: true });
-
+    const mockLogin = jest.fn().mockResolvedValueOnce({ ok: true });
+    (useAuth as jest.Mock).mockReturnValue({
+      apiHost: 'http://localhost',
+      hasSignedInBefore: true,
+      mode: 'web',
+      login: mockLogin,
+    });
     render(<Login />);
 
     const input = screen.getByPlaceholderText(/email or phone number/i);
@@ -117,10 +129,7 @@ describe('Login', () => {
       fireEvent.click(loginButton);
     });
 
-    expect(mockFetch).toHaveBeenCalledWith(
-      '/login',
-      expect.objectContaining({ method: 'POST' })
-    );
+    expect(mockLogin).toHaveBeenCalled();
   });
 
   test('fallback options appear if passkeys unavailable', async () => {
@@ -164,7 +173,7 @@ describe('Login', () => {
       fireEvent.click(magicLink);
     });
 
-    expect(navigate).toHaveBeenCalledWith('/magic-link-sent');
+    expect(navigate).toHaveBeenCalledWith('/magiclinks-sent');
   });
 
   test('phone OTP option navigates to verify phone', async () => {
