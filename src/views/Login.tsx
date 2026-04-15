@@ -155,12 +155,14 @@ const Login: React.FC = () => {
     if (mode === 'login') {
       const loginRes = await login(identifier, passkeyAvailable);
 
-      if (loginRes.ok && passkeyAvailable) {
+      if (loginRes && loginRes.ok && passkeyAvailable) {
         const passkeyResult = await handlePasskeyLogin();
+
         if (passkeyResult) {
           navigate('/');
         }
       } else {
+        setIdentifierError('An error occurred');
         setShowFallbackOptions(true);
       }
     }

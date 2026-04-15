@@ -48,7 +48,7 @@ export interface AuthContextType {
   credentials: Credential[];
   updateCredential: (credential: Credential) => Promise<Credential>;
   deleteCredential: (credentialId: string) => Promise<void>;
-  login: (identifier: string, passkeyAvailable: boolean) => Promise<Response>;
+  login: (identifier: string, passkeyAvailable: boolean) => Promise<Response | null>;
   handlePasskeyLogin: () => Promise<boolean>;
   loading: boolean;
 }
@@ -109,13 +109,19 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({
   const login = async (
     identifier: string,
     passkeyAvailable: boolean
-  ): Promise<Response> => {
-    const response = await fetchWithAuth(`/login`, {
-      method: 'POST',
-      body: JSON.stringify({ identifier, passkeyAvailable }),
-    });
+  ): Promise<Response | null> => {
+    console.log('oranges');
 
-    return response;
+    try {
+      const response = await fetchWithAuth(`/login`, {
+        method: 'POST',
+        body: JSON.stringify({ identifier, passkeyAvailable }),
+      });
+      return response;
+    } catch (error) {
+      console.error('Error fetching,', error);
+      return null;
+    }
   };
 
   const handlePasskeyLogin = async () => {
