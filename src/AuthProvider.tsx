@@ -110,8 +110,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({
     identifier: string,
     passkeyAvailable: boolean
   ): Promise<Response | null> => {
-    console.log('oranges');
-
     try {
       const response = await fetchWithAuth(`/login`, {
         method: 'POST',
