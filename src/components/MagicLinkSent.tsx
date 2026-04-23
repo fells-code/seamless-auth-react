@@ -6,24 +6,18 @@
 
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '@/AuthProvider';
-import { useInternalAuth } from '@/context/InternalAuthContext';
+import { useAuthClient } from '@/hooks/useAuthClient';
 import { useNavigate, useLocation } from 'react-router-dom';
 
 import styles from '@/styles/magiclink.module.css';
-import { createFetchWithAuth } from '@/fetchWithAuth';
 
 const MagicLinkSent: React.FC = () => {
-  const { apiHost, mode: authMode } = useAuth();
-  const { validateToken } = useInternalAuth();
+  const { refreshSession } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+  const authClient = useAuthClient();
 
-  const fetchWithAuth = createFetchWithAuth({
-    authMode,
-    authHost: apiHost,
-  });
-
-  const identifier = location.state?.identifier;
+  const identifier = location.state?.identifier as string | undefined;
 
   const [cooldown, setCooldown] = useState(30);
 
@@ -38,12 +32,7 @@ const MagicLinkSent: React.FC = () => {
   const resend = async () => {
     if (cooldown > 0) return;
 
-    await fetchWithAuth(`/magic-link`, {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    });
+    await authClient.requestMagicLink();
 
     setCooldown(30);
   };
@@ -53,14 +42,9 @@ const MagicLinkSent: React.FC = () => {
 
     channel.onmessage = async event => {
       if (event.data?.type === 'MAGIC_LINK_AUTH_SUCCESS') {
-        const response = await fetchWithAuth(`/magic-link/check`, {
-          method: 'GET',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-        });
+        const response = await authClient.checkMagicLink();
         if (response.status === 200) {
-          await validateToken();
+          await refreshSession();
           navigate('/');
         }
       }
@@ -69,19 +53,14 @@ const MagicLinkSent: React.FC = () => {
     return () => {
       channel.close();
     };
-  }, [fetchWithAuth, navigate, validateToken]);
+  }, [authClient, navigate, refreshSession]);
 
   useEffect(() => {
     const interval = setInterval(async () => {
       try {
-        const response = await fetchWithAuth(`/magic-link/check`, {
-          method: 'GET',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-        });
+        const response = await authClient.checkMagicLink();
         if (response.status === 200) {
-          await validateToken();
+          await refreshSession();
           navigate('/');
         }
       } catch {
@@ -90,7 +69,7 @@ const MagicLinkSent: React.FC = () => {
     }, 5000);
 
     return () => clearInterval(interval);
-  }, [apiHost, validateToken, navigate]);
+  }, [authClient, refreshSession, navigate]);
 
   return (
     <div className={styles.container}>
@@ -116,7 +95,7 @@ const MagicLinkSent: React.FC = () => {
           If an account exists for this address, we sent a secure sign-in link.
         </p>
 
-        <div className={styles.identifier}>{identifier}</div>
+        {identifier && <div className={styles.identifier}>{identifier}</div>}
 
         <p className={styles.helperText}>
           Open the email and click the link to finish signing in.

@@ -4,44 +4,29 @@
  * See LICENSE file in the project root for full license information
  */
 
-import { InternalAuthProvider } from '@/context/InternalAuthContext';
-import { startAuthentication } from '@simplewebauthn/browser';
+import { createSeamlessAuthClient } from '@/client/createSeamlessAuthClient';
+import { Credential, User } from '@/types';
 import React, {
   createContext,
   ReactNode,
   useCallback,
   useContext,
   useEffect,
+  useMemo,
   useState,
 } from 'react';
 
-import { AuthMode, createFetchWithAuth } from './fetchWithAuth';
+import { AuthMode } from './fetchWithAuth';
 import { usePreviousSignIn } from './hooks/usePreviousSignIn';
-import {
-  AuthenticatorTransportFuture,
-  CredentialDeviceType,
-} from '@simplewebauthn/browser';
-
-export interface User {
-  id: string;
-  email: string;
-  phone: string;
-  roles?: string[];
-}
-
-type AuthToken = {
-  oneTimeToken: string;
-  expiresAt: string;
-};
 
 export interface AuthContextType {
   user: User | null;
-  logout: () => void;
-  deleteUser: () => void;
+  logout: () => Promise<void>;
+  deleteUser: () => Promise<void>;
+  refreshSession: () => Promise<void>;
   isAuthenticated: boolean;
   hasRole: (role: string) => boolean | undefined;
   apiHost: string;
-  token: AuthToken | null;
   markSignedIn: () => void;
   hasSignedInBefore: boolean;
   mode: AuthMode;
@@ -51,19 +36,6 @@ export interface AuthContextType {
   login: (identifier: string, passkeyAvailable: boolean) => Promise<Response>;
   handlePasskeyLogin: () => Promise<boolean>;
   loading: boolean;
-}
-
-export interface Credential {
-  id: string;
-  counter: number;
-  transports?: AuthenticatorTransportFuture[];
-  deviceType: CredentialDeviceType;
-  backedup: boolean;
-  friendlyName: string | null;
-  lastUsedAt: Date | null;
-  platform: string | null;
-  browser: string | null;
-  deviceInfo: string | null;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -97,89 +69,64 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({
   const [credentials, setCredentials] = useState<Credential[]>([]);
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
   const [loading, setLoading] = useState<boolean>(true);
-  const [token, setToken] = useState<AuthToken | null>(null);
   const { hasSignedInBefore, markSignedIn } = usePreviousSignIn();
-  const [authMode] = useState<AuthMode>(mode);
+  const authMode = mode;
 
-  const fetchWithAuth = createFetchWithAuth({
-    authMode,
-    authHost: apiHost,
-  });
+  const authClient = useMemo(
+    () =>
+      createSeamlessAuthClient({
+        mode: authMode,
+        apiHost,
+      }),
+    [authMode, apiHost]
+  );
 
   const login = async (
     identifier: string,
     passkeyAvailable: boolean
   ): Promise<Response> => {
-    const response = await fetchWithAuth(`/login`, {
-      method: 'POST',
-      body: JSON.stringify({ identifier, passkeyAvailable }),
-    });
-
-    return response;
+    return authClient.login({ identifier, passkeyAvailable });
   };
 
   const handlePasskeyLogin = async () => {
-    try {
-      const response = await fetchWithAuth(`/webAuthn/login/start`, {
-        method: 'POST',
-      });
+    const result = await authClient.loginWithPasskey();
 
-      const options = await response.json();
-      const credential = await startAuthentication({ optionsJSON: options });
-
-      const verificationResponse = await fetchWithAuth(`/webAuthn/login/finish`, {
-        method: 'POST',
-        body: JSON.stringify({ assertionResponse: credential }),
-      });
-
-      if (!verificationResponse.ok) {
-        console.error('Failed to verify passkey');
-      }
-
-      const verificationResult = await verificationResponse.json();
-
-      if (verificationResult.message === 'Success') {
-        if (verificationResult.mfaLogin) {
-          return true;
-        }
-        await validateToken();
-        return false;
-      } else {
-        console.error('Passkey login failed:', verificationResult.message);
-        return false;
-      }
-    } catch (error) {
-      console.error('Passkey login error:', error);
+    if (result.mfaRequired) {
+      console.warn(
+        'Passkey login requested MFA, but the built-in MFA route is not currently available.'
+      );
       return false;
     }
+
+    if (result.success) {
+      await validateToken();
+      return true;
+    }
+
+    console.error('Passkey login failed:', result.message);
+    return false;
   };
 
   const logout = useCallback(async () => {
-    if (user) {
-      try {
-        await fetchWithAuth(`/logout`, {
-          method: 'GET',
-        });
-      } catch {
-        console.error('Error during logout');
-      } finally {
-        setIsAuthenticated(false);
-        setUser(null);
-        setToken(null);
-      }
+    try {
+      await authClient.logout();
+    } catch {
+      console.error('Error during logout');
+    } finally {
+      setIsAuthenticated(false);
+      setUser(null);
+      setCredentials([]);
     }
-  }, [fetchWithAuth, user]);
+  }, [authClient]);
 
   const deleteUser = async () => {
     try {
-      const response = await fetchWithAuth(`/users/delete`, {
-        method: 'delete',
-      });
+      const response = await authClient.deleteUser();
 
       if (response.ok) {
         setUser(null);
         setIsAuthenticated(false);
-        setToken(null);
+        setCredentials([]);
         return;
       } else {
         throw new Error('Could not delete user.');
@@ -192,35 +139,31 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({
 
   const hasRole = (role: string) => user?.roles?.includes(role);
 
-  const validateToken = async () => {
+  const validateToken = useCallback(async () => {
     setLoading(true);
     try {
-      const response = await fetchWithAuth(`users/me`, {
-        method: 'GET',
-      });
+      const response = await authClient.getCurrentUser();
 
       if (response.ok) {
         const { user, credentials } = await response.json();
         setUser(user);
-        setCredentials(credentials);
+        setCredentials(credentials ?? []);
 
         setIsAuthenticated(true);
       } else {
-        logout();
+        await logout();
       }
     } catch {
-      logout();
+      await logout();
     } finally {
       setLoading(false);
     }
-  };
+  }, [authClient, logout]);
 
   const updateCredential = async (credential: Credential) => {
-    const response = await fetchWithAuth(`users/credentials`, {
-      method: 'POST',
-      credentials: 'include',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ friendlyName: credential.friendlyName, id: credential.id }),
+    const response = await authClient.updateCredential({
+      friendlyName: credential.friendlyName,
+      id: credential.id,
     });
 
     if (response.ok) {
@@ -231,12 +174,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({
   };
 
   const deleteCredential = async (credentialId: string) => {
-    const response = await fetchWithAuth(`users/credentials`, {
-      method: 'DELETE',
-      credentials: 'include',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id: credentialId }),
-    });
+    const response = await authClient.deleteCredential(credentialId);
 
     if (response.ok) {
       return response.json();
@@ -246,8 +184,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({
   };
 
   useEffect(() => {
-    validateToken();
-  }, []);
+    void validateToken();
+  }, [validateToken]);
 
   useEffect(() => {
     if (user && isAuthenticated) {
@@ -260,15 +198,15 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({
       value={{
         user,
         logout,
+        refreshSession: validateToken,
         loading,
         deleteUser,
         isAuthenticated,
         hasRole,
         apiHost,
-        token,
         markSignedIn,
         hasSignedInBefore: autoDetectPreviousSignin ? hasSignedInBefore : false,
-        mode,
+        mode: authMode,
         credentials,
         updateCredential,
         deleteCredential,
@@ -276,9 +214,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({
         handlePasskeyLogin,
       }}
     >
-      <InternalAuthProvider value={{ validateToken, setLoading }}>
-        {children}
-      </InternalAuthProvider>
+      {children}
     </AuthContext.Provider>
   );
 };

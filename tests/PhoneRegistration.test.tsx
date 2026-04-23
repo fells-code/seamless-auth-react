@@ -7,12 +7,10 @@
 import { render, screen, fireEvent, act } from '@testing-library/react';
 import PhoneRegistration from '@/views/PhoneRegistration';
 
-import { useAuth } from '@/AuthProvider';
-import { createFetchWithAuth } from '@/fetchWithAuth';
+import { useAuthClient } from '@/hooks/useAuthClient';
 import { useNavigate } from 'react-router-dom';
 
-jest.mock('@/AuthProvider');
-jest.mock('@/fetchWithAuth');
+jest.mock('@/hooks/useAuthClient');
 jest.mock('react-router-dom', () => ({
   ...jest.requireActual('react-router-dom'),
   useNavigate: jest.fn(),
@@ -28,24 +26,24 @@ jest.mock('@/components/OtpInput', () => (props: any) => (
 
 describe('PhoneRegistration', () => {
   const navigate = jest.fn();
-  const mockFetch = jest.fn();
+  const mockAuthClient = {
+    verifyPhoneOtp: jest.fn(),
+    requestPhoneOtp: jest.fn(),
+    requestEmailOtp: jest.fn(),
+  };
 
   beforeEach(() => {
     jest.useFakeTimers();
 
     (useNavigate as jest.Mock).mockReturnValue(navigate);
+    (useAuthClient as jest.Mock).mockReturnValue(mockAuthClient);
 
-    (useAuth as jest.Mock).mockReturnValue({
-      apiHost: 'http://localhost',
-      mode: 'web',
-    });
-
-    (createFetchWithAuth as jest.Mock).mockReturnValue(mockFetch);
-
-    mockFetch.mockResolvedValue({
+    mockAuthClient.verifyPhoneOtp.mockResolvedValue({ ok: true });
+    mockAuthClient.requestPhoneOtp.mockResolvedValue({
       ok: true,
       json: async () => ({}),
     });
+    mockAuthClient.requestEmailOtp.mockResolvedValue({ ok: true });
   });
 
   afterEach(() => {
@@ -83,12 +81,7 @@ describe('PhoneRegistration', () => {
       fireEvent.submit(screen.getByRole('button', { name: /verify & continue/i }));
     });
 
-    expect(mockFetch).toHaveBeenCalledWith(
-      '/otp/verify-phone-otp',
-      expect.objectContaining({
-        method: 'POST',
-      })
-    );
+    expect(mockAuthClient.verifyPhoneOtp).toHaveBeenCalledWith('123456');
   });
 
   test('resend SMS triggers API call', async () => {
@@ -98,16 +91,11 @@ describe('PhoneRegistration', () => {
       fireEvent.click(screen.getByRole('button', { name: /resend code to phone/i }));
     });
 
-    expect(mockFetch).toHaveBeenCalledWith(
-      '/otp/generate-phone-otp',
-      expect.objectContaining({
-        method: 'GET',
-      })
-    );
+    expect(mockAuthClient.requestPhoneOtp).toHaveBeenCalled();
   });
 
   test('resend stores token if returned', async () => {
-    mockFetch.mockResolvedValueOnce({
+    mockAuthClient.requestPhoneOtp.mockResolvedValueOnce({
       ok: true,
       json: async () => ({ token: 'abc123' }),
     });
@@ -134,9 +122,8 @@ describe('PhoneRegistration', () => {
   });
 
   test('successful phone verification triggers email OTP and navigation', async () => {
-    mockFetch
-      .mockResolvedValueOnce({ ok: true }) // verify phone
-      .mockResolvedValueOnce({ ok: true }); // generate email otp
+    mockAuthClient.verifyPhoneOtp.mockResolvedValueOnce({ ok: true });
+    mockAuthClient.requestEmailOtp.mockResolvedValueOnce({ ok: true });
 
     render(<PhoneRegistration />);
 
@@ -150,7 +137,7 @@ describe('PhoneRegistration', () => {
 
     await act(async () => {});
 
-    expect(mockFetch).toHaveBeenCalledWith('/otp/generate-email-otp', expect.any(Object));
+    expect(mockAuthClient.requestEmailOtp).toHaveBeenCalled();
 
     expect(navigate).toHaveBeenCalledWith('/verifyEmailOTP');
   });

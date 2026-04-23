@@ -4,36 +4,32 @@
  * See LICENSE file in the project root for full license information
  */
 
-import { useAuth } from '@/AuthProvider';
 import React, { useEffect, useState } from 'react';
+import { useAuthClient } from '@/hooks/useAuthClient';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 
 import styles from '@/styles/verifyMagiclink.module.css';
-import { createFetchWithAuth } from '@/fetchWithAuth';
 
 const VerifyMagicLink: React.FC = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const token = searchParams.get('token');
-  const { apiHost, mode } = useAuth();
 
   const [error, setError] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
 
-  const fetchWithAuth = createFetchWithAuth({
-    authMode: mode,
-    authHost: apiHost,
-  });
+  const authClient = useAuthClient();
 
   useEffect(() => {
     const verify = async () => {
+      if (!token) {
+        setError('Missing token for verification.');
+        console.error('No token found', token);
+        return;
+      }
+
       try {
-        const response = await fetchWithAuth(`/magic-link/verify/${token}`, {
-          method: 'GET',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-        });
+        const response = await authClient.verifyMagicLink(token);
 
         if (!response.ok) {
           console.error('Failed to verify token');
@@ -58,13 +54,8 @@ const VerifyMagicLink: React.FC = () => {
         navigate('/');
       }, 900);
     };
-    if (token) {
-      verify();
-    } else {
-      setError('Missing token for verification.');
-      console.error('No token found', token);
-    }
-  }, [token, fetchWithAuth, navigate]);
+    verify();
+  }, [token, authClient, navigate]);
 
   return (
     <div className={styles.container}>

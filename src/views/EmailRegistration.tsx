@@ -6,39 +6,30 @@
 
 import { useAuth } from '@/AuthProvider';
 import React, { useEffect, useState } from 'react';
+import { useAuthClient } from '@/hooks/useAuthClient';
+import { usePasskeySupport } from '@/hooks/usePasskeySupport';
 import { useNavigate } from 'react-router-dom';
 
 import styles from '@/styles/verifyOTP.module.css';
-import { createFetchWithAuth } from '@/fetchWithAuth';
-import { isPasskeySupported } from '@/utils';
-import { useInternalAuth } from '@/context/InternalAuthContext';
 import OtpInput from '@/components/OtpInput';
 
 const EmailRegistration: React.FC = () => {
   const navigate = useNavigate();
-  const { apiHost, mode } = useAuth();
-  const { validateToken } = useInternalAuth();
+  const { refreshSession } = useAuth();
+  const authClient = useAuthClient();
+  const { passkeySupported } = usePasskeySupport();
 
   const [loading, setLoading] = useState(false);
   const [emailOtp, setEmailOtp] = useState('');
   const [emailTimeLeft, setEmailTimeLeft] = useState(300);
   const [error, setError] = useState('');
   const [resendMsg, setResendMsg] = useState('');
-  const [passkeyAvailable, setPasskeyAvailable] = useState(false);
-
-  const fetchWithAuth = createFetchWithAuth({
-    authMode: mode,
-    authHost: apiHost,
-  });
 
   const onResendEmail = async () => {
     setError('');
     setResendMsg('');
 
-    const response = await fetchWithAuth(`/otp/generate-email-otp`, {
-      method: 'GET',
-      headers: { 'Content-Type': 'application/json' },
-    });
+    const response = await authClient.requestEmailOtp();
 
     if (!response.ok) {
       setError(
@@ -62,24 +53,17 @@ const EmailRegistration: React.FC = () => {
     setLoading(true);
 
     try {
-      const response = await fetchWithAuth(`/otp/verify-email-otp`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          verificationToken: emailOtp,
-        }),
-        credentials: 'include',
-      });
+      const response = await authClient.verifyEmailOtp(emailOtp);
 
       if (!response.ok) {
         setError('Verification failed.');
         return;
       }
 
-      if (passkeyAvailable) {
+      if (passkeySupported) {
         navigate('/registerPasskey');
       } else {
-        await validateToken();
+        await refreshSession();
         navigate('/');
       }
     } catch (err) {
@@ -105,16 +89,6 @@ const EmailRegistration: React.FC = () => {
 
     return () => clearInterval(interval);
   }, []);
-
-  useEffect(() => {
-    async function checkSupport() {
-      const supported = await isPasskeySupported();
-      setPasskeyAvailable(supported);
-    }
-
-    checkSupport();
-  }, []);
-
   return (
     <div className={styles.container}>
       <div className={styles.card}>

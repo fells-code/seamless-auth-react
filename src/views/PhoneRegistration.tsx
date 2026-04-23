@@ -4,17 +4,15 @@
  * See LICENSE file in the project root for full license information
  */
 
-import { useAuth } from '@/AuthProvider';
 import React, { useEffect, useState } from 'react';
+import { useAuthClient } from '@/hooks/useAuthClient';
 import { useNavigate } from 'react-router-dom';
 
 import styles from '@/styles/verifyOTP.module.css';
-import { createFetchWithAuth } from '../fetchWithAuth';
 import OtpInput from '@/components/OtpInput';
 
 const PhoneRegistration: React.FC = () => {
   const navigate = useNavigate();
-  const { apiHost, mode } = useAuth();
 
   const [phoneOtp, setPhoneOtp] = useState('');
   const [phoneVerified, setPhoneVerified] = useState<boolean | null>(null);
@@ -23,10 +21,7 @@ const PhoneRegistration: React.FC = () => {
   const [resendMsg, setResendMsg] = useState('');
   const [phoneTimeLeft, setPhoneTimeLeft] = useState(300);
 
-  const fetchWithAuth = createFetchWithAuth({
-    authMode: mode,
-    authHost: apiHost,
-  });
+  const authClient = useAuthClient();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -39,7 +34,7 @@ const PhoneRegistration: React.FC = () => {
 
     setLoading(true);
     try {
-      verifyPhoneOTP();
+      await verifyPhoneOTP();
     } catch {
       setError('Unexpected error occurred.');
     } finally {
@@ -51,16 +46,7 @@ const PhoneRegistration: React.FC = () => {
     setLoading(true);
     try {
       if (!phoneVerified) {
-        const response = await fetchWithAuth(`/otp/verify-phone-otp`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            verificationToken: phoneOtp,
-          }),
-          credentials: 'include',
-        });
+        const response = await authClient.verifyPhoneOtp(phoneOtp);
 
         if (!response.ok) {
           setError('Verification failed.');
@@ -78,12 +64,7 @@ const PhoneRegistration: React.FC = () => {
 
   const onResendPhone = async () => {
     setError('');
-    const response = await fetchWithAuth(`/otp/generate-phone-otp`, {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    });
+    const response = await authClient.requestPhoneOtp();
 
     const data = await response.json();
 
@@ -131,12 +112,7 @@ const PhoneRegistration: React.FC = () => {
 
   useEffect(() => {
     const nextStep = async () => {
-      const response = await fetchWithAuth(`/otp/generate-email-otp`, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
+      const response = await authClient.requestEmailOtp();
 
       if (!response.ok) {
         setError(
@@ -150,7 +126,7 @@ const PhoneRegistration: React.FC = () => {
     if (phoneVerified) {
       nextStep();
     }
-  }, [phoneVerified, navigate, fetchWithAuth]);
+  }, [phoneVerified, navigate, authClient]);
 
   return (
     <div className={styles.container}>

@@ -6,11 +6,12 @@
 
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import RegisterPasskey from '../src/views/PassKeyRegistration';
+import { useAuthClient } from '@/hooks/useAuthClient';
+import { usePasskeySupport } from '@/hooks/usePasskeySupport';
 
 const mockNavigate = jest.fn();
-const mockValidateToken = jest.fn();
-const mockFetch = jest.fn();
-const mockStartRegistration = jest.fn();
+const mockRefreshSession = jest.fn();
+const mockRegisterPasskey = jest.fn();
 
 jest.mock('react-router-dom', () => ({
   ...jest.requireActual('react-router-dom'),
@@ -19,35 +20,19 @@ jest.mock('react-router-dom', () => ({
 
 jest.mock('@/AuthProvider', () => ({
   useAuth: () => ({
-    apiHost: 'https://api.example.com',
-    mode: 'server',
+    refreshSession: mockRefreshSession,
   }),
 }));
 
-jest.mock('@/context/InternalAuthContext', () => ({
-  useInternalAuth: () => ({
-    validateToken: mockValidateToken,
-  }),
-}));
-
-jest.mock('@/fetchWithAuth', () => ({
-  createFetchWithAuth: () => mockFetch,
-}));
+jest.mock('@/hooks/useAuthClient');
+jest.mock('@/hooks/usePasskeySupport');
 
 jest.mock('@/utils', () => ({
-  isPasskeySupported: jest.fn().mockResolvedValue(true),
   parseUserAgent: jest.fn().mockReturnValue({
     platform: 'macOS',
     browser: 'Chrome',
     deviceInfo: 'MacBook Pro',
   }),
-}));
-
-jest.mock('@simplewebauthn/browser', () => ({
-  startRegistration: (...args: any[]) => mockStartRegistration(...args),
-  WebAuthnError: class WebAuthnError extends Error {
-    name = 'WebAuthnError';
-  },
 }));
 
 // Mock modal so we control confirm manually
@@ -63,6 +48,13 @@ jest.mock('@/components/DeviceNameModal', () => (props: any) => {
 
 beforeEach(() => {
   jest.clearAllMocks();
+  (useAuthClient as jest.Mock).mockReturnValue({
+    registerPasskey: mockRegisterPasskey,
+  });
+  (usePasskeySupport as jest.Mock).mockReturnValue({
+    passkeySupported: true,
+    loading: false,
+  });
 });
 
 describe('RegisterPasskey', () => {
@@ -81,17 +73,9 @@ describe('RegisterPasskey', () => {
   });
 
   it('handles successful registration flow', async () => {
-    mockFetch
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({ challenge: 'xyz' }),
-      })
-      .mockResolvedValueOnce({
-        ok: true,
-      });
-
-    mockStartRegistration.mockResolvedValueOnce({
-      id: 'cred',
+    mockRegisterPasskey.mockResolvedValueOnce({
+      success: true,
+      message: 'Passkey registered successfully.',
     });
 
     render(<RegisterPasskey />);
@@ -100,25 +84,23 @@ describe('RegisterPasskey', () => {
     fireEvent.click(await screen.findByText('Confirm'));
 
     await waitFor(() => {
-      expect(mockFetch).toHaveBeenCalledWith(
-        '/webAuthn/register/start',
-        expect.any(Object)
-      );
+      expect(mockRegisterPasskey).toHaveBeenCalledWith({
+        friendlyName: 'My Device',
+        platform: 'macOS',
+        browser: 'Chrome',
+        deviceInfo: 'MacBook Pro',
+      });
     });
 
-    await waitFor(() => {
-      expect(mockFetch).toHaveBeenCalledWith(
-        '/webAuthn/register/finish',
-        expect.any(Object)
-      );
-    });
-
-    expect(mockValidateToken).toHaveBeenCalled();
+    expect(mockRefreshSession).toHaveBeenCalled();
     expect(mockNavigate).toHaveBeenCalledWith('/');
   });
 
   it('handles challenge failure', async () => {
-    mockFetch.mockResolvedValueOnce({ ok: false });
+    mockRegisterPasskey.mockResolvedValueOnce({
+      success: false,
+      message: 'Failed to fetch passkey registration challenge.',
+    });
 
     render(<RegisterPasskey />);
 
@@ -131,14 +113,10 @@ describe('RegisterPasskey', () => {
   });
 
   it('handles WebAuthnError', async () => {
-    mockFetch.mockResolvedValueOnce({
-      ok: true,
-      json: async () => ({ challenge: 'xyz' }),
+    mockRegisterPasskey.mockResolvedValueOnce({
+      success: false,
+      message: 'WebAuthnError',
     });
-
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const { WebAuthnError } = require('@simplewebauthn/browser');
-    mockStartRegistration.mockRejectedValueOnce(new WebAuthnError('Failure'));
 
     render(<RegisterPasskey />);
 
@@ -151,16 +129,10 @@ describe('RegisterPasskey', () => {
   });
 
   it('handles verification failure', async () => {
-    mockFetch
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({ challenge: 'xyz' }),
-      })
-      .mockResolvedValueOnce({
-        ok: false,
-      });
-
-    mockStartRegistration.mockResolvedValueOnce({});
+    mockRegisterPasskey.mockResolvedValueOnce({
+      success: false,
+      message: 'Verification failed.',
+    });
 
     render(<RegisterPasskey />);
 
@@ -179,5 +151,16 @@ describe('RegisterPasskey', () => {
     fireEvent.click(await screen.findByText('Cancel'));
 
     expect(screen.queryByText('Confirm')).not.toBeInTheDocument();
+  });
+
+  it('renders unsupported state when passkeys are unavailable', () => {
+    (usePasskeySupport as jest.Mock).mockReturnValue({
+      passkeySupported: false,
+      loading: false,
+    });
+
+    render(<RegisterPasskey />);
+
+    expect(screen.getByText(/passkeys are not supported on this device/i)).toBeInTheDocument();
   });
 });

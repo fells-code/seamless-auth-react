@@ -4,7 +4,43 @@
  * See LICENSE file in the project root for full license information
  */
 
-import { AuthContextType, AuthProvider, useAuth, Credential, User } from '@/AuthProvider';
+import { AuthContextType, AuthProvider, useAuth } from '@/AuthProvider';
 import { AuthRoutes } from '@/AuthRoutes';
-export { AuthProvider, AuthRoutes, useAuth };
-export type { AuthContextType, Credential, User };
+import {
+  createSeamlessAuthClient,
+  CurrentUserResult,
+  LoginInput,
+  PasskeyLoginResult,
+  PasskeyMetadata,
+  PasskeyRegistrationResult,
+  RegisterInput,
+  SeamlessAuthClient,
+  SeamlessAuthClientOptions,
+} from '@/client/createSeamlessAuthClient';
+import { AuthMode } from '@/fetchWithAuth';
+import { useAuthClient } from '@/hooks/useAuthClient';
+import { usePasskeySupport } from '@/hooks/usePasskeySupport';
+import { Credential, User } from '@/types';
+
+export {
+  AuthProvider,
+  AuthRoutes,
+  createSeamlessAuthClient,
+  useAuth,
+  useAuthClient,
+  usePasskeySupport,
+};
+export type {
+  AuthContextType,
+  AuthMode,
+  Credential,
+  CurrentUserResult,
+  LoginInput,
+  PasskeyLoginResult,
+  PasskeyMetadata,
+  PasskeyRegistrationResult,
+  RegisterInput,
+  SeamlessAuthClient,
+  SeamlessAuthClientOptions,
+  User,
+};
