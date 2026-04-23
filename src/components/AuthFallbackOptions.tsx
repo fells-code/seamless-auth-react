@@ -27,7 +27,7 @@ const AuthFallbackOptions: React.FC<AuthFallbackOptionsProps> = ({
 
   return (
     <div className={styles.fallbackCard}>
-      <div className={styles.fallbackHeader}>Passkeys unavailable on this device</div>
+      <div className={styles.fallbackHeader}>Trouble with passkey login?</div>
 
       <p className={styles.fallbackDescription}>Choose another secure sign-in method.</p>
 
