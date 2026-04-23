@@ -135,7 +135,7 @@ const Login: React.FC = () => {
       if (mode === 'login') {
         const loginRes = await login(identifier, passkeySupported);
 
-        if (loginRes.ok && passkeySupported) {
+        if (loginRes?.ok && passkeySupported) {
           const passkeyResult = await handlePasskeyLogin();
           if (passkeyResult) {
             navigate('/');
@@ -149,7 +149,7 @@ const Login: React.FC = () => {
           return;
         }
 
-        if (loginRes.ok) {
+        if (loginRes?.ok) {
           setShowFallbackOptions(true);
           return;
         }
