@@ -7,13 +7,11 @@
 import { render, screen, act } from '@testing-library/react';
 import VerifyMagicLink from '@/views/VerifyMagicLink';
 
-import { useAuth } from '@/AuthProvider';
-import { createFetchWithAuth } from '@/fetchWithAuth';
+import { useAuthClient } from '@/hooks/useAuthClient';
 
 import { useNavigate, useSearchParams } from 'react-router-dom';
 
-jest.mock('@/AuthProvider');
-jest.mock('@/fetchWithAuth');
+jest.mock('@/hooks/useAuthClient');
 
 jest.mock('react-router-dom', () => ({
   ...jest.requireActual('react-router-dom'),
@@ -23,20 +21,16 @@ jest.mock('react-router-dom', () => ({
 
 describe('VerifyMagicLink', () => {
   const navigate = jest.fn();
-  const mockFetch = jest.fn();
+  const mockAuthClient = {
+    verifyMagicLink: jest.fn(),
+  };
   const postMessage = jest.fn();
 
   beforeEach(() => {
     jest.useFakeTimers();
 
     (useNavigate as jest.Mock).mockReturnValue(navigate);
-
-    (useAuth as jest.Mock).mockReturnValue({
-      apiHost: 'http://localhost',
-      mode: 'web',
-    });
-
-    (createFetchWithAuth as jest.Mock).mockReturnValue(mockFetch);
+    (useAuthClient as jest.Mock).mockReturnValue(mockAuthClient);
 
     global.BroadcastChannel = jest.fn(() => ({
       postMessage,
@@ -65,7 +59,7 @@ describe('VerifyMagicLink', () => {
       new URLSearchParams('?token=abc123'),
     ]);
 
-    mockFetch.mockResolvedValue({
+    mockAuthClient.verifyMagicLink.mockResolvedValue({
       ok: false,
     });
 
@@ -79,7 +73,7 @@ describe('VerifyMagicLink', () => {
       new URLSearchParams('?token=abc123'),
     ]);
 
-    mockFetch.mockResolvedValue({
+    mockAuthClient.verifyMagicLink.mockResolvedValue({
       ok: true,
     });
 
@@ -93,7 +87,7 @@ describe('VerifyMagicLink', () => {
       new URLSearchParams('?token=abc123'),
     ]);
 
-    mockFetch.mockResolvedValue({
+    mockAuthClient.verifyMagicLink.mockResolvedValue({
       ok: true,
     });
 
@@ -111,7 +105,7 @@ describe('VerifyMagicLink', () => {
       new URLSearchParams('?token=abc123'),
     ]);
 
-    mockFetch.mockResolvedValue({
+    mockAuthClient.verifyMagicLink.mockResolvedValue({
       ok: true,
     });
 
@@ -131,7 +125,7 @@ describe('VerifyMagicLink', () => {
       new URLSearchParams('?token=abc123'),
     ]);
 
-    mockFetch.mockResolvedValue({
+    mockAuthClient.verifyMagicLink.mockResolvedValue({
       ok: true,
     });
 

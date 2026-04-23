@@ -8,14 +8,12 @@ import { render, screen, fireEvent, act } from '@testing-library/react';
 import MagicLinkSent from '@/components/MagicLinkSent';
 
 import { useAuth } from '@/AuthProvider';
-import { useInternalAuth } from '@/context/InternalAuthContext';
-import { createFetchWithAuth } from '@/fetchWithAuth';
+import { useAuthClient } from '@/hooks/useAuthClient';
 
 import { useNavigate, useLocation } from 'react-router-dom';
 
 jest.mock('@/AuthProvider');
-jest.mock('@/context/InternalAuthContext');
-jest.mock('@/fetchWithAuth');
+jest.mock('@/hooks/useAuthClient');
 jest.mock('react-router-dom', () => ({
   ...jest.requireActual('react-router-dom'),
   useNavigate: jest.fn(),
@@ -24,8 +22,11 @@ jest.mock('react-router-dom', () => ({
 
 describe('MagicLinkSent', () => {
   const navigate = jest.fn();
-  const validateToken = jest.fn();
-  const mockFetch = jest.fn();
+  const refreshSession = jest.fn();
+  const mockAuthClient = {
+    requestMagicLink: jest.fn(),
+    checkMagicLink: jest.fn(),
+  };
 
   beforeEach(() => {
     jest.useFakeTimers();
@@ -37,17 +38,13 @@ describe('MagicLinkSent', () => {
     });
 
     (useAuth as jest.Mock).mockReturnValue({
-      apiHost: 'http://localhost',
-      mode: 'web',
+      refreshSession,
     });
 
-    (useInternalAuth as jest.Mock).mockReturnValue({
-      validateToken,
-    });
+    (useAuthClient as jest.Mock).mockReturnValue(mockAuthClient);
 
-    (createFetchWithAuth as jest.Mock).mockReturnValue(mockFetch);
-
-    mockFetch.mockResolvedValue({ status: 200 });
+    mockAuthClient.requestMagicLink.mockResolvedValue({ ok: true });
+    mockAuthClient.checkMagicLink.mockResolvedValue({ status: 200 });
   });
 
   afterEach(() => {
@@ -94,7 +91,7 @@ describe('MagicLinkSent', () => {
       fireEvent.click(button);
     });
 
-    expect(mockFetch).toHaveBeenCalledWith('/magic-link', expect.any(Object));
+    expect(mockAuthClient.requestMagicLink).toHaveBeenCalled();
   });
 
   test('change email button navigates to login', () => {
@@ -119,7 +116,7 @@ describe('MagicLinkSent', () => {
       return createdChannel;
     });
 
-    mockFetch.mockResolvedValue({ status: 200 });
+    mockAuthClient.checkMagicLink.mockResolvedValue({ status: 200 });
 
     render(<MagicLinkSent />);
 
@@ -129,8 +126,8 @@ describe('MagicLinkSent', () => {
       });
     });
 
-    expect(mockFetch).toHaveBeenCalledWith('/magic-link/check', expect.any(Object));
-    expect(validateToken).toHaveBeenCalledTimes(1);
+    expect(mockAuthClient.checkMagicLink).toHaveBeenCalled();
+    expect(refreshSession).toHaveBeenCalledTimes(1);
     expect(navigate).toHaveBeenCalledWith('/');
   });
 
@@ -141,9 +138,9 @@ describe('MagicLinkSent', () => {
       jest.advanceTimersByTime(5000);
     });
 
-    expect(mockFetch).toHaveBeenCalledWith('/magic-link/check', expect.any(Object));
+    expect(mockAuthClient.checkMagicLink).toHaveBeenCalled();
 
-    expect(validateToken).toHaveBeenCalled();
+    expect(refreshSession).toHaveBeenCalled();
     expect(navigate).toHaveBeenCalledWith('/');
   });
 });

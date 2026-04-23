@@ -8,22 +8,19 @@ import { render, screen, fireEvent, act, waitFor } from '@testing-library/react'
 import Login from '@/views/Login';
 
 import { useAuth } from '@/AuthProvider';
-import { useInternalAuth } from '@/context/InternalAuthContext';
-import { createFetchWithAuth } from '@/fetchWithAuth';
-import { isPasskeySupported, isValidEmail, isValidPhoneNumber } from '@/utils';
+import { useAuthClient } from '@/hooks/useAuthClient';
+import { usePasskeySupport } from '@/hooks/usePasskeySupport';
+import { isValidEmail, isValidPhoneNumber } from '@/utils';
 
 import { useNavigate } from 'react-router-dom';
-import { startAuthentication } from '@simplewebauthn/browser';
 
 jest.mock('@/AuthProvider');
-jest.mock('@/context/InternalAuthContext');
-jest.mock('@/fetchWithAuth');
+jest.mock('@/hooks/useAuthClient');
+jest.mock('@/hooks/usePasskeySupport');
 jest.mock('@/utils', () => ({
-  isPasskeySupported: jest.fn(),
   isValidEmail: jest.fn(),
   isValidPhoneNumber: jest.fn(),
 }));
-jest.mock('@simplewebauthn/browser');
 jest.mock('react-router-dom', () => ({
   ...jest.requireActual('react-router-dom'),
   useNavigate: jest.fn(),
@@ -47,8 +44,11 @@ jest.mock('@/components/AuthFallbackOptions', () => (props: any) => (
 
 describe('Login', () => {
   const navigate = jest.fn();
-  const validateToken = jest.fn();
-  const mockFetch = jest.fn();
+  const mockAuthClient = {
+    register: jest.fn(),
+    requestMagicLink: jest.fn(),
+    requestPhoneOtp: jest.fn(),
+  };
 
   beforeEach(() => {
     (useNavigate as jest.Mock).mockReturnValue(navigate);
@@ -57,26 +57,25 @@ describe('Login', () => {
       apiHost: 'http://localhost',
       hasSignedInBefore: true,
       mode: 'web',
-      login: () => jest.fn(),
+      login: jest.fn().mockResolvedValue({ ok: true }),
+      handlePasskeyLogin: jest.fn().mockResolvedValue(false),
     });
 
-    (useInternalAuth as jest.Mock).mockReturnValue({
-      validateToken,
+    (useAuthClient as jest.Mock).mockReturnValue(mockAuthClient);
+    (usePasskeySupport as jest.Mock).mockReturnValue({
+      passkeySupported: false,
+      loading: false,
     });
-
-    (createFetchWithAuth as jest.Mock).mockReturnValue(mockFetch);
-
-    (isPasskeySupported as jest.Mock).mockResolvedValue(false);
 
     (isValidEmail as jest.Mock).mockReturnValue(true);
     (isValidPhoneNumber as jest.Mock).mockReturnValue(false);
 
-    mockFetch.mockResolvedValue({
+    mockAuthClient.register.mockResolvedValue({
       ok: true,
       json: async () => ({ message: 'Success', mfaLogin: false }),
     });
-
-    (startAuthentication as jest.Mock).mockResolvedValue({});
+    mockAuthClient.requestMagicLink.mockResolvedValue({ ok: true });
+    mockAuthClient.requestPhoneOtp.mockResolvedValue({ ok: true });
 
     jest.clearAllMocks();
   });
@@ -105,11 +104,13 @@ describe('Login', () => {
 
   test('login triggers API request', async () => {
     const mockLogin = jest.fn().mockResolvedValueOnce({ ok: true });
+    const mockHandlePasskeyLogin = jest.fn().mockResolvedValue(false);
     (useAuth as jest.Mock).mockReturnValue({
       apiHost: 'http://localhost',
       hasSignedInBefore: true,
       mode: 'web',
       login: mockLogin,
+      handlePasskeyLogin: mockHandlePasskeyLogin,
     });
     render(<Login />);
 
@@ -133,8 +134,6 @@ describe('Login', () => {
   });
 
   test('fallback options appear if passkeys unavailable', async () => {
-    (isPasskeySupported as jest.Mock).mockResolvedValue(false);
-
     render(<Login />);
 
     const input = screen.getByPlaceholderText(/email or phone number/i);
@@ -153,8 +152,6 @@ describe('Login', () => {
   });
 
   test('magic link option navigates to magic link sent page', async () => {
-    (isPasskeySupported as jest.Mock).mockResolvedValue(false);
-
     render(<Login />);
 
     fireEvent.change(screen.getByPlaceholderText(/email or phone number/i), {
@@ -173,13 +170,14 @@ describe('Login', () => {
       fireEvent.click(magicLink);
     });
 
-    expect(navigate).toHaveBeenCalledWith('/magiclinks-sent');
+    expect(navigate).toHaveBeenCalledWith('/magiclinks-sent', {
+      state: { identifier: 'test@example.com' },
+    });
   });
 
   test('phone OTP option navigates to verify phone', async () => {
     (isValidEmail as jest.Mock).mockReturnValue(false);
     (isValidPhoneNumber as jest.Mock).mockReturnValue(true);
-    (isPasskeySupported as jest.Mock).mockResolvedValue(false);
 
     render(<Login />);
 
@@ -199,6 +197,7 @@ describe('Login', () => {
       fireEvent.click(phoneOtp);
     });
 
+    expect(mockAuthClient.requestPhoneOtp).toHaveBeenCalled();
     expect(navigate).toHaveBeenCalledWith('/verifyPhoneOTP');
   });
 
@@ -206,7 +205,7 @@ describe('Login', () => {
     (isValidEmail as jest.Mock).mockReturnValue(true);
     (isValidPhoneNumber as jest.Mock).mockReturnValue(true);
 
-    mockFetch.mockResolvedValueOnce({
+    mockAuthClient.register.mockResolvedValueOnce({
       ok: true,
       json: async () => ({ message: 'Success' }),
     });
@@ -237,4 +236,5 @@ describe('Login', () => {
 
     expect(navigate).toHaveBeenCalledWith('/verifyPhoneOTP');
   });
+
 });

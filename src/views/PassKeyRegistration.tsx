@@ -4,29 +4,25 @@
  * See LICENSE file in the project root for full license information
  */
 
-import {
-  type RegistrationResponseJSON,
-  startRegistration,
-  WebAuthnError,
-} from '@simplewebauthn/browser';
 import { useAuth } from '@/AuthProvider';
-import { useInternalAuth } from '@/context/InternalAuthContext';
-import React, { useEffect, useState } from 'react';
+import { PasskeyMetadata } from '@/client/createSeamlessAuthClient';
+import React, { useState } from 'react';
+import { useAuthClient } from '@/hooks/useAuthClient';
+import { usePasskeySupport } from '@/hooks/usePasskeySupport';
 import { useNavigate } from 'react-router-dom';
 
 import styles from '@/styles/registerPasskey.module.css';
-import { isPasskeySupported, parseUserAgent } from '@/utils';
-import { createFetchWithAuth } from '@/fetchWithAuth';
+import { parseUserAgent } from '@/utils';
 import DeviceNameModal from '@/components/DeviceNameModal';
 
 const PasskeyRegistration: React.FC = () => {
-  const { apiHost, mode } = useAuth();
-  const { validateToken } = useInternalAuth();
+  const { refreshSession } = useAuth();
+  const authClient = useAuthClient();
+  const { passkeySupported, loading: passkeySupportLoading } = usePasskeySupport();
   const navigate = useNavigate();
 
   const [status, setStatus] = useState<'idle' | 'success' | 'error' | 'loading'>('idle');
   const [message, setMessage] = useState('');
-  const [passkeyAvailable, setPasskeyAvailable] = useState(false);
 
   const [showDeviceModal, setShowDeviceModal] = useState(false);
   const [pendingMetadata, setPendingMetadata] = useState<{
@@ -34,20 +30,6 @@ const PasskeyRegistration: React.FC = () => {
     browser: string;
     deviceInfo: string;
   } | null>(null);
-
-  const fetchWithAuth = createFetchWithAuth({
-    authMode: mode,
-    authHost: apiHost,
-  });
-
-  useEffect(() => {
-    async function checkSupport() {
-      const supported = await isPasskeySupported();
-      setPasskeyAvailable(supported);
-    }
-
-    checkSupport();
-  }, []);
 
   const openDeviceModal = () => {
     const { platform, browser, deviceInfo } = parseUserAgent();
@@ -59,43 +41,23 @@ const PasskeyRegistration: React.FC = () => {
   const continueRegistration = async (friendlyName: string) => {
     if (!pendingMetadata) return;
 
-    const { platform, browser, deviceInfo } = pendingMetadata;
+    const metadata: PasskeyMetadata = {
+      friendlyName,
+      ...pendingMetadata,
+    };
 
     setStatus('loading');
 
     try {
-      const challengeRes = await fetchWithAuth(`/webAuthn/register/start`, {
-        method: 'GET',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-      });
+      const result = await authClient.registerPasskey(metadata);
 
-      if (!challengeRes.ok) {
-        throw new Error('Failed to fetch challenge');
+      if (!result.success) {
+        throw new Error(result.message);
       }
 
-      const options = await challengeRes.json();
-
-      let attResp: RegistrationResponseJSON;
-
-      try {
-        attResp = await startRegistration({ optionsJSON: options });
-      } catch (error) {
-        if (error instanceof WebAuthnError) {
-          throw new Error(error.name);
-        }
-        throw error;
-      }
-
-      await verifyPassKey(attResp, {
-        friendlyName,
-        platform,
-        browser,
-        deviceInfo,
-      });
-
+      await refreshSession();
       setStatus('success');
-      setMessage('Passkey registered successfully.');
+      setMessage(result.message);
       navigate('/');
     } catch (error) {
       console.error(error);
@@ -107,40 +69,18 @@ const PasskeyRegistration: React.FC = () => {
     }
   };
 
-  const verifyPassKey = async (
-    attResp: RegistrationResponseJSON,
-    metadata: {
-      friendlyName: string;
-      platform: string;
-      browser: string;
-      deviceInfo: string;
-    }
-  ) => {
-    const verificationResp = await fetchWithAuth(`/webAuthn/register/finish`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        attestationResponse: attResp,
-        metadata,
-      }),
-      credentials: 'include',
-    });
-
-    if (!verificationResp.ok) {
-      throw new Error('Verification failed');
-    }
-
-    await validateToken();
-  };
-
   return (
     <>
       <div className={styles.container}>
         <div className={styles.card}>
-          {!passkeyAvailable ? (
+          {passkeySupportLoading || !passkeySupported ? (
             <div className={styles.loading}>
               <div className={styles.spinner}></div>
-              <span>Checking for Passkey Support...</span>
+              <span>
+                {passkeySupportLoading
+                  ? 'Checking for Passkey Support...'
+                  : 'Passkeys are not supported on this device.'}
+              </span>
             </div>
           ) : (
             <div className={styles.supported}>

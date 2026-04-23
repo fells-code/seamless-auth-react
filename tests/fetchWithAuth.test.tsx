@@ -45,16 +45,15 @@ describe('createFetchWithAuth', () => {
     expect(url).toBe('https://api.example.com/auth/auth/me');
   });
 
-  it('throws error when fetch response is not ok', async () => {
+  it('returns the raw response when fetch response is not ok', async () => {
     const fetchWithAuth = createFetchWithAuth({
       authMode: 'web',
       authHost: 'https://auth.example.com',
     });
 
-    mockFetch.mockResolvedValueOnce({ ok: false, status: 500 });
+    const response = { ok: false, status: 500 };
+    mockFetch.mockResolvedValueOnce(response);
 
-    await expect(fetchWithAuth('/login')).rejects.toThrow(
-      'Failed to make API call to https://auth.example.com/login'
-    );
+    await expect(fetchWithAuth('/login')).resolves.toBe(response);
   });
 });

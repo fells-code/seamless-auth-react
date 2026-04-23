@@ -33,9 +33,10 @@ export const createFetchWithAuth = (opts: FetchWithAuthOptions) => {
 
     const response = await fetch(url, requestInit);
 
-    if (response.ok) return response;
+    if (!response.ok) {
+      console.warn('Auth fetch failed:', response.status, url);
+    }
 
-    console.warn('Auth fetch failed:', response.status, url);
-    throw new Error(`Failed to make API call to ${url}`);
+    return response;
   };
 };

@@ -7,21 +7,18 @@
 import { useAuth } from '@/AuthProvider';
 import PhoneInputWithCountryCode from '@/components/phoneInput';
 import React, { useEffect, useState } from 'react';
+import { useAuthClient } from '@/hooks/useAuthClient';
+import { usePasskeySupport } from '@/hooks/usePasskeySupport';
 import { useNavigate } from 'react-router-dom';
 import styles from '@/styles/login.module.css';
-import { isPasskeySupported, isValidEmail, isValidPhoneNumber } from '../utils';
-import { createFetchWithAuth } from '@/fetchWithAuth';
+import { isValidEmail, isValidPhoneNumber } from '../utils';
 import AuthFallbackOptions from '@/components/AuthFallbackOptions';
 
 const Login: React.FC = () => {
   const navigate = useNavigate();
-  const {
-    apiHost,
-    hasSignedInBefore,
-    mode: authMode,
-    login,
-    handlePasskeyLogin,
-  } = useAuth();
+  const { hasSignedInBefore, login, handlePasskeyLogin } = useAuth();
+  const authClient = useAuthClient();
+  const { passkeySupported } = usePasskeySupport();
   const [identifier, setIdentifier] = useState<string>('');
   const [email, setEmail] = useState<string>('');
   const [mode, setMode] = useState<'login' | 'register'>('register');
@@ -30,23 +27,10 @@ const Login: React.FC = () => {
   const [phoneError, setPhoneError] = useState<string>('');
   const [emailError, setEmailError] = useState<string>('');
   const [identifierError, setIdentifierError] = useState<string>('');
-  const [passkeyAvailable, setPasskeyAvailable] = useState(false);
   const [showFallbackOptions, setShowFallbackOptions] = useState(false);
   const [bootstrapToken, setBootstrapToken] = useState<string | null>(null);
 
-  const fetchWithAuth = createFetchWithAuth({
-    authMode,
-    authHost: apiHost,
-  });
-
   useEffect(() => {
-    async function checkSupport() {
-      const supported = await isPasskeySupported();
-      setPasskeyAvailable(supported);
-    }
-
-    checkSupport();
-
     if (hasSignedInBefore) {
       setMode('login');
     }
@@ -82,13 +66,10 @@ const Login: React.FC = () => {
     setFormErrors('');
 
     try {
-      const response = await fetchWithAuth(`/registration/register`, {
-        method: 'POST',
-        body: JSON.stringify({
-          email,
-          phone,
-          ...(bootstrapToken ? { bootstrapToken } : {}),
-        }),
+      const response = await authClient.register({
+        email,
+        phone,
+        bootstrapToken,
       });
 
       if (!response.ok) {
@@ -100,30 +81,29 @@ const Login: React.FC = () => {
 
       if (data.message === 'Success') {
         navigate('/verifyPhoneOTP');
+        return;
       }
       setFormErrors(
-        'An unexpected error occured. Try again. If the problem persists, try resetting your password'
+        'An unexpected error occurred. Try again. If the problem persists, try resetting your password.'
       );
     } catch (err) {
       console.error('Unexpected login error', err);
       setFormErrors(
-        'An unexpected error occured. Try again. If the problem persists, try resetting your password'
+        'An unexpected error occurred. Try again. If the problem persists, try resetting your password.'
       );
     }
   };
 
   const sendMagicLink = async () => {
     try {
-      const response = await fetchWithAuth(`/magic-link`, {
-        method: 'GET',
-      });
+      const response = await authClient.requestMagicLink();
 
       if (!response.ok) {
         setFormErrors('Failed to send magic link.');
         return;
       }
 
-      navigate('/magiclinks-sent');
+      navigate('/magiclinks-sent', { state: { identifier } });
     } catch (err) {
       console.error(err);
       setFormErrors('Failed to send magic link.');
@@ -132,10 +112,7 @@ const Login: React.FC = () => {
 
   const sendPhoneOtp = async () => {
     try {
-      const response = await fetchWithAuth(`/login/phone-otp`, {
-        method: 'POST',
-        body: JSON.stringify({ identifier }),
-      });
+      const response = await authClient.requestPhoneOtp();
 
       if (!response.ok) {
         setFormErrors('Failed to send OTP.');
@@ -151,22 +128,43 @@ const Login: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    setFormErrors('');
+    setShowFallbackOptions(false);
 
-    if (mode === 'login') {
-      const loginRes = await login(identifier, passkeyAvailable);
+    try {
+      if (mode === 'login') {
+        const loginRes = await login(identifier, passkeySupported);
 
-      if (loginRes && loginRes.ok && passkeyAvailable) {
-        const passkeyResult = await handlePasskeyLogin();
+        if (loginRes?.ok && passkeySupported) {
+          const passkeyResult = await handlePasskeyLogin();
+          if (passkeyResult) {
+            navigate('/');
+            return;
+          }
 
-        if (passkeyResult) {
-          navigate('/');
+          setShowFallbackOptions(true);
+          setFormErrors(
+            'Passkey sign-in could not be completed. Choose another sign-in method.'
+          );
+          return;
         }
-      } else {
-        setIdentifierError('An error occurred');
-        setShowFallbackOptions(true);
+
+        if (loginRes?.ok) {
+          setShowFallbackOptions(true);
+          return;
+        }
+
+        setFormErrors('Failed to start sign-in. Please try again.');
+        return;
       }
+
+      if (mode === 'register') {
+        await register();
+      }
+    } catch (err) {
+      console.error(err);
+      setFormErrors('Failed to continue sign-in. Please try again.');
     }
-    if (mode === 'register') register();
   };
 
   return (

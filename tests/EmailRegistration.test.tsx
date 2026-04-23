@@ -4,20 +4,18 @@
  * See LICENSE file in the project root for full license information
  */
 
-import { render, screen, fireEvent, act, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, act } from '@testing-library/react';
 import EmailRegistration from '@/views/EmailRegistration';
 
 import { useAuth } from '@/AuthProvider';
-import { useInternalAuth } from '@/context/InternalAuthContext';
-import { createFetchWithAuth } from '@/fetchWithAuth';
-import { isPasskeySupported } from '@/utils';
+import { useAuthClient } from '@/hooks/useAuthClient';
+import { usePasskeySupport } from '@/hooks/usePasskeySupport';
 
 import { useNavigate } from 'react-router-dom';
 
 jest.mock('@/AuthProvider');
-jest.mock('@/context/InternalAuthContext');
-jest.mock('@/fetchWithAuth');
-jest.mock('@/utils');
+jest.mock('@/hooks/useAuthClient');
+jest.mock('@/hooks/usePasskeySupport');
 jest.mock('react-router-dom', () => ({
   ...jest.requireActual('react-router-dom'),
   useNavigate: jest.fn(),
@@ -33,8 +31,11 @@ jest.mock('@/components/OtpInput', () => (props: any) => (
 
 describe('EmailRegistration', () => {
   const navigate = jest.fn();
-  const validateToken = jest.fn();
-  const mockFetch = jest.fn();
+  const refreshSession = jest.fn();
+  const mockAuthClient = {
+    requestEmailOtp: jest.fn(),
+    verifyEmailOtp: jest.fn(),
+  };
 
   beforeEach(() => {
     jest.useFakeTimers();
@@ -42,19 +43,17 @@ describe('EmailRegistration', () => {
     (useNavigate as jest.Mock).mockReturnValue(navigate);
 
     (useAuth as jest.Mock).mockReturnValue({
-      apiHost: 'http://localhost',
-      mode: 'web',
+      refreshSession,
     });
 
-    (useInternalAuth as jest.Mock).mockReturnValue({
-      validateToken,
+    (useAuthClient as jest.Mock).mockReturnValue(mockAuthClient);
+    (usePasskeySupport as jest.Mock).mockReturnValue({
+      passkeySupported: false,
+      loading: false,
     });
 
-    (createFetchWithAuth as jest.Mock).mockReturnValue(mockFetch);
-
-    (isPasskeySupported as jest.Mock).mockResolvedValue(false);
-
-    mockFetch.mockResolvedValue({ ok: true });
+    mockAuthClient.requestEmailOtp.mockResolvedValue({ ok: true });
+    mockAuthClient.verifyEmailOtp.mockResolvedValue({ ok: true });
   });
 
   afterEach(() => {
@@ -80,7 +79,7 @@ describe('EmailRegistration', () => {
   });
 
   test('submits OTP and verifies email', async () => {
-    mockFetch.mockResolvedValueOnce({ ok: true });
+    mockAuthClient.verifyEmailOtp.mockResolvedValueOnce({ ok: true });
 
     render(<EmailRegistration />);
 
@@ -92,12 +91,7 @@ describe('EmailRegistration', () => {
       fireEvent.submit(screen.getByRole('button', { name: /verify & continue/i }));
     });
 
-    expect(mockFetch).toHaveBeenCalledWith(
-      '/otp/verify-email-otp',
-      expect.objectContaining({
-        method: 'POST',
-      })
-    );
+    expect(mockAuthClient.verifyEmailOtp).toHaveBeenCalledWith('ABCDEF');
   });
 
   test('resend email triggers API call', async () => {
@@ -107,12 +101,7 @@ describe('EmailRegistration', () => {
       fireEvent.click(screen.getByRole('button', { name: /resend code to email/i }));
     });
 
-    expect(mockFetch).toHaveBeenCalledWith(
-      '/otp/generate-email-otp',
-      expect.objectContaining({
-        method: 'GET',
-      })
-    );
+    expect(mockAuthClient.requestEmailOtp).toHaveBeenCalled();
   });
 
   test('timer counts down', () => {
@@ -128,14 +117,13 @@ describe('EmailRegistration', () => {
   });
 
   test('successful verification navigates to registerPasskey if supported', async () => {
-    (isPasskeySupported as jest.Mock).mockResolvedValue(true);
-    mockFetch.mockResolvedValue({ ok: true });
+    (usePasskeySupport as jest.Mock).mockReturnValue({
+      passkeySupported: true,
+      loading: false,
+    });
+    mockAuthClient.verifyEmailOtp.mockResolvedValue({ ok: true });
 
     render(<EmailRegistration />);
-
-    await waitFor(() => {
-      expect(isPasskeySupported).toHaveBeenCalled();
-    });
 
     fireEvent.change(screen.getByTestId('otp-input'), {
       target: { value: 'ABCDEF' },
@@ -145,16 +133,15 @@ describe('EmailRegistration', () => {
       fireEvent.click(screen.getByRole('button', { name: /verify & continue/i }));
     });
 
-    await waitFor(() => {
-      expect(isPasskeySupported).toHaveBeenCalled();
-    });
-
     expect(navigate).toHaveBeenCalledWith('/registerPasskey');
   });
 
   test('successful verification logs in if passkeys not supported', async () => {
-    (isPasskeySupported as jest.Mock).mockResolvedValue(false);
-    mockFetch.mockResolvedValue({ ok: true });
+    (usePasskeySupport as jest.Mock).mockReturnValue({
+      passkeySupported: false,
+      loading: false,
+    });
+    mockAuthClient.verifyEmailOtp.mockResolvedValue({ ok: true });
 
     render(<EmailRegistration />);
 
@@ -168,7 +155,7 @@ describe('EmailRegistration', () => {
 
     await act(async () => {});
 
-    expect(validateToken).toHaveBeenCalled();
+    expect(refreshSession).toHaveBeenCalled();
     expect(navigate).toHaveBeenCalledWith('/');
   });
 

@@ -9,9 +9,6 @@ import { AuthProvider, useAuth } from '../src/AuthProvider';
 import { createFetchWithAuth } from '../src/fetchWithAuth';
 
 jest.mock('../src/fetchWithAuth');
-jest.mock('@/context/InternalAuthContext', () => ({
-  InternalAuthProvider: ({ children }: any) => <div>{children}</div>,
-}));
 
 // the mock returned fetch function
 const mockFetchWithAuthImpl = jest.fn();
@@ -36,12 +33,12 @@ describe('AuthProvider', () => {
     jest.clearAllMocks();
   });
 
-  it('loads user and token successfully', async () => {
+  it('loads user and credentials successfully', async () => {
     mockFetchWithAuthImpl.mockResolvedValueOnce({
       ok: true,
       json: async () => ({
         user: { id: '1', email: 'test@example.com', phone: '555-1234', roles: ['admin'] },
-        token: { oneTimeToken: 'abc', expiresAt: '2025-01-01' },
+        credentials: [],
       }),
     } as any);
 
