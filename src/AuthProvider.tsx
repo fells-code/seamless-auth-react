@@ -33,7 +33,7 @@ export interface AuthContextType {
   credentials: Credential[];
   updateCredential: (credential: Credential) => Promise<Credential>;
   deleteCredential: (credentialId: string) => Promise<void>;
-  login: (identifier: string, passkeyAvailable: boolean) => Promise<Response>;
+  login: (identifier: string, passkeyAvailable: boolean) => Promise<Response | null>;
   handlePasskeyLogin: () => Promise<boolean>;
   loading: boolean;
 }

@@ -16,11 +16,7 @@ import AuthFallbackOptions from '@/components/AuthFallbackOptions';
 
 const Login: React.FC = () => {
   const navigate = useNavigate();
-  const {
-    hasSignedInBefore,
-    login,
-    handlePasskeyLogin,
-  } = useAuth();
+  const { hasSignedInBefore, login, handlePasskeyLogin } = useAuth();
   const authClient = useAuthClient();
   const { passkeySupported } = usePasskeySupport();
   const [identifier, setIdentifier] = useState<string>('');
