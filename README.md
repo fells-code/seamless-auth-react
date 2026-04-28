@@ -115,6 +115,46 @@ You are still responsible for your app’s route protection and redirects.
 
 Use `refreshSession()` after completing a custom auth flow that should update provider state.
 
+### `hasSignedInBefore`
+
+`hasSignedInBefore` is a small convenience flag backed by `localStorage`. The provider reads the `seamlessauth_seen` key on load and sets the flag to `true` after `markSignedIn()` runs.
+
+This is mainly useful for login UIs that want to branch between first-time and returning-user behavior. For example, the built-in `Login` view uses it to default returning users to sign-in mode instead of registration.
+
+```tsx
+import { useAuth } from '@seamless-auth/react';
+
+function SignInHint() {
+  const { hasSignedInBefore } = useAuth();
+
+  return hasSignedInBefore ? (
+    <p>Welcome back. Sign in with your email, phone, or passkey.</p>
+  ) : (
+    <p>New here? Start by creating your account.</p>
+  );
+}
+```
+
+If you are building a fully custom flow, call `markSignedIn()` after a successful sign-in or registration step once you want future visits treated as returning-user sessions.
+
+```tsx
+const { markSignedIn, refreshSession } = useAuth();
+
+async function completeLogin() {
+  const response = await authClient.login({
+    identifier: 'user@example.com',
+    passkeyAvailable: true,
+  });
+
+  if (response.ok) {
+    markSignedIn();
+    await refreshSession();
+  }
+}
+```
+
+To disable this auto-detection entirely, pass `autoDetectPreviousSignin={false}` to `AuthProvider`.
+
 ## Headless Client
 
 For custom auth UIs, use the exported client directly:
