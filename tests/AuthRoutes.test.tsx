@@ -32,6 +32,15 @@ describe('AuthRoutes', () => {
     expect(screen.getByText('Passkey Login Page')).toBeInTheDocument();
   });
 
+  it('renders Passkey Login page on /pass-key-login', () => {
+    render(
+      <MemoryRouter initialEntries={['/passKeyLogin']}>
+        <AuthRoutes />
+      </MemoryRouter>
+    );
+    expect(screen.getByText('Passkey Login Page')).toBeInTheDocument();
+  });
+
   it('renders Register Passkey page on /registerPasskey', () => {
     render(
       <MemoryRouter initialEntries={['/registerPasskey']}>
@@ -44,6 +53,15 @@ describe('AuthRoutes', () => {
   it('renders Phone OTP page on /verifyPhoneOTP', () => {
     render(
       <MemoryRouter initialEntries={['/verifyPhoneOTP']}>
+        <AuthRoutes />
+      </MemoryRouter>
+    );
+    expect(screen.getByText('Verify Phone Page')).toBeInTheDocument();
+  });
+
+  it('renders Phone OTP page on /verify-phone-otp', () => {
+    render(
+      <MemoryRouter initialEntries={['/verify-phone-otp']}>
         <AuthRoutes />
       </MemoryRouter>
     );
