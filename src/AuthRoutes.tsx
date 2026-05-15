@@ -14,14 +14,26 @@ import EmailRegistration from '@/views/EmailRegistration';
 import VerifyMagicLink from '@/views/VerifyMagicLink';
 import MagicLinkSent from './components/MagicLinkSent';
 
+/**
+ *The camel case routes will depreciated in a future version please start using the kebab case instead.
+ *
+ *'/passKeyLogin', '/verifyPhoneOTP', '/verifyEmailOTP', '/registerPasskey' will be depricated in a future version
+ *
+ *Please use "/pass-key-login", "/verify-phone-otp", "/verify-email-otp", "/register-passkey" respectively.
+ *
+ */
 export const AuthRoutes = () => (
   <Routes>
     <Route path="/login" element={<Login />} />
     <Route path="/passKeyLogin" element={<PassKeyLogin />} />
+    <Route path="/pass-key-login" element={<PassKeyLogin />} />
     <Route path="/verifyPhoneOTP" element={<PhoneRegistration />} />
+    <Route path="/verify-phone-otp" element={<PhoneRegistration />} />
     <Route path="/verifyEmailOTP" element={<EmailRegistration />} />
+    <Route path="/verify-email-otp" element={<EmailRegistration />} />
     <Route path="/verify-magiclink" element={<VerifyMagicLink />} />
     <Route path="/registerPasskey" element={<PasskeyRegistration />} />
+    <Route path="/register-passkey" element={<PasskeyRegistration />} />
     <Route path="/magiclinks-sent" element={<MagicLinkSent />} />
     <Route path="*" element={<Navigate to="/login" replace />} />
   </Routes>
