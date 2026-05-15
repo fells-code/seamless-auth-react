@@ -15,7 +15,7 @@ import VerifyMagicLink from '@/views/VerifyMagicLink';
 import MagicLinkSent from './components/MagicLinkSent';
 
 /**
- *The camel case routes will deipciated in a future version please start using the kebab case instead.
+ *The camel case routes will depreciated in a future version please start using the kebab case instead.
  *
  *'/passKeyLogin', '/verifyPhoneOTP', '/verifyEmailOTP', '/registerPasskey' will be depricated in a future version
  *
