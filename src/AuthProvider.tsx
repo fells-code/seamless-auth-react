@@ -4,7 +4,11 @@
  * See LICENSE file in the project root for full license information
  */
 
-import { createSeamlessAuthClient } from '@/client/createSeamlessAuthClient';
+import {
+  createSeamlessAuthClient,
+  StepUpStatus,
+  StepUpVerificationResult,
+} from '@/client/createSeamlessAuthClient';
 import { Credential, User } from '@/types';
 import React, {
   createContext,
@@ -31,10 +35,13 @@ export interface AuthContextType {
   hasSignedInBefore: boolean;
   mode: AuthMode;
   credentials: Credential[];
+  stepUpStatus: StepUpStatus | null;
   updateCredential: (credential: Credential) => Promise<Credential>;
   deleteCredential: (credentialId: string) => Promise<void>;
   login: (identifier: string, passkeyAvailable: boolean) => Promise<Response | null>;
   handlePasskeyLogin: () => Promise<boolean>;
+  refreshStepUpStatus: () => Promise<StepUpStatus | null>;
+  verifyStepUpWithPasskey: () => Promise<StepUpVerificationResult>;
   loading: boolean;
 }
 
@@ -67,6 +74,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({
 }) => {
   const [user, setUser] = useState<User | null>(null);
   const [credentials, setCredentials] = useState<Credential[]>([]);
+  const [stepUpStatus, setStepUpStatus] = useState<StepUpStatus | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
   const [loading, setLoading] = useState<boolean>(true);
   const { hasSignedInBefore, markSignedIn } = usePreviousSignIn();
@@ -116,6 +124,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({
       setIsAuthenticated(false);
       setUser(null);
       setCredentials([]);
+      setStepUpStatus(null);
     }
   }, [authClient]);
 
@@ -127,6 +136,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({
         setUser(null);
         setIsAuthenticated(false);
         setCredentials([]);
+        setStepUpStatus(null);
         return;
       } else {
         throw new Error('Could not delete user.');
@@ -183,6 +193,35 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({
     throw new Error('Failed to update credential');
   };
 
+  const refreshStepUpStatus = useCallback(async () => {
+    const response = await authClient.getStepUpStatus();
+
+    if (!response.ok) {
+      setStepUpStatus(null);
+      return null;
+    }
+
+    const status = (await response.json()) as StepUpStatus;
+    setStepUpStatus(status);
+    return status;
+  }, [authClient]);
+
+  const verifyStepUpWithPasskey = useCallback(async () => {
+    const result = await authClient.verifyStepUpWithPasskey();
+
+    if (result.success) {
+      setStepUpStatus({
+        fresh: result.fresh,
+        method: result.method,
+        verifiedAt: result.verifiedAt,
+        expiresAt: result.expiresAt,
+        maxAgeSeconds: result.maxAgeSeconds,
+      });
+    }
+
+    return result;
+  }, [authClient]);
+
   useEffect(() => {
     void validateToken();
   }, [validateToken]);
@@ -208,10 +247,13 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({
         hasSignedInBefore: autoDetectPreviousSignin ? hasSignedInBefore : false,
         mode: authMode,
         credentials,
+        stepUpStatus,
         updateCredential,
         deleteCredential,
         login,
         handlePasskeyLogin,
+        refreshStepUpStatus,
+        verifyStepUpWithPasskey,
       }}
     >
       {children}
