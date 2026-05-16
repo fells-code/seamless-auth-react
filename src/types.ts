@@ -22,6 +22,8 @@ export interface Credential {
   transports?: AuthenticatorTransportFuture[];
   deviceType: CredentialDeviceType;
   backedup: boolean;
+  backedUp?: boolean;
+  prfCapable?: boolean;
   friendlyName: string | null;
   lastUsedAt: Date | null;
   platform: string | null;

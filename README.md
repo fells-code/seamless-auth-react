@@ -107,6 +107,7 @@ You are still responsible for your app’s route protection and redirects.
   refreshSession(): Promise<void>;
   refreshStepUpStatus(): Promise<StepUpStatus | null>;
   verifyStepUpWithPasskey(): Promise<StepUpVerificationResult>;
+  verifyStepUpWithPasskeyPrf(input: PasskeyPrfInput): Promise<StepUpWithPasskeyPrfResult>;
   logout(): Promise<void>;
   deleteUser(): Promise<void>;
   login(identifier: string, passkeyAvailable: boolean): Promise<Response>;
@@ -185,6 +186,55 @@ function DeleteAccountButton() {
 
 The current step-up backend supports WebAuthn/passkeys. `refreshStepUpStatus()` calls `/step-up/status`, and `verifyStepUpWithPasskey()` performs the `/step-up/webauthn/start` and `/step-up/webauthn/finish` challenge flow.
 
+### WebAuthn PRF
+
+WebAuthn PRF lets a compatible passkey and browser derive local key material during a WebAuthn assertion. Seamless Auth verifies the passkey assertion on the server, while the React SDK returns the PRF output only to the browser caller. PRF output is stripped before `/webAuthn/login/finish` and `/step-up/webauthn/finish`, and should never be logged, stored, or sent to your API.
+
+Browser and authenticator support is not universal. Call `isPasskeyPrfSupported()` before offering PRF-required flows, and keep a fallback for passkeys that authenticate successfully without returning PRF output.
+
+```ts
+import { createSeamlessAuthClient } from '@seamless-auth/react';
+
+const authClient = createSeamlessAuthClient({
+  apiHost: 'https://your.api',
+  mode: 'server',
+});
+
+const prfSupported = await authClient.isPasskeyPrfSupported();
+
+if (prfSupported) {
+  await authClient.registerPasskey({
+    metadata: {
+      friendlyName: 'My laptop',
+      platform: 'macOS',
+      browser: 'Chrome',
+      deviceInfo: navigator.userAgent,
+    },
+    requirePrf: true,
+  });
+}
+```
+
+For local key unwrap flows such as Seamless Secrets, use PRF during step-up and consume the returned bytes in browser memory:
+
+```ts
+const result = await authClient.verifyStepUpWithPasskeyPrf({
+  salt: vaultSaltBase64url,
+  credentialId,
+});
+
+if (!result.success || !result.prf) {
+  throw new Error('PRF step-up failed');
+}
+
+const vaultUnlockMaterial: { credentialId: string; output: Uint8Array } = {
+  credentialId: result.credentialId!,
+  output: result.prf.output,
+};
+```
+
+The salt may be an `ArrayBuffer`, `ArrayBufferView`, or base64url string. Authentication proves identity and user presence; the PRF output is local key material for your application to use without sending it to Seamless Auth.
+
 ## Headless Client
 
 For custom auth UIs, use the exported client directly:
@@ -221,9 +271,11 @@ The headless client exposes helpers for:
 
 Client methods return raw `Response` objects except for the passkey convenience helpers:
 
-- `loginWithPasskey(): Promise<PasskeyLoginResult>`
-- `registerPasskey(metadata): Promise<PasskeyRegistrationResult>`
+- `loginWithPasskey(options?: PasskeyLoginOptions): Promise<PasskeyLoginWithPrfResult>`
+- `registerPasskey(metadata | { metadata, requestPrf?, requirePrf? }): Promise<PasskeyRegistrationResult>`
+- `isPasskeyPrfSupported(): Promise<boolean>`
 - `verifyStepUpWithPasskey(): Promise<StepUpVerificationResult>`
+- `verifyStepUpWithPasskeyPrf(input): Promise<StepUpWithPasskeyPrfResult>`
 
 ## React Hooks For Custom UI
 
