@@ -328,6 +328,7 @@ This package assumes a Seamless Auth-compatible backend with cookie-based auth f
 
 - In `web` mode, requests target `${apiHost}/...`
 - In `server` mode, requests target `${apiHost}/auth/...`
+- `apiHost` may be provided with or without a trailing slash
 - Requests are sent with `credentials: 'include'`
 - `AuthProvider` validates the current session by calling `/users/me` on load
 
