@@ -17,16 +17,51 @@ const mockFetchWithAuthImpl = jest.fn();
 
 const Consumer = () => {
   const auth = useAuth();
+  const firstCredential = auth.credentials[0];
+
   return (
     <div>
       <span data-testid="user">{auth.user ? auth.user.email : 'none'}</span>
       <span data-testid="isAuthenticated">{String(auth.isAuthenticated)}</span>
       <span data-testid="hasRoleAdmin">{String(auth.hasRole('admin'))}</span>
       <span data-testid="stepUpFresh">{String(auth.stepUpStatus?.fresh ?? false)}</span>
+      <span data-testid="credentials">
+        {auth.credentials.map(credential => credential.friendlyName).join(',')}
+      </span>
       <button onClick={() => void auth.refreshStepUpStatus()}>Refresh step-up</button>
+      <button
+        onClick={() => {
+          if (firstCredential) {
+            void auth.updateCredential({
+              ...firstCredential,
+              friendlyName: 'Renamed passkey',
+            });
+          }
+        }}
+      >
+        Update credential
+      </button>
+      <button onClick={() => void auth.deleteCredential('cred-1')}>
+        Delete credential
+      </button>
     </div>
   );
 };
+
+const buildCredential = (overrides = {}) =>
+  ({
+    id: 'cred-1',
+    counter: 0,
+    transports: [],
+    deviceType: 'singleDevice',
+    backedup: false,
+    friendlyName: 'Old passkey',
+    lastUsedAt: null,
+    platform: 'mac',
+    browser: 'chrome',
+    deviceInfo: 'mac chrome',
+    ...overrides,
+  }) as any;
 
 describe('AuthProvider', () => {
   const apiHost = 'https://api.example.com/';
@@ -133,5 +168,107 @@ describe('AuthProvider', () => {
     await waitFor(() => {
       expect(screen.getByTestId('stepUpFresh')).toHaveTextContent('true');
     });
+  });
+
+  it('updates credential state after a successful credential update', async () => {
+    const credential = buildCredential();
+    const updatedCredential = buildCredential({ friendlyName: 'Renamed passkey' });
+
+    mockFetchWithAuthImpl
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          user: {
+            id: '1',
+            email: 'test@example.com',
+            phone: '555-1234',
+            roles: ['admin'],
+          },
+          credentials: [credential],
+        }),
+      } as any)
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          message: 'Credential updated',
+          credential: updatedCredential,
+        }),
+      } as any);
+
+    await act(async () => {
+      render(
+        <AuthProvider apiHost={apiHost}>
+          <Consumer />
+        </AuthProvider>
+      );
+    });
+
+    await waitFor(() => {
+      expect(screen.getByTestId('credentials')).toHaveTextContent('Old passkey');
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: /update credential/i }));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('credentials')).toHaveTextContent('Renamed passkey');
+    });
+
+    expect(screen.getByTestId('credentials')).not.toHaveTextContent('Old passkey');
+    expect(mockFetchWithAuthImpl).toHaveBeenCalledTimes(2);
+    expect(
+      mockFetchWithAuthImpl.mock.calls.filter(([path]) => path === 'users/me')
+    ).toHaveLength(1);
+  });
+
+  it('removes deleted credentials from provider state after a successful delete', async () => {
+    const credential = buildCredential();
+    const secondCredential = buildCredential({
+      id: 'cred-2',
+      friendlyName: 'Backup passkey',
+    });
+
+    mockFetchWithAuthImpl
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          user: {
+            id: '1',
+            email: 'test@example.com',
+            phone: '555-1234',
+            roles: ['admin'],
+          },
+          credentials: [credential, secondCredential],
+        }),
+      } as any)
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          message: 'Credential deleted',
+        }),
+      } as any);
+
+    await act(async () => {
+      render(
+        <AuthProvider apiHost={apiHost}>
+          <Consumer />
+        </AuthProvider>
+      );
+    });
+
+    await waitFor(() => {
+      expect(screen.getByTestId('credentials')).toHaveTextContent('Old passkey');
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: /delete credential/i }));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('credentials')).not.toHaveTextContent('Old passkey');
+    });
+
+    expect(screen.getByTestId('credentials')).toHaveTextContent('Backup passkey');
+    expect(mockFetchWithAuthImpl).toHaveBeenCalledTimes(2);
+    expect(
+      mockFetchWithAuthImpl.mock.calls.filter(([path]) => path === 'users/me')
+    ).toHaveLength(1);
   });
 });
