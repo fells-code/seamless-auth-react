@@ -14,7 +14,7 @@
 - `createSeamlessAuthClient()`
 - `useAuthClient()`
 - `usePasskeySupport()`
-- types including `AuthMode`, `AuthContextType`, `Credential`, `User`, and the headless client input/result types
+- types including `AuthMode`, `AuthContextType`, `Credential`, `User`, `StepUpStatus`, and the headless client input/result types
 
 ## Installation
 
@@ -96,6 +96,7 @@ You are still responsible for your app’s route protection and redirects.
 {
   user: User | null;
   credentials: Credential[];
+  stepUpStatus: StepUpStatus | null;
   isAuthenticated: boolean;
   loading: boolean;
   apiHost: string;
@@ -104,6 +105,8 @@ You are still responsible for your app’s route protection and redirects.
   markSignedIn(): void;
   hasRole(role: string): boolean | undefined;
   refreshSession(): Promise<void>;
+  refreshStepUpStatus(): Promise<StepUpStatus | null>;
+  verifyStepUpWithPasskey(): Promise<StepUpVerificationResult>;
   logout(): Promise<void>;
   deleteUser(): Promise<void>;
   login(identifier: string, passkeyAvailable: boolean): Promise<Response>;
@@ -155,6 +158,33 @@ async function completeLogin() {
 
 To disable this auto-detection entirely, pass `autoDetectPreviousSignin={false}` to `AuthProvider`.
 
+### Step-up authentication
+
+Use step-up authentication before sensitive actions that should require a fresh user verification, such as deleting an account, changing MFA settings, or viewing recovery material.
+
+```tsx
+import { useAuth } from '@seamless-auth/react';
+
+function DeleteAccountButton() {
+  const { refreshStepUpStatus, verifyStepUpWithPasskey } = useAuth();
+
+  async function handleDeleteAccount() {
+    const status = await refreshStepUpStatus();
+    const fresh = status?.fresh ? true : (await verifyStepUpWithPasskey()).success;
+
+    if (!fresh) {
+      return;
+    }
+
+    await deleteAccount();
+  }
+
+  return <button onClick={() => void handleDeleteAccount()}>Delete account</button>;
+}
+```
+
+The current step-up backend supports WebAuthn/passkeys. `refreshStepUpStatus()` calls `/step-up/status`, and `verifyStepUpWithPasskey()` performs the `/step-up/webauthn/start` and `/step-up/webauthn/finish` challenge flow.
+
 ## Headless Client
 
 For custom auth UIs, use the exported client directly:
@@ -185,6 +215,7 @@ The headless client exposes helpers for:
 - phone OTP and email OTP
 - magic-link request, verify, and polling
 - passkey registration
+- step-up status and passkey verification
 - logout and delete-user
 - credential update and deletion
 
@@ -192,6 +223,7 @@ Client methods return raw `Response` objects except for the passkey convenience 
 
 - `loginWithPasskey(): Promise<PasskeyLoginResult>`
 - `registerPasskey(metadata): Promise<PasskeyRegistrationResult>`
+- `verifyStepUpWithPasskey(): Promise<StepUpVerificationResult>`
 
 ## React Hooks For Custom UI
 
@@ -263,6 +295,9 @@ The built-in flows assume compatible endpoints for:
 - `/magic-link`
 - `/magic-link/check`
 - `/magic-link/verify/:token`
+- `/step-up/status`
+- `/step-up/webauthn/start`
+- `/step-up/webauthn/finish`
 - `/users/me`
 - `/users/credentials`
 - `/users/delete`

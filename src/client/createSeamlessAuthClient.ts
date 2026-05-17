@@ -53,6 +53,21 @@ export interface PasskeyRegistrationResult {
   message: string;
 }
 
+export type StepUpMethod = 'webauthn';
+
+export interface StepUpStatus {
+  fresh: boolean;
+  method: StepUpMethod | null;
+  verifiedAt: string | null;
+  expiresAt: string | null;
+  maxAgeSeconds: number;
+}
+
+export interface StepUpVerificationResult extends StepUpStatus {
+  success: boolean;
+  message: string;
+}
+
 export interface SeamlessAuthClient {
   getCurrentUser: () => Promise<Response>;
   login: (input: LoginInput) => Promise<Response>;
@@ -68,9 +83,24 @@ export interface SeamlessAuthClient {
   checkMagicLink: () => Promise<Response>;
   verifyMagicLink: (token: string) => Promise<Response>;
   registerPasskey: (metadata: PasskeyMetadata) => Promise<PasskeyRegistrationResult>;
-  updateCredential: (input: { id: string; friendlyName: string | null }) => Promise<Response>;
+  getStepUpStatus: () => Promise<Response>;
+  verifyStepUpWithPasskey: () => Promise<StepUpVerificationResult>;
+  updateCredential: (input: {
+    id: string;
+    friendlyName: string | null;
+  }) => Promise<Response>;
   deleteCredential: (id: string) => Promise<Response>;
 }
+
+const staleStepUpResult = (message: string): StepUpVerificationResult => ({
+  success: false,
+  fresh: false,
+  method: null,
+  verifiedAt: null,
+  expiresAt: null,
+  maxAgeSeconds: 0,
+  message,
+});
 
 export const createSeamlessAuthClient = (
   opts: SeamlessAuthClientOptions
@@ -279,6 +309,58 @@ export const createSeamlessAuthClient = (
         success: true,
         message: 'Passkey registered successfully.',
       };
+    },
+
+    getStepUpStatus: () =>
+      fetchWithAuth(`/step-up/status`, {
+        method: 'GET',
+      }),
+
+    verifyStepUpWithPasskey: async () => {
+      const response = await fetchWithAuth(`/step-up/webauthn/start`, {
+        method: 'POST',
+      });
+
+      if (!response.ok) {
+        return staleStepUpResult('Failed to start step-up authentication.');
+      }
+
+      try {
+        const options = await response.json();
+        const credential = await startAuthentication({ optionsJSON: options });
+
+        const verificationResponse = await fetchWithAuth(`/step-up/webauthn/finish`, {
+          method: 'POST',
+          body: JSON.stringify({ assertionResponse: credential }),
+        });
+
+        if (!verificationResponse.ok) {
+          return staleStepUpResult('Failed to verify step-up authentication.');
+        }
+
+        const verificationResult = await verificationResponse.json();
+        const method =
+          verificationResult.method === 'webauthn' ? verificationResult.method : null;
+        const success =
+          verificationResult.message === 'Success' &&
+          verificationResult.fresh === true &&
+          method === 'webauthn';
+
+        return {
+          success,
+          fresh: Boolean(verificationResult.fresh),
+          method,
+          verifiedAt: verificationResult.verifiedAt ?? null,
+          expiresAt: verificationResult.expiresAt ?? null,
+          maxAgeSeconds: verificationResult.maxAgeSeconds ?? 0,
+          message: success
+            ? 'Step-up authentication succeeded.'
+            : (verificationResult.message ?? 'Step-up authentication failed.'),
+        };
+      } catch (error) {
+        console.error('Step-up authentication error:', error);
+        return staleStepUpResult('Step-up authentication failed.');
+      }
     },
 
     updateCredential: input =>

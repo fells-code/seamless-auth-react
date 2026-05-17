@@ -16,6 +16,9 @@ import {
   RegisterInput,
   SeamlessAuthClient,
   SeamlessAuthClientOptions,
+  StepUpMethod,
+  StepUpStatus,
+  StepUpVerificationResult,
 } from '@/client/createSeamlessAuthClient';
 import { AuthMode } from '@/fetchWithAuth';
 import { useAuthClient } from '@/hooks/useAuthClient';
@@ -42,5 +45,8 @@ export type {
   RegisterInput,
   SeamlessAuthClient,
   SeamlessAuthClientOptions,
+  StepUpMethod,
+  StepUpStatus,
+  StepUpVerificationResult,
   User,
 };
