@@ -21,9 +21,15 @@ const VerifyMagicLink: React.FC = () => {
   const authClient = useAuthClient();
 
   useEffect(() => {
+    let mounted = true;
+    let channel: BroadcastChannel | null = null;
+    let redirectTimeout: ReturnType<typeof setTimeout> | null = null;
+
     const verify = async () => {
       if (!token) {
-        setError('Missing token for verification.');
+        if (mounted) {
+          setError('Missing token for verification.');
+        }
         console.error('No token found', token);
         return;
       }
@@ -33,14 +39,20 @@ const VerifyMagicLink: React.FC = () => {
 
         if (!response.ok) {
           console.error('Failed to verify token');
-          setError('Failed to verify token');
+          if (mounted) {
+            setError('Failed to verify token');
+          }
           return;
         }
       } catch (error) {
         console.error(error);
       }
 
-      const channel = new BroadcastChannel('seamless-auth');
+      if (!mounted) {
+        return;
+      }
+
+      channel = new BroadcastChannel('seamless-auth');
 
       channel.postMessage({
         type: 'MAGIC_LINK_AUTH_SUCCESS',
@@ -50,11 +62,24 @@ const VerifyMagicLink: React.FC = () => {
         'You have been verified on the device and browser that initiated this request'
       );
 
-      setTimeout(() => {
+      redirectTimeout = setTimeout(() => {
+        if (!mounted) {
+          return;
+        }
+
         navigate('/');
       }, 900);
     };
     verify();
+
+    return () => {
+      mounted = false;
+      channel?.close();
+
+      if (redirectTimeout) {
+        clearTimeout(redirectTimeout);
+      }
+    };
   }, [token, authClient, navigate]);
 
   return (
