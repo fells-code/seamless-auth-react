@@ -18,9 +18,11 @@ export const createFetchWithAuth = (opts: FetchWithAuthOptions) => {
     input: string,
     init?: RequestInit
   ): Promise<Response> {
-    const base = authMode === 'server' ? `auth` : '';
+    const host = authHost?.replace(/\/+$/, '') ?? '';
+    const base = authMode === 'server' ? '/auth' : '';
+    const path = input.startsWith('/') ? input : `/${input}`;
 
-    const url = `${authHost}${base}${input.startsWith('/') ? input : `/${input}`}`;
+    const url = `${host}${base}${path}`;
 
     const requestInit: RequestInit = {
       ...init,

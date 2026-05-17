@@ -25,6 +25,7 @@ describe('VerifyMagicLink', () => {
     verifyMagicLink: jest.fn(),
   };
   const postMessage = jest.fn();
+  const close = jest.fn();
 
   beforeEach(() => {
     jest.useFakeTimers();
@@ -34,7 +35,7 @@ describe('VerifyMagicLink', () => {
 
     global.BroadcastChannel = jest.fn(() => ({
       postMessage,
-      close: jest.fn(),
+      close,
     })) as any;
 
     jest.clearAllMocks();
@@ -118,6 +119,31 @@ describe('VerifyMagicLink', () => {
     });
 
     expect(navigate).toHaveBeenCalledWith('/');
+  });
+
+  test('cleans up broadcast channel and redirect timeout on unmount', async () => {
+    (useSearchParams as jest.Mock).mockReturnValue([
+      new URLSearchParams('?token=abc123'),
+    ]);
+
+    mockAuthClient.verifyMagicLink.mockResolvedValue({
+      ok: true,
+    });
+
+    const { unmount } = render(<VerifyMagicLink />);
+
+    await screen.findByText(/login verified/i);
+
+    unmount();
+
+    expect(close).toHaveBeenCalledTimes(1);
+    expect(jest.getTimerCount()).toBe(0);
+
+    act(() => {
+      jest.advanceTimersByTime(900);
+    });
+
+    expect(navigate).not.toHaveBeenCalled();
   });
 
   test('shows spinner during verification', () => {

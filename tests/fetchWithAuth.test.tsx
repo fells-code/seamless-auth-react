@@ -31,7 +31,7 @@ describe('createFetchWithAuth', () => {
     expect(options.credentials).toBe('include');
   });
 
-  it('builds correct URL in server mode', async () => {
+  it('builds correct URL in server mode when auth host has a trailing slash', async () => {
     const fetchWithAuth = createFetchWithAuth({
       authMode: 'server',
       authHost: 'https://api.example.com/',
@@ -39,10 +39,24 @@ describe('createFetchWithAuth', () => {
 
     mockFetch.mockResolvedValueOnce({ ok: true, status: 200 });
 
-    await fetchWithAuth('/auth/me');
+    await fetchWithAuth('/users/me');
 
     const [url] = mockFetch.mock.calls[0];
-    expect(url).toBe('https://api.example.com/auth/auth/me');
+    expect(url).toBe('https://api.example.com/auth/users/me');
+  });
+
+  it('builds correct URL in server mode when auth host has no trailing slash', async () => {
+    const fetchWithAuth = createFetchWithAuth({
+      authMode: 'server',
+      authHost: 'https://api.example.com',
+    });
+
+    mockFetch.mockResolvedValueOnce({ ok: true, status: 200 });
+
+    await fetchWithAuth('users/me');
+
+    const [url] = mockFetch.mock.calls[0];
+    expect(url).toBe('https://api.example.com/auth/users/me');
   });
 
   it('returns the raw response when fetch response is not ok', async () => {

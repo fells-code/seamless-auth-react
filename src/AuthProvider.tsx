@@ -182,7 +182,18 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({
     });
 
     if (response.ok) {
-      return response.json();
+      const responseBody = await response.json();
+      const updatedCredential = responseBody.credential ?? responseBody;
+
+      setCredentials(currentCredentials =>
+        currentCredentials.map(currentCredential =>
+          currentCredential.id === updatedCredential.id
+            ? { ...currentCredential, ...updatedCredential }
+            : currentCredential
+        )
+      );
+
+      return responseBody;
     }
 
     throw new Error('Failed to update credential');
@@ -192,10 +203,14 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({
     const response = await authClient.deleteCredential(credentialId);
 
     if (response.ok) {
-      return response.json();
+      const responseBody = await response.json();
+      setCredentials(currentCredentials =>
+        currentCredentials.filter(credential => credential.id !== credentialId)
+      );
+      return responseBody;
     }
 
-    throw new Error('Failed to update credential');
+    throw new Error('Failed to delete credential');
   };
 
   const refreshStepUpStatus = useCallback(async () => {
