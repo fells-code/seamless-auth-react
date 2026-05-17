@@ -7,12 +7,23 @@
 import {
   startAuthentication,
   startRegistration,
+  type AuthenticationResponseJSON,
   type RegistrationResponseJSON,
   WebAuthnError,
 } from '@simplewebauthn/browser';
 
 import { AuthMode, createFetchWithAuth } from '../fetchWithAuth';
 import { Credential, User } from '../types';
+import {
+  createPrfRequestBody,
+  extractPasskeyPrfResult,
+  getRegistrationPrfCapable,
+  isPasskeyPrfSupported,
+  PasskeyPrfInput,
+  PasskeyPrfResult,
+  preparePrfRequestOptions,
+  stripPrfResultsFromAssertion,
+} from './webauthnPrf';
 
 export interface SeamlessAuthClientOptions {
   apiHost: string;
@@ -51,6 +62,14 @@ export interface PasskeyLoginResult {
 export interface PasskeyRegistrationResult {
   success: boolean;
   message: string;
+  credentialId?: string;
+  prfCapable?: boolean;
+}
+
+export interface RegisterPasskeyOptions {
+  metadata: PasskeyMetadata;
+  requestPrf?: boolean;
+  requirePrf?: boolean;
 }
 
 export type StepUpMethod = 'webauthn';
@@ -68,10 +87,23 @@ export interface StepUpVerificationResult extends StepUpStatus {
   message: string;
 }
 
+export interface PasskeyLoginOptions {
+  prf?: PasskeyPrfInput;
+}
+
+export interface PasskeyLoginWithPrfResult extends PasskeyLoginResult {
+  prf?: PasskeyPrfResult;
+}
+
+export interface StepUpWithPasskeyPrfResult extends StepUpVerificationResult {
+  credentialId: string | null;
+  prf: PasskeyPrfResult | null;
+}
+
 export interface SeamlessAuthClient {
   getCurrentUser: () => Promise<Response>;
   login: (input: LoginInput) => Promise<Response>;
-  loginWithPasskey: () => Promise<PasskeyLoginResult>;
+  loginWithPasskey: (options?: PasskeyLoginOptions) => Promise<PasskeyLoginWithPrfResult>;
   logout: () => Promise<Response>;
   deleteUser: () => Promise<Response>;
   register: (input: RegisterInput) => Promise<Response>;
@@ -82,9 +114,15 @@ export interface SeamlessAuthClient {
   requestMagicLink: () => Promise<Response>;
   checkMagicLink: () => Promise<Response>;
   verifyMagicLink: (token: string) => Promise<Response>;
-  registerPasskey: (metadata: PasskeyMetadata) => Promise<PasskeyRegistrationResult>;
+  registerPasskey: (
+    input: PasskeyMetadata | RegisterPasskeyOptions
+  ) => Promise<PasskeyRegistrationResult>;
+  isPasskeyPrfSupported: () => Promise<boolean>;
   getStepUpStatus: () => Promise<Response>;
   verifyStepUpWithPasskey: () => Promise<StepUpVerificationResult>;
+  verifyStepUpWithPasskeyPrf: (
+    input: PasskeyPrfInput
+  ) => Promise<StepUpWithPasskeyPrfResult>;
   updateCredential: (input: {
     id: string;
     friendlyName: string | null;
@@ -101,6 +139,47 @@ const staleStepUpResult = (message: string): StepUpVerificationResult => ({
   maxAgeSeconds: 0,
   message,
 });
+
+const staleStepUpPrfResult = (message: string): StepUpWithPasskeyPrfResult => ({
+  ...staleStepUpResult(message),
+  credentialId: null,
+  prf: null,
+});
+
+function normalizeRegisterPasskeyInput(
+  input: PasskeyMetadata | RegisterPasskeyOptions
+): RegisterPasskeyOptions {
+  if ('metadata' in input) {
+    return input;
+  }
+
+  return { metadata: input };
+}
+
+function buildRegisterStartPath(input: RegisterPasskeyOptions) {
+  const query = new URLSearchParams();
+
+  if (input.requirePrf) {
+    query.set('requirePrf', 'true');
+  } else if (input.requestPrf) {
+    query.set('requestPrf', 'true');
+  }
+
+  const queryString = query.toString();
+
+  return `/webAuthn/register/start${queryString ? `?${queryString}` : ''}`;
+}
+
+function buildAssertionStartInit(input?: PasskeyPrfInput): RequestInit {
+  if (!input) {
+    return { method: 'POST' };
+  }
+
+  return {
+    method: 'POST',
+    body: JSON.stringify(createPrfRequestBody(input)),
+  };
+}
 
 export const createSeamlessAuthClient = (
   opts: SeamlessAuthClientOptions
@@ -122,9 +201,9 @@ export const createSeamlessAuthClient = (
         body: JSON.stringify(input),
       }),
 
-    loginWithPasskey: async () => {
+    loginWithPasskey: async optionsInput => {
       const response = await fetchWithAuth(`/webAuthn/login/start`, {
-        method: 'POST',
+        ...buildAssertionStartInit(optionsInput?.prf),
       });
 
       if (!response.ok) {
@@ -137,11 +216,15 @@ export const createSeamlessAuthClient = (
 
       try {
         const options = await response.json();
-        const credential = await startAuthentication({ optionsJSON: options });
+        const credential = (await startAuthentication({
+          optionsJSON: preparePrfRequestOptions(options),
+        })) as AuthenticationResponseJSON;
+        const prf = extractPasskeyPrfResult(credential);
+        const assertionResponse = stripPrfResultsFromAssertion(credential);
 
         const verificationResponse = await fetchWithAuth(`/webAuthn/login/finish`, {
           method: 'POST',
-          body: JSON.stringify({ assertionResponse: credential }),
+          body: JSON.stringify({ assertionResponse }),
         });
 
         if (!verificationResponse.ok) {
@@ -161,6 +244,7 @@ export const createSeamlessAuthClient = (
             message: verificationResult.mfaLogin
               ? 'Passkey login requires MFA.'
               : 'Passkey login succeeded.',
+            ...(prf ? { prf } : {}),
           };
         }
 
@@ -169,8 +253,8 @@ export const createSeamlessAuthClient = (
           mfaRequired: false,
           message: verificationResult.message ?? 'Passkey login failed.',
         };
-      } catch (error) {
-        console.error('Passkey login error:', error);
+      } catch {
+        console.error('Passkey login error.');
         return {
           success: false,
           mfaRequired: false,
@@ -253,8 +337,9 @@ export const createSeamlessAuthClient = (
         },
       }),
 
-    registerPasskey: async metadata => {
-      const challengeRes = await fetchWithAuth(`/webAuthn/register/start`, {
+    registerPasskey: async input => {
+      const registerInput = normalizeRegisterPasskeyInput(input);
+      const challengeRes = await fetchWithAuth(buildRegisterStartPath(registerInput), {
         method: 'GET',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
@@ -293,7 +378,10 @@ export const createSeamlessAuthClient = (
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           attestationResponse,
-          metadata,
+          metadata: {
+            ...registerInput.metadata,
+            prfCapable: getRegistrationPrfCapable(attestationResponse),
+          },
         }),
         credentials: 'include',
       });
@@ -308,8 +396,12 @@ export const createSeamlessAuthClient = (
       return {
         success: true,
         message: 'Passkey registered successfully.',
+        credentialId: attestationResponse.id,
+        prfCapable: getRegistrationPrfCapable(attestationResponse),
       };
     },
+
+    isPasskeyPrfSupported,
 
     getStepUpStatus: () =>
       fetchWithAuth(`/step-up/status`, {
@@ -327,11 +419,14 @@ export const createSeamlessAuthClient = (
 
       try {
         const options = await response.json();
-        const credential = await startAuthentication({ optionsJSON: options });
+        const credential = (await startAuthentication({
+          optionsJSON: preparePrfRequestOptions(options),
+        })) as AuthenticationResponseJSON;
+        const assertionResponse = stripPrfResultsFromAssertion(credential);
 
         const verificationResponse = await fetchWithAuth(`/step-up/webauthn/finish`, {
           method: 'POST',
-          body: JSON.stringify({ assertionResponse: credential }),
+          body: JSON.stringify({ assertionResponse }),
         });
 
         if (!verificationResponse.ok) {
@@ -357,9 +452,66 @@ export const createSeamlessAuthClient = (
             ? 'Step-up authentication succeeded.'
             : (verificationResult.message ?? 'Step-up authentication failed.'),
         };
-      } catch (error) {
-        console.error('Step-up authentication error:', error);
+      } catch {
+        console.error('Step-up authentication error.');
         return staleStepUpResult('Step-up authentication failed.');
+      }
+    },
+
+    verifyStepUpWithPasskeyPrf: async input => {
+      const response = await fetchWithAuth(`/step-up/webauthn/start`, {
+        ...buildAssertionStartInit(input),
+      });
+
+      if (!response.ok) {
+        return staleStepUpPrfResult('Failed to start step-up authentication.');
+      }
+
+      try {
+        const options = await response.json();
+        const credential = (await startAuthentication({
+          optionsJSON: preparePrfRequestOptions(options),
+        })) as AuthenticationResponseJSON;
+        const prf = extractPasskeyPrfResult(credential);
+        const assertionResponse = stripPrfResultsFromAssertion(credential);
+
+        if (!prf) {
+          return staleStepUpPrfResult('Passkey did not return PRF output.');
+        }
+
+        const verificationResponse = await fetchWithAuth(`/step-up/webauthn/finish`, {
+          method: 'POST',
+          body: JSON.stringify({ assertionResponse }),
+        });
+
+        if (!verificationResponse.ok) {
+          return staleStepUpPrfResult('Failed to verify step-up authentication.');
+        }
+
+        const verificationResult = await verificationResponse.json();
+        const method =
+          verificationResult.method === 'webauthn' ? verificationResult.method : null;
+        const success =
+          verificationResult.message === 'Success' &&
+          verificationResult.fresh === true &&
+          method === 'webauthn';
+
+        return {
+          success,
+          fresh: Boolean(verificationResult.fresh),
+          method,
+          verifiedAt: verificationResult.verifiedAt ?? null,
+          expiresAt: verificationResult.expiresAt ?? null,
+          maxAgeSeconds: verificationResult.maxAgeSeconds ?? 0,
+          message: success
+            ? 'Step-up authentication succeeded.'
+            : (verificationResult.message ?? 'Step-up authentication failed.'),
+          credentialId: prf.credentialId,
+          prf,
+        };
+      } catch {
+        console.error('Step-up authentication error.');
+        return staleStepUpPrfResult('Step-up authentication failed.');
       }
     },
 

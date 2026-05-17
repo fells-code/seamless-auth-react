@@ -12,6 +12,20 @@ jest.mock('../src/fetchWithAuth');
 jest.mock('@simplewebauthn/browser', () => ({
   startAuthentication: jest.fn(),
   startRegistration: jest.fn(),
+  browserSupportsWebAuthn: jest.fn(() => true),
+  base64URLStringToBuffer: jest.fn((value: string) => {
+    const base64 = value.replace(/-/g, '+').replace(/_/g, '/');
+    const padded = base64.padEnd(base64.length + ((4 - (base64.length % 4)) % 4), '=');
+
+    return Uint8Array.from(Buffer.from(padded, 'base64')).buffer;
+  }),
+  bufferToBase64URLString: jest.fn((value: ArrayBuffer) =>
+    Buffer.from(value)
+      .toString('base64')
+      .replace(/\+/g, '-')
+      .replace(/\//g, '_')
+      .replace(/=+$/g, '')
+  ),
   WebAuthnError: class WebAuthnError extends Error {
     name = 'WebAuthnError';
   },
@@ -24,6 +38,10 @@ const mockFetchWithAuth = jest.fn();
 describe('createSeamlessAuthClient', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockFetchWithAuth.mockReset();
+    (startAuthentication as jest.Mock).mockReset();
+    (startRegistration as jest.Mock).mockReset();
+    (createFetchWithAuth as jest.Mock).mockReturnValue(mockFetchWithAuth);
   });
 
   it('forwards login requests through the shared auth fetch helper', async () => {
@@ -72,6 +90,63 @@ describe('createSeamlessAuthClient', () => {
     });
   });
 
+  it('returns passkey login PRF output without sending it to verification', async () => {
+    mockFetchWithAuth
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          challenge: 'challenge',
+          extensions: {
+            prf: {
+              eval: {
+                first: 'AQIDBA',
+              },
+            },
+          },
+        }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ message: 'Success', mfaLogin: false }),
+      });
+    (startAuthentication as jest.Mock).mockResolvedValueOnce({
+      id: 'cred-prf',
+      rawId: 'cred-prf',
+      response: {
+        authenticatorData: 'auth-data',
+        clientDataJSON: 'client-data',
+        signature: 'sig',
+      },
+      type: 'public-key',
+      clientExtensionResults: {
+        prf: {
+          results: {
+            first: Uint8Array.from([1, 2, 3, 4]).buffer,
+          },
+        },
+      },
+    });
+
+    const client = createSeamlessAuthClient({
+      apiHost: 'https://api.example.com',
+      mode: 'web',
+    });
+
+    const result = await client.loginWithPasskey({
+      prf: { salt: Uint8Array.from([1, 2, 3, 4]) },
+    });
+
+    expect(result.success).toBe(true);
+    expect(result.prf?.credentialId).toBe('cred-prf');
+    expect(result.prf?.outputBase64url).toBe('AQIDBA');
+
+    const finishBody = (mockFetchWithAuth.mock.calls[1][1] as RequestInit).body as string;
+    expect(finishBody).not.toContain('AQIDBA');
+    expect(
+      JSON.parse(finishBody).assertionResponse.clientExtensionResults.prf.results
+    ).toBeUndefined();
+  });
+
   it('returns a successful passkey registration result when registration completes', async () => {
     mockFetchWithAuth
       .mockResolvedValueOnce({
@@ -98,7 +173,71 @@ describe('createSeamlessAuthClient', () => {
     ).resolves.toEqual({
       success: true,
       message: 'Passkey registered successfully.',
+      credentialId: 'cred',
+      prfCapable: false,
     });
+  });
+
+  it('requests PRF-capable registration and reports capability', async () => {
+    mockFetchWithAuth
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ challenge: 'challenge', extensions: { prf: {} } }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+      });
+    (startRegistration as jest.Mock).mockResolvedValueOnce({
+      id: 'cred-prf',
+      clientExtensionResults: { prf: { enabled: true } },
+    });
+
+    const client = createSeamlessAuthClient({
+      apiHost: 'https://api.example.com',
+      mode: 'web',
+    });
+
+    await expect(
+      client.registerPasskey({
+        metadata: {
+          friendlyName: 'My Laptop',
+          platform: 'mac',
+          browser: 'chrome',
+          deviceInfo: 'mac chrome',
+        },
+        requirePrf: true,
+      })
+    ).resolves.toEqual({
+      success: true,
+      message: 'Passkey registered successfully.',
+      credentialId: 'cred-prf',
+      prfCapable: true,
+    });
+
+    expect(mockFetchWithAuth).toHaveBeenNthCalledWith(
+      1,
+      '/webAuthn/register/start?requirePrf=true',
+      expect.objectContaining({ method: 'GET' })
+    );
+    expect(mockFetchWithAuth).toHaveBeenNthCalledWith(
+      2,
+      '/webAuthn/register/finish',
+      expect.objectContaining({
+        body: JSON.stringify({
+          attestationResponse: {
+            id: 'cred-prf',
+            clientExtensionResults: { prf: { enabled: true } },
+          },
+          metadata: {
+            friendlyName: 'My Laptop',
+            platform: 'mac',
+            browser: 'chrome',
+            deviceInfo: 'mac chrome',
+            prfCapable: true,
+          },
+        }),
+      })
+    );
   });
 
   it('forwards step-up status requests through the shared auth fetch helper', async () => {
@@ -177,5 +316,79 @@ describe('createSeamlessAuthClient', () => {
       maxAgeSeconds: 0,
       message: 'Failed to start step-up authentication.',
     });
+  });
+
+  it('performs PRF step-up without sending PRF output to the API', async () => {
+    const salt = Uint8Array.from(Array.from({ length: 32 }, (_, index) => index + 1));
+
+    mockFetchWithAuth
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          challenge: 'challenge',
+          extensions: {
+            prf: {
+              eval: {
+                first: 'AQIDBA',
+              },
+            },
+          },
+        }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          message: 'Success',
+          fresh: true,
+          method: 'webauthn',
+          verifiedAt: '2026-05-15T12:00:00.000Z',
+          expiresAt: '2026-05-15T12:05:00.000Z',
+          maxAgeSeconds: 300,
+        }),
+      });
+    (startAuthentication as jest.Mock).mockResolvedValueOnce({
+      id: 'cred-prf',
+      rawId: 'cred-prf',
+      response: {
+        authenticatorData: 'auth-data',
+        clientDataJSON: 'client-data',
+        signature: 'sig',
+      },
+      type: 'public-key',
+      clientExtensionResults: {
+        prf: {
+          results: {
+            first: Uint8Array.from([1, 2, 3, 4]).buffer,
+          },
+        },
+      },
+    });
+
+    const client = createSeamlessAuthClient({
+      apiHost: 'https://api.example.com',
+      mode: 'web',
+    });
+
+    const result = await client.verifyStepUpWithPasskeyPrf({ salt });
+
+    expect(result.success).toBe(true);
+    expect(result.credentialId).toBe('cred-prf');
+    expect(result.prf?.outputBase64url).toBe('AQIDBA');
+    expect(Array.from(result.prf?.output ?? [])).toEqual([1, 2, 3, 4]);
+
+    expect(mockFetchWithAuth).toHaveBeenNthCalledWith(1, '/step-up/webauthn/start', {
+      method: 'POST',
+      body: JSON.stringify({
+        prf: {
+          salt: 'AQIDBAUGBwgJCgsMDQ4PEBESExQVFhcYGRobHB0eHyA',
+        },
+      }),
+    });
+
+    const finishBody = (mockFetchWithAuth.mock.calls[1][1] as RequestInit).body as string;
+    expect(finishBody).not.toContain('AQIDBA');
+    expect(
+      JSON.parse(finishBody).assertionResponse.clientExtensionResults.prf.results
+    ).toBeUndefined();
   });
 });

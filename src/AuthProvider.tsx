@@ -6,9 +6,11 @@
 
 import {
   createSeamlessAuthClient,
+  StepUpWithPasskeyPrfResult,
   StepUpStatus,
   StepUpVerificationResult,
 } from '@/client/createSeamlessAuthClient';
+import { PasskeyPrfInput } from '@/client/webauthnPrf';
 import { Credential, User } from '@/types';
 import React, {
   createContext,
@@ -42,6 +44,9 @@ export interface AuthContextType {
   handlePasskeyLogin: () => Promise<boolean>;
   refreshStepUpStatus: () => Promise<StepUpStatus | null>;
   verifyStepUpWithPasskey: () => Promise<StepUpVerificationResult>;
+  verifyStepUpWithPasskeyPrf: (
+    input: PasskeyPrfInput
+  ) => Promise<StepUpWithPasskeyPrfResult>;
   loading: boolean;
 }
 
@@ -222,6 +227,25 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({
     return result;
   }, [authClient]);
 
+  const verifyStepUpWithPasskeyPrf = useCallback(
+    async (input: PasskeyPrfInput) => {
+      const result = await authClient.verifyStepUpWithPasskeyPrf(input);
+
+      if (result.success) {
+        setStepUpStatus({
+          fresh: result.fresh,
+          method: result.method,
+          verifiedAt: result.verifiedAt,
+          expiresAt: result.expiresAt,
+          maxAgeSeconds: result.maxAgeSeconds,
+        });
+      }
+
+      return result;
+    },
+    [authClient]
+  );
+
   useEffect(() => {
     void validateToken();
   }, [validateToken]);
@@ -254,6 +278,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({
         handlePasskeyLogin,
         refreshStepUpStatus,
         verifyStepUpWithPasskey,
+        verifyStepUpWithPasskeyPrf,
       }}
     >
       {children}
