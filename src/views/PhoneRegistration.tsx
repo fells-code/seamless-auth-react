@@ -5,14 +5,19 @@
  */
 
 import React, { useEffect, useState } from 'react';
+import { useAuth } from '@/AuthProvider';
 import { useAuthClient } from '@/hooks/useAuthClient';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 
 import styles from '@/styles/verifyOTP.module.css';
 import OtpInput from '@/components/OtpInput';
 
 const PhoneRegistration: React.FC = () => {
   const navigate = useNavigate();
+  const location = useLocation();
+  const { refreshSession } = useAuth();
+  const isLoginFlow =
+    (location.state as { flow?: string } | null)?.flow === 'login';
 
   const [phoneOtp, setPhoneOtp] = useState('');
   const [phoneVerified, setPhoneVerified] = useState<boolean | null>(null);
@@ -46,11 +51,19 @@ const PhoneRegistration: React.FC = () => {
     setLoading(true);
     try {
       if (!phoneVerified) {
-        const response = await authClient.verifyPhoneOtp(phoneOtp);
+        const response = isLoginFlow
+          ? await authClient.verifyLoginPhoneOtp(phoneOtp)
+          : await authClient.verifyPhoneOtp(phoneOtp);
 
         if (!response.ok) {
           setError('Verification failed.');
         } else {
+          if (isLoginFlow) {
+            await refreshSession();
+            navigate('/');
+            return;
+          }
+
           setPhoneVerified(true);
         }
       }
@@ -64,7 +77,9 @@ const PhoneRegistration: React.FC = () => {
 
   const onResendPhone = async () => {
     setError('');
-    const response = await authClient.requestPhoneOtp();
+    const response = isLoginFlow
+      ? await authClient.requestLoginPhoneOtp()
+      : await authClient.requestPhoneOtp();
 
     const data = await response.json();
 
@@ -123,10 +138,10 @@ const PhoneRegistration: React.FC = () => {
         navigate('/verifyEmailOTP');
       }
     };
-    if (phoneVerified) {
+    if (phoneVerified && !isLoginFlow) {
       nextStep();
     }
-  }, [phoneVerified, navigate, authClient]);
+  }, [phoneVerified, isLoginFlow, navigate, authClient]);
 
   return (
     <div className={styles.container}>

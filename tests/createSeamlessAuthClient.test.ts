@@ -66,6 +66,60 @@ describe('createSeamlessAuthClient', () => {
     });
   });
 
+  it('uses login-specific phone OTP endpoints', async () => {
+    const response = { ok: true };
+    mockFetchWithAuth.mockResolvedValue(response);
+
+    const client = createSeamlessAuthClient({
+      apiHost: 'https://api.example.com',
+      mode: 'server',
+    });
+
+    await expect(client.requestLoginPhoneOtp()).resolves.toBe(response);
+    await expect(client.verifyLoginPhoneOtp('123456')).resolves.toBe(response);
+
+    expect(mockFetchWithAuth).toHaveBeenNthCalledWith(1, '/otp/generate-login-phone-otp', {
+      method: 'GET',
+    });
+    expect(mockFetchWithAuth).toHaveBeenNthCalledWith(
+      2,
+      '/otp/verify-login-phone-otp',
+      expect.objectContaining({
+        method: 'POST',
+        body: JSON.stringify({ verificationToken: '123456' }),
+        credentials: 'include',
+      })
+    );
+  });
+
+  it('uses login-specific email OTP endpoints', async () => {
+    const response = { ok: true };
+    mockFetchWithAuth.mockResolvedValue(response);
+
+    const client = createSeamlessAuthClient({
+      apiHost: 'https://api.example.com',
+      mode: 'server',
+    });
+
+    await expect(client.requestLoginEmailOtp()).resolves.toBe(response);
+    await expect(client.verifyLoginEmailOtp('ABCDEF')).resolves.toBe(response);
+
+    expect(mockFetchWithAuth).toHaveBeenNthCalledWith(
+      1,
+      '/otp/generate-login-email-otp',
+      expect.objectContaining({ method: 'GET' })
+    );
+    expect(mockFetchWithAuth).toHaveBeenNthCalledWith(
+      2,
+      '/otp/verify-login-email-otp',
+      expect.objectContaining({
+        method: 'POST',
+        body: JSON.stringify({ verificationToken: 'ABCDEF' }),
+        credentials: 'include',
+      })
+    );
+  });
+
   it('returns a successful passkey login result when both WebAuthn steps succeed', async () => {
     mockFetchWithAuth
       .mockResolvedValueOnce({

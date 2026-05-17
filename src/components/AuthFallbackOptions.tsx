@@ -6,28 +6,43 @@
 
 import React from 'react';
 import { isValidEmail, isValidPhoneNumber } from '../utils';
+import type { LoginMethod } from '@/client/createSeamlessAuthClient';
 
 import styles from '../styles/login.module.css';
 
 interface AuthFallbackOptionsProps {
   identifier: string;
   onMagicLink: () => void;
+  onEmailOtp?: () => void;
   onPhoneOtp: () => void;
-  onPasskeyRetry: () => void;
+  onPasskeyRetry?: () => void;
+  loginMethods?: LoginMethod[];
 }
 
 const AuthFallbackOptions: React.FC<AuthFallbackOptionsProps> = ({
   identifier,
   onMagicLink,
+  onEmailOtp,
   onPhoneOtp,
   onPasskeyRetry,
+  loginMethods,
 }) => {
-  const showMagicLink = isValidEmail(identifier);
-  const showPhoneOtp = isValidPhoneNumber(identifier);
+  const allowedMethods = new Set<LoginMethod>(
+    loginMethods ?? ['passkey', 'magic_link', 'phone_otp']
+  );
+  const showMagicLink = allowedMethods.has('magic_link') && isValidEmail(identifier);
+  const showEmailOtp =
+    allowedMethods.has('email_otp') && Boolean(onEmailOtp) && isValidEmail(identifier);
+  const showPhoneOtp = allowedMethods.has('phone_otp') && isValidPhoneNumber(identifier);
+  const showPasskeyRetry = allowedMethods.has('passkey') && Boolean(onPasskeyRetry);
+
+  if (!showMagicLink && !showEmailOtp && !showPhoneOtp && !showPasskeyRetry) {
+    return null;
+  }
 
   return (
     <div className={styles.fallbackCard}>
-      <div className={styles.fallbackHeader}>Trouble with passkey login?</div>
+      <div className={styles.fallbackHeader}>Choose a sign-in method</div>
 
       <p className={styles.fallbackDescription}>Choose another secure sign-in method.</p>
 
@@ -45,6 +60,19 @@ const AuthFallbackOptions: React.FC<AuthFallbackOptionsProps> = ({
           </button>
         )}
 
+        {showEmailOtp && (
+          <button
+            type="button"
+            className={styles.fallbackActionButton}
+            onClick={onEmailOtp}
+          >
+            <span className={styles.actionTitle}>Email Code</span>
+            <span className={styles.actionSubtext}>
+              Receive a one-time code by email
+            </span>
+          </button>
+        )}
+
         {showPhoneOtp && (
           <button
             type="button"
@@ -57,9 +85,11 @@ const AuthFallbackOptions: React.FC<AuthFallbackOptionsProps> = ({
         )}
       </div>
 
-      <button type="button" className={styles.linkButton} onClick={onPasskeyRetry}>
-        Try passkey anyway
-      </button>
+      {showPasskeyRetry && (
+        <button type="button" className={styles.linkButton} onClick={onPasskeyRetry}>
+          Try passkey anyway
+        </button>
+      )}
     </div>
   );
 };

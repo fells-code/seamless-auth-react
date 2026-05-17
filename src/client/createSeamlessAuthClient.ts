@@ -35,6 +35,14 @@ export interface LoginInput {
   passkeyAvailable: boolean;
 }
 
+export type LoginMethod = 'passkey' | 'magic_link' | 'email_otp' | 'phone_otp';
+
+export interface LoginStartResult {
+  message?: string;
+  identifierType?: 'email' | 'phone';
+  loginMethods?: LoginMethod[];
+}
+
 export interface RegisterInput {
   email: string;
   phone: string;
@@ -109,8 +117,12 @@ export interface SeamlessAuthClient {
   register: (input: RegisterInput) => Promise<Response>;
   requestPhoneOtp: () => Promise<Response>;
   verifyPhoneOtp: (verificationToken: string) => Promise<Response>;
+  requestLoginPhoneOtp: () => Promise<Response>;
+  verifyLoginPhoneOtp: (verificationToken: string) => Promise<Response>;
   requestEmailOtp: () => Promise<Response>;
   verifyEmailOtp: (verificationToken: string) => Promise<Response>;
+  requestLoginEmailOtp: () => Promise<Response>;
+  verifyLoginEmailOtp: (verificationToken: string) => Promise<Response>;
   requestMagicLink: () => Promise<Response>;
   checkMagicLink: () => Promise<Response>;
   verifyMagicLink: (token: string) => Promise<Response>;
@@ -300,6 +312,23 @@ export const createSeamlessAuthClient = (
         credentials: 'include',
       }),
 
+    requestLoginPhoneOtp: () =>
+      fetchWithAuth(`/otp/generate-login-phone-otp`, {
+        method: 'GET',
+      }),
+
+    verifyLoginPhoneOtp: verificationToken =>
+      fetchWithAuth(`/otp/verify-login-phone-otp`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          verificationToken,
+        }),
+        credentials: 'include',
+      }),
+
     requestEmailOtp: () =>
       fetchWithAuth(`/otp/generate-email-otp`, {
         method: 'GET',
@@ -308,6 +337,22 @@ export const createSeamlessAuthClient = (
 
     verifyEmailOtp: verificationToken =>
       fetchWithAuth(`/otp/verify-email-otp`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          verificationToken,
+        }),
+        credentials: 'include',
+      }),
+
+    requestLoginEmailOtp: () =>
+      fetchWithAuth(`/otp/generate-login-email-otp`, {
+        method: 'GET',
+        headers: { 'Content-Type': 'application/json' },
+      }),
+
+    verifyLoginEmailOtp: verificationToken =>
+      fetchWithAuth(`/otp/verify-login-email-otp`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

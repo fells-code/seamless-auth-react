@@ -16,6 +16,7 @@ jest.mock('@/utils', () => ({
 
 describe('AuthFallbackOptions', () => {
   const magicLinkHandler = jest.fn();
+  const emailOtpHandler = jest.fn();
   const phoneOtpHandler = jest.fn();
   const passkeyHandler = jest.fn();
 
@@ -31,6 +32,7 @@ describe('AuthFallbackOptions', () => {
       <AuthFallbackOptions
         identifier="test@example.com"
         onMagicLink={magicLinkHandler}
+        onEmailOtp={emailOtpHandler}
         onPhoneOtp={phoneOtpHandler}
         onPasskeyRetry={passkeyHandler}
       />
@@ -51,6 +53,7 @@ describe('AuthFallbackOptions', () => {
       <AuthFallbackOptions
         identifier="+15555555555"
         onMagicLink={magicLinkHandler}
+        onEmailOtp={emailOtpHandler}
         onPhoneOtp={phoneOtpHandler}
         onPasskeyRetry={passkeyHandler}
       />
@@ -73,6 +76,7 @@ describe('AuthFallbackOptions', () => {
       <AuthFallbackOptions
         identifier="test@example.com"
         onMagicLink={magicLinkHandler}
+        onEmailOtp={emailOtpHandler}
         onPhoneOtp={phoneOtpHandler}
         onPasskeyRetry={passkeyHandler}
       />
@@ -91,6 +95,7 @@ describe('AuthFallbackOptions', () => {
       <AuthFallbackOptions
         identifier="+15555555555"
         onMagicLink={magicLinkHandler}
+        onEmailOtp={emailOtpHandler}
         onPhoneOtp={phoneOtpHandler}
         onPasskeyRetry={passkeyHandler}
       />
@@ -101,6 +106,51 @@ describe('AuthFallbackOptions', () => {
     expect(phoneOtpHandler).toHaveBeenCalledTimes(1);
   });
 
+  test('renders and calls email OTP when enabled for an email identifier', () => {
+    (isValidEmail as jest.Mock).mockReturnValue(true);
+    (isValidPhoneNumber as jest.Mock).mockReturnValue(false);
+
+    render(
+      <AuthFallbackOptions
+        identifier="test@example.com"
+        onMagicLink={magicLinkHandler}
+        onEmailOtp={emailOtpHandler}
+        onPhoneOtp={phoneOtpHandler}
+        onPasskeyRetry={passkeyHandler}
+        loginMethods={['email_otp']}
+      />
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /email code/i }));
+
+    expect(emailOtpHandler).toHaveBeenCalledTimes(1);
+    expect(
+      screen.queryByRole('button', { name: /email magic link/i })
+    ).not.toBeInTheDocument();
+  });
+
+  test('filters fallback options using configured login methods', () => {
+    (isValidEmail as jest.Mock).mockReturnValue(true);
+    (isValidPhoneNumber as jest.Mock).mockReturnValue(false);
+
+    render(
+      <AuthFallbackOptions
+        identifier="test@example.com"
+        onMagicLink={magicLinkHandler}
+        onEmailOtp={emailOtpHandler}
+        onPhoneOtp={phoneOtpHandler}
+        onPasskeyRetry={passkeyHandler}
+        loginMethods={['magic_link']}
+      />
+    );
+
+    expect(screen.getByRole('button', { name: /email magic link/i })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /email code/i })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: /try passkey anyway/i })
+    ).not.toBeInTheDocument();
+  });
+
   test('always renders passkey retry option', () => {
     (isValidEmail as jest.Mock).mockReturnValue(false);
     (isValidPhoneNumber as jest.Mock).mockReturnValue(false);
@@ -109,6 +159,7 @@ describe('AuthFallbackOptions', () => {
       <AuthFallbackOptions
         identifier="anything"
         onMagicLink={magicLinkHandler}
+        onEmailOtp={emailOtpHandler}
         onPhoneOtp={phoneOtpHandler}
         onPasskeyRetry={passkeyHandler}
       />
@@ -127,6 +178,7 @@ describe('AuthFallbackOptions', () => {
       <AuthFallbackOptions
         identifier="anything"
         onMagicLink={magicLinkHandler}
+        onEmailOtp={emailOtpHandler}
         onPhoneOtp={phoneOtpHandler}
         onPasskeyRetry={passkeyHandler}
       />

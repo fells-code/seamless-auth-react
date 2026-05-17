@@ -13,6 +13,23 @@ import { useNavigate } from 'react-router-dom';
 import styles from '@/styles/login.module.css';
 import { isValidEmail, isValidPhoneNumber } from '../utils';
 import AuthFallbackOptions from '@/components/AuthFallbackOptions';
+import type { LoginMethod, LoginStartResult } from '@/client/createSeamlessAuthClient';
+
+const DEFAULT_LOGIN_METHODS: LoginMethod[] = ['passkey', 'magic_link', 'phone_otp'];
+
+const parseLoginStartResult = async (
+  response: Response | null
+): Promise<LoginStartResult | null> => {
+  if (!response || typeof response.json !== 'function') {
+    return null;
+  }
+
+  try {
+    return (await response.json()) as LoginStartResult;
+  } catch {
+    return null;
+  }
+};
 
 const Login: React.FC = () => {
   const navigate = useNavigate();
@@ -28,6 +45,8 @@ const Login: React.FC = () => {
   const [emailError, setEmailError] = useState<string>('');
   const [identifierError, setIdentifierError] = useState<string>('');
   const [showFallbackOptions, setShowFallbackOptions] = useState(false);
+  const [loginMethods, setLoginMethods] =
+    useState<LoginMethod[]>(DEFAULT_LOGIN_METHODS);
   const [bootstrapToken, setBootstrapToken] = useState<string | null>(null);
 
   useEffect(() => {
@@ -112,17 +131,33 @@ const Login: React.FC = () => {
 
   const sendPhoneOtp = async () => {
     try {
-      const response = await authClient.requestPhoneOtp();
+      const response = await authClient.requestLoginPhoneOtp();
 
       if (!response.ok) {
         setFormErrors('Failed to send OTP.');
         return;
       }
 
-      navigate('/verifyPhoneOTP');
+      navigate('/verifyPhoneOTP', { state: { flow: 'login' } });
     } catch (err) {
       console.error(err);
       setFormErrors('Failed to send OTP.');
+    }
+  };
+
+  const sendEmailOtp = async () => {
+    try {
+      const response = await authClient.requestLoginEmailOtp();
+
+      if (!response.ok) {
+        setFormErrors('Failed to send email code.');
+        return;
+      }
+
+      navigate('/verifyEmailOTP', { state: { flow: 'login' } });
+    } catch (err) {
+      console.error(err);
+      setFormErrors('Failed to send email code.');
     }
   };
 
@@ -134,8 +169,17 @@ const Login: React.FC = () => {
     try {
       if (mode === 'login') {
         const loginRes = await login(identifier, passkeySupported);
+        const loginStart = await parseLoginStartResult(loginRes);
+        const availableMethods = loginStart?.loginMethods?.length
+          ? loginStart.loginMethods
+          : DEFAULT_LOGIN_METHODS;
+        setLoginMethods(availableMethods);
 
-        if (loginRes?.ok && passkeySupported) {
+        if (
+          loginRes?.ok &&
+          passkeySupported &&
+          availableMethods.includes('passkey')
+        ) {
           const passkeyResult = await handlePasskeyLogin();
           if (passkeyResult) {
             navigate('/');
@@ -207,8 +251,10 @@ const Login: React.FC = () => {
                   <AuthFallbackOptions
                     identifier={identifier}
                     onMagicLink={sendMagicLink}
+                    onEmailOtp={sendEmailOtp}
                     onPhoneOtp={sendPhoneOtp}
-                    onPasskeyRetry={handlePasskeyLogin}
+                    onPasskeyRetry={passkeySupported ? handlePasskeyLogin : undefined}
+                    loginMethods={loginMethods}
                   />
                 )}
 
