@@ -7,12 +7,15 @@
 import { render, screen, fireEvent, act } from '@testing-library/react';
 import PhoneRegistration from '@/views/PhoneRegistration';
 
+import { useAuth } from '@/AuthProvider';
 import { useAuthClient } from '@/hooks/useAuthClient';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 
+jest.mock('@/AuthProvider');
 jest.mock('@/hooks/useAuthClient');
 jest.mock('react-router-dom', () => ({
   ...jest.requireActual('react-router-dom'),
+  useLocation: jest.fn(),
   useNavigate: jest.fn(),
 }));
 
@@ -26,20 +29,30 @@ jest.mock('@/components/OtpInput', () => (props: any) => (
 
 describe('PhoneRegistration', () => {
   const navigate = jest.fn();
+  const refreshSession = jest.fn();
   const mockAuthClient = {
     verifyPhoneOtp: jest.fn(),
     requestPhoneOtp: jest.fn(),
     requestEmailOtp: jest.fn(),
+    verifyLoginPhoneOtp: jest.fn(),
+    requestLoginPhoneOtp: jest.fn(),
   };
 
   beforeEach(() => {
     jest.useFakeTimers();
 
     (useNavigate as jest.Mock).mockReturnValue(navigate);
+    (useLocation as jest.Mock).mockReturnValue({ state: null });
+    (useAuth as jest.Mock).mockReturnValue({ refreshSession });
     (useAuthClient as jest.Mock).mockReturnValue(mockAuthClient);
 
     mockAuthClient.verifyPhoneOtp.mockResolvedValue({ ok: true });
+    mockAuthClient.verifyLoginPhoneOtp.mockResolvedValue({ ok: true });
     mockAuthClient.requestPhoneOtp.mockResolvedValue({
+      ok: true,
+      json: async () => ({}),
+    });
+    mockAuthClient.requestLoginPhoneOtp.mockResolvedValue({
       ok: true,
       json: async () => ({}),
     });
@@ -140,6 +153,25 @@ describe('PhoneRegistration', () => {
     expect(mockAuthClient.requestEmailOtp).toHaveBeenCalled();
 
     expect(navigate).toHaveBeenCalledWith('/verifyEmailOTP');
+  });
+
+  test('login flow verifies phone OTP and refreshes the session', async () => {
+    (useLocation as jest.Mock).mockReturnValue({ state: { flow: 'login' } });
+
+    render(<PhoneRegistration />);
+
+    fireEvent.change(screen.getByTestId('otp-input'), {
+      target: { value: '123456' },
+    });
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /verify & continue/i }));
+    });
+
+    expect(mockAuthClient.verifyLoginPhoneOtp).toHaveBeenCalledWith('123456');
+    expect(refreshSession).toHaveBeenCalled();
+    expect(navigate).toHaveBeenCalledWith('/');
+    expect(mockAuthClient.requestEmailOtp).not.toHaveBeenCalled();
   });
 
   test('back to login navigates correctly', () => {

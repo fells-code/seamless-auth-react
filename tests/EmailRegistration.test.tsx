@@ -11,13 +11,14 @@ import { useAuth } from '@/AuthProvider';
 import { useAuthClient } from '@/hooks/useAuthClient';
 import { usePasskeySupport } from '@/hooks/usePasskeySupport';
 
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 
 jest.mock('@/AuthProvider');
 jest.mock('@/hooks/useAuthClient');
 jest.mock('@/hooks/usePasskeySupport');
 jest.mock('react-router-dom', () => ({
   ...jest.requireActual('react-router-dom'),
+  useLocation: jest.fn(),
   useNavigate: jest.fn(),
 }));
 
@@ -35,12 +36,15 @@ describe('EmailRegistration', () => {
   const mockAuthClient = {
     requestEmailOtp: jest.fn(),
     verifyEmailOtp: jest.fn(),
+    requestLoginEmailOtp: jest.fn(),
+    verifyLoginEmailOtp: jest.fn(),
   };
 
   beforeEach(() => {
     jest.useFakeTimers();
 
     (useNavigate as jest.Mock).mockReturnValue(navigate);
+    (useLocation as jest.Mock).mockReturnValue({ state: null });
 
     (useAuth as jest.Mock).mockReturnValue({
       refreshSession,
@@ -54,6 +58,8 @@ describe('EmailRegistration', () => {
 
     mockAuthClient.requestEmailOtp.mockResolvedValue({ ok: true });
     mockAuthClient.verifyEmailOtp.mockResolvedValue({ ok: true });
+    mockAuthClient.requestLoginEmailOtp.mockResolvedValue({ ok: true });
+    mockAuthClient.verifyLoginEmailOtp.mockResolvedValue({ ok: true });
   });
 
   afterEach(() => {
@@ -157,6 +163,39 @@ describe('EmailRegistration', () => {
 
     expect(refreshSession).toHaveBeenCalled();
     expect(navigate).toHaveBeenCalledWith('/');
+  });
+
+  test('login flow verifies email OTP and refreshes the session', async () => {
+    (useLocation as jest.Mock).mockReturnValue({ state: { flow: 'login' } });
+    mockAuthClient.verifyLoginEmailOtp.mockResolvedValue({ ok: true });
+
+    render(<EmailRegistration />);
+
+    fireEvent.change(screen.getByTestId('otp-input'), {
+      target: { value: 'ABCDEF' },
+    });
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /verify & continue/i }));
+    });
+
+    expect(mockAuthClient.verifyLoginEmailOtp).toHaveBeenCalledWith('ABCDEF');
+    expect(refreshSession).toHaveBeenCalled();
+    expect(navigate).toHaveBeenCalledWith('/');
+    expect(navigate).not.toHaveBeenCalledWith('/registerPasskey');
+  });
+
+  test('login flow resend uses the login email OTP endpoint', async () => {
+    (useLocation as jest.Mock).mockReturnValue({ state: { flow: 'login' } });
+
+    render(<EmailRegistration />);
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /resend code to email/i }));
+    });
+
+    expect(mockAuthClient.requestLoginEmailOtp).toHaveBeenCalled();
+    expect(mockAuthClient.requestEmailOtp).not.toHaveBeenCalled();
   });
 
   test('back to login navigates to login page', () => {
