@@ -8,10 +8,16 @@ import { AuthContextType, AuthProvider, useAuth } from '@/AuthProvider';
 import { AuthRoutes } from '@/AuthRoutes';
 import {
   createSeamlessAuthClient,
+  CreateOrganizationInput,
   CurrentUserResult,
   LoginInput,
   LoginMethod,
   LoginStartResult,
+  OrganizationMemberInput,
+  OrganizationMemberUpdateInput,
+  OrganizationMembersResult,
+  OrganizationResult,
+  OrganizationsResult,
   PasskeyLoginResult,
   PasskeyLoginWithPrfResult,
   PasskeyMetadata,
@@ -24,6 +30,7 @@ import {
   StepUpStatus,
   StepUpWithPasskeyPrfResult,
   StepUpVerificationResult,
+  UpdateOrganizationInput,
 } from '@/client/createSeamlessAuthClient';
 import {
   encodePrfSalt,
@@ -35,7 +42,7 @@ import {
 import { AuthMode } from '@/fetchWithAuth';
 import { useAuthClient } from '@/hooks/useAuthClient';
 import { usePasskeySupport } from '@/hooks/usePasskeySupport';
-import { Credential, User } from '@/types';
+import { Credential, Organization, OrganizationMembership, User } from '@/types';
 
 export {
   AuthProvider,
@@ -52,10 +59,18 @@ export type {
   AuthContextType,
   AuthMode,
   Credential,
+  CreateOrganizationInput,
   CurrentUserResult,
   LoginInput,
   LoginMethod,
   LoginStartResult,
+  Organization,
+  OrganizationMemberInput,
+  OrganizationMembership,
+  OrganizationMemberUpdateInput,
+  OrganizationMembersResult,
+  OrganizationResult,
+  OrganizationsResult,
   PasskeyLoginWithPrfResult,
   PasskeyLoginResult,
   PasskeyMetadata,
@@ -70,5 +85,6 @@ export type {
   StepUpStatus,
   StepUpWithPasskeyPrfResult,
   StepUpVerificationResult,
+  UpdateOrganizationInput,
   User,
 };

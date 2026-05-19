@@ -120,6 +120,44 @@ describe('createSeamlessAuthClient', () => {
     );
   });
 
+  it('uses organization endpoints', async () => {
+    const response = { ok: true };
+    mockFetchWithAuth.mockResolvedValue(response);
+
+    const client = createSeamlessAuthClient({
+      apiHost: 'https://api.example.com',
+      mode: 'server',
+    });
+
+    await expect(client.listOrganizations()).resolves.toBe(response);
+    await expect(client.createOrganization({ name: 'Acme' })).resolves.toBe(response);
+    await expect(client.switchOrganization('org 1')).resolves.toBe(response);
+    await expect(
+      client.addOrganizationMember('org 1', { email: 'member@example.com' })
+    ).resolves.toBe(response);
+
+    expect(mockFetchWithAuth).toHaveBeenNthCalledWith(1, '/organizations', {
+      method: 'GET',
+    });
+    expect(mockFetchWithAuth).toHaveBeenNthCalledWith(2, '/organizations', {
+      method: 'POST',
+      body: JSON.stringify({ name: 'Acme' }),
+    });
+    expect(mockFetchWithAuth).toHaveBeenNthCalledWith(
+      3,
+      '/organizations/org%201/switch',
+      { method: 'POST' }
+    );
+    expect(mockFetchWithAuth).toHaveBeenNthCalledWith(
+      4,
+      '/organizations/org%201/members',
+      {
+        method: 'POST',
+        body: JSON.stringify({ email: 'member@example.com' }),
+      }
+    );
+  });
+
   it('returns a successful passkey login result when both WebAuthn steps succeed', async () => {
     mockFetchWithAuth
       .mockResolvedValueOnce({
