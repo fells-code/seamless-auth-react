@@ -6,6 +6,10 @@
 
 import {
   createSeamlessAuthClient,
+  FinishOAuthLoginInput,
+  OAuthProvidersResult,
+  StartOAuthLoginInput,
+  StartOAuthLoginResult,
   StepUpWithPasskeyPrfResult,
   StepUpStatus,
   StepUpVerificationResult,
@@ -40,6 +44,9 @@ export interface AuthContextType {
   organizations: Organization[];
   activeOrganization: Organization | null;
   switchOrganization: (organizationId: string) => Promise<void>;
+  listOAuthProviders: () => Promise<OAuthProvidersResult>;
+  startOAuthLogin: (input: StartOAuthLoginInput) => Promise<StartOAuthLoginResult>;
+  finishOAuthLogin: (input: FinishOAuthLoginInput) => Promise<void>;
   stepUpStatus: StepUpStatus | null;
   updateCredential: (credential: Credential) => Promise<Credential>;
   deleteCredential: (credentialId: string) => Promise<void>;
@@ -235,6 +242,21 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({
     await validateToken();
   };
 
+  const listOAuthProviders = () => authClient.listOAuthProviders();
+
+  const startOAuthLogin = (input: StartOAuthLoginInput) =>
+    authClient.startOAuthLogin(input);
+
+  const finishOAuthLogin = async (input: FinishOAuthLoginInput) => {
+    const response = await authClient.finishOAuthLogin(input);
+
+    if (!response.ok) {
+      throw new Error('Failed to finish OAuth login');
+    }
+
+    await validateToken();
+  };
+
   const refreshStepUpStatus = useCallback(async () => {
     const response = await authClient.getStepUpStatus();
 
@@ -311,6 +333,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({
         organizations,
         activeOrganization,
         switchOrganization,
+        listOAuthProviders,
+        startOAuthLogin,
+        finishOAuthLogin,
         stepUpStatus,
         updateCredential,
         deleteCredential,
