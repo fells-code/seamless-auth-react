@@ -13,7 +13,7 @@ import {
 } from '@simplewebauthn/browser';
 
 import { AuthMode, createFetchWithAuth } from '../fetchWithAuth';
-import { Credential, User } from '../types';
+import { Credential, Organization, OrganizationMembership, User } from '../types';
 import {
   createPrfRequestBody,
   extractPasskeyPrfResult,
@@ -59,6 +59,46 @@ export interface PasskeyMetadata {
 export interface CurrentUserResult {
   user: User;
   credentials: Credential[];
+  organizations?: Organization[];
+  activeOrganization?: Organization | null;
+}
+
+export interface CreateOrganizationInput {
+  name: string;
+  slug?: string;
+  metadata?: Record<string, unknown> | null;
+}
+
+export interface UpdateOrganizationInput {
+  name?: string;
+  slug?: string;
+  metadata?: Record<string, unknown> | null;
+}
+
+export interface OrganizationMemberInput {
+  userId?: string;
+  email?: string;
+  roles?: string[];
+  scopes?: string[];
+}
+
+export interface OrganizationMemberUpdateInput {
+  roles?: string[];
+  scopes?: string[];
+}
+
+export interface OrganizationsResult {
+  organizations: Organization[];
+  activeOrganizationId?: string | null;
+}
+
+export interface OrganizationResult {
+  organization: Organization;
+}
+
+export interface OrganizationMembersResult {
+  members: OrganizationMembership[];
+  total: number;
 }
 
 export interface PasskeyLoginResult {
@@ -140,6 +180,28 @@ export interface SeamlessAuthClient {
     friendlyName: string | null;
   }) => Promise<Response>;
   deleteCredential: (id: string) => Promise<Response>;
+  listOrganizations: () => Promise<Response>;
+  createOrganization: (input: CreateOrganizationInput) => Promise<Response>;
+  getOrganization: (organizationId: string) => Promise<Response>;
+  updateOrganization: (
+    organizationId: string,
+    input: UpdateOrganizationInput
+  ) => Promise<Response>;
+  switchOrganization: (organizationId: string) => Promise<Response>;
+  listOrganizationMembers: (organizationId: string) => Promise<Response>;
+  addOrganizationMember: (
+    organizationId: string,
+    input: OrganizationMemberInput
+  ) => Promise<Response>;
+  updateOrganizationMember: (
+    organizationId: string,
+    userId: string,
+    input: OrganizationMemberUpdateInput
+  ) => Promise<Response>;
+  removeOrganizationMember: (
+    organizationId: string,
+    userId: string
+  ) => Promise<Response>;
 }
 
 const staleStepUpResult = (message: string): StepUpVerificationResult => ({
@@ -575,5 +637,60 @@ export const createSeamlessAuthClient = (
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id }),
       }),
+
+    listOrganizations: () =>
+      fetchWithAuth(`/organizations`, {
+        method: 'GET',
+      }),
+
+    createOrganization: input =>
+      fetchWithAuth(`/organizations`, {
+        method: 'POST',
+        body: JSON.stringify(input),
+      }),
+
+    getOrganization: organizationId =>
+      fetchWithAuth(`/organizations/${encodeURIComponent(organizationId)}`, {
+        method: 'GET',
+      }),
+
+    updateOrganization: (organizationId, input) =>
+      fetchWithAuth(`/organizations/${encodeURIComponent(organizationId)}`, {
+        method: 'PATCH',
+        body: JSON.stringify(input),
+      }),
+
+    switchOrganization: organizationId =>
+      fetchWithAuth(`/organizations/${encodeURIComponent(organizationId)}/switch`, {
+        method: 'POST',
+      }),
+
+    listOrganizationMembers: organizationId =>
+      fetchWithAuth(`/organizations/${encodeURIComponent(organizationId)}/members`, {
+        method: 'GET',
+      }),
+
+    addOrganizationMember: (organizationId, input) =>
+      fetchWithAuth(`/organizations/${encodeURIComponent(organizationId)}/members`, {
+        method: 'POST',
+        body: JSON.stringify(input),
+      }),
+
+    updateOrganizationMember: (organizationId, userId, input) =>
+      fetchWithAuth(
+        `/organizations/${encodeURIComponent(organizationId)}/members/${encodeURIComponent(userId)}`,
+        {
+          method: 'PATCH',
+          body: JSON.stringify(input),
+        }
+      ),
+
+    removeOrganizationMember: (organizationId, userId) =>
+      fetchWithAuth(
+        `/organizations/${encodeURIComponent(organizationId)}/members/${encodeURIComponent(userId)}`,
+        {
+          method: 'DELETE',
+        }
+      ),
   };
 };

@@ -11,7 +11,7 @@ import {
   StepUpVerificationResult,
 } from '@/client/createSeamlessAuthClient';
 import { PasskeyPrfInput } from '@/client/webauthnPrf';
-import { Credential, User } from '@/types';
+import { Credential, Organization, User } from '@/types';
 import React, {
   createContext,
   ReactNode,
@@ -37,6 +37,9 @@ export interface AuthContextType {
   hasSignedInBefore: boolean;
   mode: AuthMode;
   credentials: Credential[];
+  organizations: Organization[];
+  activeOrganization: Organization | null;
+  switchOrganization: (organizationId: string) => Promise<void>;
   stepUpStatus: StepUpStatus | null;
   updateCredential: (credential: Credential) => Promise<Credential>;
   deleteCredential: (credentialId: string) => Promise<void>;
@@ -79,6 +82,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({
 }) => {
   const [user, setUser] = useState<User | null>(null);
   const [credentials, setCredentials] = useState<Credential[]>([]);
+  const [organizations, setOrganizations] = useState<Organization[]>([]);
+  const [activeOrganization, setActiveOrganization] = useState<Organization | null>(null);
   const [stepUpStatus, setStepUpStatus] = useState<StepUpStatus | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
   const [loading, setLoading] = useState<boolean>(true);
@@ -129,6 +134,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({
       setIsAuthenticated(false);
       setUser(null);
       setCredentials([]);
+      setOrganizations([]);
+      setActiveOrganization(null);
       setStepUpStatus(null);
     }
   }, [authClient]);
@@ -141,6 +148,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({
         setUser(null);
         setIsAuthenticated(false);
         setCredentials([]);
+        setOrganizations([]);
+        setActiveOrganization(null);
         setStepUpStatus(null);
         return;
       } else {
@@ -160,9 +169,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({
       const response = await authClient.getCurrentUser();
 
       if (response.ok) {
-        const { user, credentials } = await response.json();
+        const { user, credentials, organizations, activeOrganization } =
+          await response.json();
         setUser(user);
         setCredentials(credentials ?? []);
+        setOrganizations(organizations ?? []);
+        setActiveOrganization(activeOrganization ?? null);
 
         setIsAuthenticated(true);
       } else {
@@ -211,6 +223,16 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({
     }
 
     throw new Error('Failed to delete credential');
+  };
+
+  const switchOrganization = async (organizationId: string) => {
+    const response = await authClient.switchOrganization(organizationId);
+
+    if (!response.ok) {
+      throw new Error('Failed to switch organization');
+    }
+
+    await validateToken();
   };
 
   const refreshStepUpStatus = useCallback(async () => {
@@ -286,6 +308,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({
         hasSignedInBefore: autoDetectPreviousSignin ? hasSignedInBefore : false,
         mode: authMode,
         credentials,
+        organizations,
+        activeOrganization,
+        switchOrganization,
         stepUpStatus,
         updateCredential,
         deleteCredential,
