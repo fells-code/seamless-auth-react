@@ -35,7 +35,7 @@ export interface LoginInput {
   passkeyAvailable: boolean;
 }
 
-export type LoginMethod = 'passkey' | 'magic_link' | 'email_otp' | 'phone_otp';
+export type LoginMethod = 'passkey' | 'magic_link' | 'email_otp' | 'phone_otp' | 'oauth';
 
 export interface LoginStartResult {
   message?: string;
@@ -99,6 +99,34 @@ export interface OrganizationResult {
 export interface OrganizationMembersResult {
   members: OrganizationMembership[];
   total: number;
+}
+
+export interface OAuthProvider {
+  id: string;
+  name: string;
+  scopes: string[];
+}
+
+export interface OAuthProvidersResult {
+  providers: OAuthProvider[];
+}
+
+export interface StartOAuthLoginInput {
+  providerId: string;
+  redirectUri?: string;
+  returnTo?: string;
+}
+
+export interface StartOAuthLoginResult {
+  provider: OAuthProvider;
+  state: string;
+  authorizationUrl: string;
+}
+
+export interface FinishOAuthLoginInput {
+  providerId: string;
+  code: string;
+  state: string;
 }
 
 export interface PasskeyLoginResult {
@@ -166,6 +194,9 @@ export interface SeamlessAuthClient {
   requestMagicLink: () => Promise<Response>;
   checkMagicLink: () => Promise<Response>;
   verifyMagicLink: (token: string) => Promise<Response>;
+  listOAuthProviders: () => Promise<OAuthProvidersResult>;
+  startOAuthLogin: (input: StartOAuthLoginInput) => Promise<StartOAuthLoginResult>;
+  finishOAuthLogin: (input: FinishOAuthLoginInput) => Promise<Response>;
   registerPasskey: (
     input: PasskeyMetadata | RegisterPasskeyOptions
   ) => Promise<PasskeyRegistrationResult>;
@@ -442,6 +473,46 @@ export const createSeamlessAuthClient = (
         headers: {
           'Content-Type': 'application/json',
         },
+      }),
+
+    listOAuthProviders: async () => {
+      const response = await fetchWithAuth(`/oauth/providers`, {
+        method: 'GET',
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to list OAuth providers.');
+      }
+
+      return response.json();
+    },
+
+    startOAuthLogin: async input => {
+      const response = await fetchWithAuth(
+        `/oauth/${encodeURIComponent(input.providerId)}/start`,
+        {
+          method: 'POST',
+          body: JSON.stringify({
+            ...(input.redirectUri ? { redirectUri: input.redirectUri } : {}),
+            ...(input.returnTo ? { returnTo: input.returnTo } : {}),
+          }),
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error('Failed to start OAuth login.');
+      }
+
+      return response.json();
+    },
+
+    finishOAuthLogin: input =>
+      fetchWithAuth(`/oauth/${encodeURIComponent(input.providerId)}/callback`, {
+        method: 'POST',
+        body: JSON.stringify({
+          code: input.code,
+          state: input.state,
+        }),
       }),
 
     registerPasskey: async input => {

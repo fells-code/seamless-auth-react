@@ -158,6 +158,59 @@ describe('createSeamlessAuthClient', () => {
     );
   });
 
+  it('uses OAuth login endpoints', async () => {
+    const providersResult = {
+      providers: [{ id: 'google', name: 'Google', scopes: ['openid', 'email'] }],
+    };
+    const startResult = {
+      provider: providersResult.providers[0],
+      state: 'state',
+      authorizationUrl: 'https://accounts.example.com/auth',
+    };
+    const finishResponse = { ok: true };
+
+    mockFetchWithAuth
+      .mockResolvedValueOnce({ ok: true, json: async () => providersResult })
+      .mockResolvedValueOnce({ ok: true, json: async () => startResult })
+      .mockResolvedValueOnce(finishResponse);
+
+    const client = createSeamlessAuthClient({
+      apiHost: 'https://api.example.com',
+      mode: 'server',
+    });
+
+    await expect(client.listOAuthProviders()).resolves.toEqual(providersResult);
+    await expect(
+      client.startOAuthLogin({
+        providerId: 'google',
+        redirectUri: 'https://app.example.com/oauth/callback',
+        returnTo: 'https://app.example.com/dashboard',
+      })
+    ).resolves.toEqual(startResult);
+    await expect(
+      client.finishOAuthLogin({
+        providerId: 'google',
+        code: 'code',
+        state: 'state',
+      })
+    ).resolves.toBe(finishResponse);
+
+    expect(mockFetchWithAuth).toHaveBeenNthCalledWith(1, '/oauth/providers', {
+      method: 'GET',
+    });
+    expect(mockFetchWithAuth).toHaveBeenNthCalledWith(2, '/oauth/google/start', {
+      method: 'POST',
+      body: JSON.stringify({
+        redirectUri: 'https://app.example.com/oauth/callback',
+        returnTo: 'https://app.example.com/dashboard',
+      }),
+    });
+    expect(mockFetchWithAuth).toHaveBeenNthCalledWith(3, '/oauth/google/callback', {
+      method: 'POST',
+      body: JSON.stringify({ code: 'code', state: 'state' }),
+    });
+  });
+
   it('returns a successful passkey login result when both WebAuthn steps succeed', async () => {
     mockFetchWithAuth
       .mockResolvedValueOnce({

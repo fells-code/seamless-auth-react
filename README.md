@@ -14,7 +14,7 @@
 - `createSeamlessAuthClient()`
 - `useAuthClient()`
 - `usePasskeySupport()`
-- types including `AuthMode`, `AuthContextType`, `Credential`, `User`, `StepUpStatus`, and the headless client input/result types
+- types including `AuthMode`, `AuthContextType`, `Credential`, `User`, `OAuthProvider`, `StepUpStatus`, and the headless client input/result types
 
 ## Installation
 
@@ -104,6 +104,9 @@ You are still responsible for your app’s route protection and redirects.
   hasSignedInBefore: boolean;
   markSignedIn(): void;
   hasRole(role: string): boolean | undefined;
+  listOAuthProviders(): Promise<OAuthProvidersResult>;
+  startOAuthLogin(input: StartOAuthLoginInput): Promise<StartOAuthLoginResult>;
+  finishOAuthLogin(input: FinishOAuthLoginInput): Promise<void>;
   refreshSession(): Promise<void>;
   refreshStepUpStatus(): Promise<StepUpStatus | null>;
   verifyStepUpWithPasskey(): Promise<StepUpVerificationResult>;
@@ -235,6 +238,95 @@ const vaultUnlockMaterial: { credentialId: string; output: Uint8Array } = {
 
 The salt may be an `ArrayBuffer`, `ArrayBufferView`, or base64url string. Authentication proves identity and user presence; the PRF output is local key material for your application to use without sending it to Seamless Auth.
 
+### OAuth Login
+
+OAuth lets your app offer external identity providers such as Google, GitHub, Facebook, or custom
+OIDC-style providers configured on the Seamless Auth API. The React SDK does not receive provider
+access tokens. It only starts the provider redirect and completes the callback so Seamless Auth can
+issue the normal access/refresh session.
+
+Use `listOAuthProviders()` when you want to render enabled providers dynamically:
+
+```tsx
+import { useEffect, useState } from 'react';
+import { useAuth } from '@seamless-auth/react';
+import type { OAuthProvider } from '@seamless-auth/react';
+
+function OAuthButtons() {
+  const { listOAuthProviders, startOAuthLogin } = useAuth();
+  const [providers, setProviders] = useState<OAuthProvider[]>([]);
+
+  useEffect(() => {
+    void listOAuthProviders().then((result) => setProviders(result.providers));
+  }, [listOAuthProviders]);
+
+  async function signIn(providerId: string) {
+    const result = await startOAuthLogin({
+      providerId,
+      redirectUri: `${window.location.origin}/oauth/callback`,
+      returnTo: `${window.location.origin}/dashboard`,
+    });
+
+    window.location.assign(result.authorizationUrl);
+  }
+
+  return (
+    <div>
+      {providers.map((provider) => (
+        <button key={provider.id} onClick={() => void signIn(provider.id)}>
+          Continue with {provider.name}
+        </button>
+      ))}
+    </div>
+  );
+}
+```
+
+Create a callback route that reads the provider query params and asks Seamless Auth to complete the
+login:
+
+```tsx
+import { useEffect } from 'react';
+import { useAuth } from '@seamless-auth/react';
+
+function OAuthCallback() {
+  const { finishOAuthLogin } = useAuth();
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const providerId = 'google';
+    const code = params.get('code');
+    const state = params.get('state');
+
+    if (!code || !state) {
+      return;
+    }
+
+    void finishOAuthLogin({ providerId, code, state }).then(() => {
+      window.location.assign('/dashboard');
+    });
+  }, [finishOAuthLogin]);
+
+  return <p>Finishing sign-in...</p>;
+}
+```
+
+For fully custom UI without `useAuth()`, call the headless client directly:
+
+```ts
+const providers = await authClient.listOAuthProviders();
+const started = await authClient.startOAuthLogin({
+  providerId: providers.providers[0].id,
+  redirectUri: `${window.location.origin}/oauth/callback`,
+});
+
+window.location.assign(started.authorizationUrl);
+```
+
+OAuth must be enabled on the Seamless Auth API with `LOGIN_METHODS` including `oauth` and at least
+one configured `oauth_providers` entry. Provider client secrets live on the server and are referenced
+by environment variable name; they are never passed through this SDK.
+
 ## Headless Client
 
 For custom auth UIs, use the exported client directly:
@@ -264,6 +356,7 @@ The headless client exposes helpers for:
 - registration
 - phone OTP and email OTP
 - magic-link request, verify, and polling
+- OAuth provider listing, start, and callback completion
 - passkey registration
 - step-up status and passkey verification
 - logout and delete-user
@@ -276,6 +369,9 @@ Client methods return raw `Response` objects except for the passkey convenience 
 - `isPasskeyPrfSupported(): Promise<boolean>`
 - `verifyStepUpWithPasskey(): Promise<StepUpVerificationResult>`
 - `verifyStepUpWithPasskeyPrf(input): Promise<StepUpWithPasskeyPrfResult>`
+- `listOAuthProviders(): Promise<OAuthProvidersResult>`
+- `startOAuthLogin(input): Promise<StartOAuthLoginResult>`
+- `finishOAuthLogin(input): Promise<Response>`
 
 ## React Hooks For Custom UI
 
@@ -348,6 +444,9 @@ The built-in flows assume compatible endpoints for:
 - `/magic-link`
 - `/magic-link/check`
 - `/magic-link/verify/:token`
+- `/oauth/providers`
+- `/oauth/:providerId/start`
+- `/oauth/:providerId/callback`
 - `/step-up/status`
 - `/step-up/webauthn/start`
 - `/step-up/webauthn/finish`
