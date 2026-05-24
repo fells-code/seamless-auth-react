@@ -24,6 +24,9 @@ const Consumer = () => {
       <span data-testid="user">{auth.user ? auth.user.email : 'none'}</span>
       <span data-testid="isAuthenticated">{String(auth.isAuthenticated)}</span>
       <span data-testid="hasRoleAdmin">{String(auth.hasRole('admin'))}</span>
+      <span data-testid="hasScopedRoleAdminRead">
+        {String(auth.hasScopedRole('admin:read'))}
+      </span>
       <span data-testid="stepUpFresh">{String(auth.stepUpStatus?.fresh ?? false)}</span>
       <span data-testid="credentials">
         {auth.credentials.map(credential => credential.friendlyName).join(',')}
@@ -74,7 +77,12 @@ describe('AuthProvider', () => {
     mockFetchWithAuthImpl.mockResolvedValueOnce({
       ok: true,
       json: async () => ({
-        user: { id: '1', email: 'test@example.com', phone: '555-1234', roles: ['admin'] },
+        user: {
+          id: '1',
+          email: 'test@example.com',
+          phone: '555-1234',
+          roles: ['admin'],
+        },
         credentials: [],
       }),
     } as any);
@@ -92,6 +100,37 @@ describe('AuthProvider', () => {
     });
     expect(screen.getByTestId('isAuthenticated')).toHaveTextContent('true');
     expect(screen.getByTestId('hasRoleAdmin')).toHaveTextContent('true');
+    expect(screen.getByTestId('hasScopedRoleAdminRead')).toHaveTextContent('true');
+  });
+
+  it('supports scoped role checks without changing exact role checks', async () => {
+    mockFetchWithAuthImpl.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        user: {
+          id: '1',
+          email: 'test@example.com',
+          phone: '555-1234',
+          roles: ['admin:write'],
+        },
+        credentials: [],
+      }),
+    } as any);
+
+    await act(async () => {
+      render(
+        <AuthProvider apiHost={apiHost}>
+          <Consumer />
+        </AuthProvider>
+      );
+    });
+
+    await waitFor(() => {
+      expect(screen.getByTestId('user')).toHaveTextContent('test@example.com');
+    });
+
+    expect(screen.getByTestId('hasRoleAdmin')).toHaveTextContent('false');
+    expect(screen.getByTestId('hasScopedRoleAdminRead')).toHaveTextContent('true');
   });
 
   it('logs out if token validation fails (bad response)', async () => {

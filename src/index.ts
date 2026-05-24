@@ -47,6 +47,7 @@ import {
 import { AuthMode } from '@/fetchWithAuth';
 import { useAuthClient } from '@/hooks/useAuthClient';
 import { usePasskeySupport } from '@/hooks/usePasskeySupport';
+import { hasScopedRole, roleGrantsAccess } from '@/scopedRoles';
 import { Credential, Organization, OrganizationMembership, User } from '@/types';
 
 export {
@@ -55,7 +56,9 @@ export {
   createSeamlessAuthClient,
   encodePrfSalt,
   extractPasskeyPrfResult,
+  hasScopedRole,
   isPasskeyPrfSupported,
+  roleGrantsAccess,
   useAuth,
   useAuthClient,
   usePasskeySupport,
