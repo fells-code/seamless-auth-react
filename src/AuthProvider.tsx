@@ -28,6 +28,7 @@ import React, {
 
 import { AuthMode } from './fetchWithAuth';
 import { usePreviousSignIn } from './hooks/usePreviousSignIn';
+import { hasScopedRole as rolesGrantScopedAccess } from './scopedRoles';
 
 export interface AuthContextType {
   user: User | null;
@@ -36,6 +37,7 @@ export interface AuthContextType {
   refreshSession: () => Promise<void>;
   isAuthenticated: boolean;
   hasRole: (role: string) => boolean | undefined;
+  hasScopedRole: (role: string | string[]) => boolean | undefined;
   apiHost: string;
   markSignedIn: () => void;
   hasSignedInBefore: boolean;
@@ -169,6 +171,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({
   };
 
   const hasRole = (role: string) => user?.roles?.includes(role);
+  const hasScopedRole = (role: string | string[]) =>
+    user ? rolesGrantScopedAccess(user.roles, role) : undefined;
 
   const validateToken = useCallback(async () => {
     setLoading(true);
@@ -325,6 +329,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({
         deleteUser,
         isAuthenticated,
         hasRole,
+        hasScopedRole,
         apiHost,
         markSignedIn,
         hasSignedInBefore: autoDetectPreviousSignin ? hasSignedInBefore : false,

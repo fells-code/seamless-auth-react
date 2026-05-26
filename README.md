@@ -14,6 +14,7 @@
 - `createSeamlessAuthClient()`
 - `useAuthClient()`
 - `usePasskeySupport()`
+- `hasScopedRole()` and `roleGrantsAccess()`
 - types including `AuthMode`, `AuthContextType`, `Credential`, `User`, `OAuthProvider`, `StepUpStatus`, and the headless client input/result types
 
 ## Installation
@@ -104,6 +105,7 @@ You are still responsible for your app’s route protection and redirects.
   hasSignedInBefore: boolean;
   markSignedIn(): void;
   hasRole(role: string): boolean | undefined;
+  hasScopedRole(role: string | string[]): boolean | undefined;
   listOAuthProviders(): Promise<OAuthProvidersResult>;
   startOAuthLogin(input: StartOAuthLoginInput): Promise<StartOAuthLoginResult>;
   finishOAuthLogin(input: FinishOAuthLoginInput): Promise<void>;
@@ -161,6 +163,22 @@ async function completeLogin() {
 ```
 
 To disable this auto-detection entirely, pass `autoDetectPreviousSignin={false}` to `AuthProvider`.
+
+### Scoped roles
+
+`hasRole(role)` remains an exact role check. Use `hasScopedRole(role)` for colon-separated scoped
+roles such as `admin:read` and `admin:write`.
+
+```tsx
+const { hasRole, hasScopedRole } = useAuth();
+
+hasRole('admin'); // exact legacy role check
+hasScopedRole('admin:read'); // true for admin, admin:read, or admin:write
+hasScopedRole('admin:write'); // true for admin or admin:write
+```
+
+The package also exports standalone `hasScopedRole(roles, required)` and `roleGrantsAccess(...)`
+helpers for code that is not inside `AuthProvider`.
 
 ### Step-up authentication
 
