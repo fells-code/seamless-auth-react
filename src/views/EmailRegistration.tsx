@@ -19,8 +19,7 @@ const EmailRegistration: React.FC = () => {
   const { refreshSession } = useAuth();
   const authClient = useAuthClient();
   const { passkeySupported } = usePasskeySupport();
-  const isLoginFlow =
-    (location.state as { flow?: string } | null)?.flow === 'login';
+  const isLoginFlow = (location.state as { flow?: string } | null)?.flow === 'login';
 
   const [loading, setLoading] = useState(false);
   const [emailOtp, setEmailOtp] = useState('');
@@ -79,8 +78,8 @@ const EmailRegistration: React.FC = () => {
         await refreshSession();
         navigate('/');
       }
-    } catch (err) {
-      console.error(err);
+    } catch {
+      console.error('Email OTP verification failed.');
       setError('Verification failed.');
     } finally {
       setLoading(false);

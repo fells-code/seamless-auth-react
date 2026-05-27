@@ -298,5 +298,4 @@ describe('Login', () => {
 
     expect(navigate).toHaveBeenCalledWith('/verifyPhoneOTP');
   });
-
 });

@@ -52,9 +52,7 @@ export function hasScopedRole(
     return false;
   }
 
-  const granted = grantedRoles.filter(
-    (role): role is string => typeof role === 'string'
-  );
+  const granted = grantedRoles.filter((role): role is string => typeof role === 'string');
   const required = Array.isArray(requiredRoles) ? requiredRoles : [requiredRoles];
 
   return required.some(requiredRole =>

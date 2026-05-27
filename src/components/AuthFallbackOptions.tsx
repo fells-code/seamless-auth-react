@@ -67,9 +67,7 @@ const AuthFallbackOptions: React.FC<AuthFallbackOptionsProps> = ({
             onClick={onEmailOtp}
           >
             <span className={styles.actionTitle}>Email Code</span>
-            <span className={styles.actionSubtext}>
-              Receive a one-time code by email
-            </span>
+            <span className={styles.actionSubtext}>Receive a one-time code by email</span>
           </button>
         )}
 

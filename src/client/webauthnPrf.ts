@@ -112,7 +112,7 @@ export async function isPasskeyPrfSupported(): Promise<boolean> {
 }
 
 export function preparePrfRequestOptions(
-  optionsJSON: PublicKeyCredentialRequestOptionsJSON,
+  optionsJSON: PublicKeyCredentialRequestOptionsJSON
 ): PublicKeyCredentialRequestOptionsJSON {
   const options = optionsJSON as PrfOptionsJSON;
   const prfEval = options.extensions?.prf?.eval;
@@ -138,7 +138,7 @@ export function preparePrfRequestOptions(
 }
 
 export function extractPasskeyPrfResult(
-  credential: AuthenticationResponseJSON,
+  credential: AuthenticationResponseJSON
 ): PasskeyPrfResult | null {
   const extensionResults =
     credential.clientExtensionResults as unknown as PrfClientExtensionResults;
@@ -158,7 +158,7 @@ export function extractPasskeyPrfResult(
 }
 
 export function stripPrfResultsFromAssertion(
-  credential: AuthenticationResponseJSON,
+  credential: AuthenticationResponseJSON
 ): AuthenticationResponseJSON {
   const extensionResults =
     credential.clientExtensionResults as unknown as PrfClientExtensionResults;
@@ -182,8 +182,9 @@ export function stripPrfResultsFromAssertion(
 export function getRegistrationPrfCapable(attestationResponse: {
   clientExtensionResults?: unknown;
 }) {
-  const extensionResults =
-    attestationResponse.clientExtensionResults as PrfClientExtensionResults | undefined;
+  const extensionResults = attestationResponse.clientExtensionResults as
+    | PrfClientExtensionResults
+    | undefined;
 
   return extensionResults?.prf?.enabled === true;
 }

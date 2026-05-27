@@ -107,7 +107,7 @@ describe('PhoneRegistration', () => {
     expect(mockAuthClient.requestPhoneOtp).toHaveBeenCalled();
   });
 
-  test('resend stores token if returned', async () => {
+  test('resend does not persist returned tokens', async () => {
     mockAuthClient.requestPhoneOtp.mockResolvedValueOnce({
       ok: true,
       json: async () => ({ token: 'abc123' }),
@@ -119,7 +119,7 @@ describe('PhoneRegistration', () => {
       fireEvent.click(screen.getByRole('button', { name: /resend code to phone/i }));
     });
 
-    expect(localStorage.getItem('token')).toBe('abc123');
+    expect(localStorage.getItem('token')).toBeNull();
   });
 
   test('timer counts down', () => {

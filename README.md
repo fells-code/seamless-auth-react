@@ -213,6 +213,9 @@ WebAuthn PRF lets a compatible passkey and browser derive local key material dur
 
 Browser and authenticator support is not universal. Call `isPasskeyPrfSupported()` before offering PRF-required flows, and keep a fallback for passkeys that authenticate successfully without returning PRF output.
 
+Treat PRF salts as sensitive in client logs. PRF output is browser-local key material; keep it in
+memory only as long as your application needs it and do not send it to Seamless Auth or your own API.
+
 ```ts
 import { createSeamlessAuthClient } from '@seamless-auth/react';
 
@@ -275,7 +278,7 @@ function OAuthButtons() {
   const [providers, setProviders] = useState<OAuthProvider[]>([]);
 
   useEffect(() => {
-    void listOAuthProviders().then((result) => setProviders(result.providers));
+    void listOAuthProviders().then(result => setProviders(result.providers));
   }, [listOAuthProviders]);
 
   async function signIn(providerId: string) {
@@ -290,7 +293,7 @@ function OAuthButtons() {
 
   return (
     <div>
-      {providers.map((provider) => (
+      {providers.map(provider => (
         <button key={provider.id} onClick={() => void signIn(provider.id)}>
           Continue with {provider.name}
         </button>
@@ -344,6 +347,9 @@ window.location.assign(started.authorizationUrl);
 OAuth must be enabled on the Seamless Auth API with `LOGIN_METHODS` including `oauth` and at least
 one configured `oauth_providers` entry. Provider client secrets live on the server and are referenced
 by environment variable name; they are never passed through this SDK.
+
+The built-in views avoid logging OTPs, magic-link tokens, bootstrap tokens, PRF salts, or raw
+exception payloads that may contain sensitive request URLs.
 
 ## Headless Client
 

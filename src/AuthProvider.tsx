@@ -130,7 +130,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({
       return true;
     }
 
-    console.error('Passkey login failed:', result.message);
+    console.error('Passkey login failed.');
     return false;
   };
 
@@ -164,8 +164,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({
       } else {
         throw new Error('Could not delete user.');
       }
-    } catch (error) {
-      console.error('Something went wrong deleting user:', error);
+    } catch {
+      console.error('Something went wrong deleting user.');
       throw new Error('Could not delete user.');
     }
   };
