@@ -4,25 +4,21 @@
  * See LICENSE file in the project root for full license information
  */
 
-export type AuthMode = 'web' | 'server';
-
 interface FetchWithAuthOptions {
-  authMode: AuthMode;
   authHost?: string;
 }
 
 export const createFetchWithAuth = (opts: FetchWithAuthOptions) => {
-  const { authMode, authHost } = opts;
+  const { authHost } = opts;
 
   return async function fetchWithAuth(
     input: string,
     init?: RequestInit
   ): Promise<Response> {
     const host = authHost?.replace(/\/+$/, '') ?? '';
-    const base = authMode === 'server' ? '/auth' : '';
     const path = input.startsWith('/') ? input : `/${input}`;
 
-    const url = `${host}${base}${path}`;
+    const url = `${host}/auth${path}`;
 
     const requestInit: RequestInit = {
       ...init,

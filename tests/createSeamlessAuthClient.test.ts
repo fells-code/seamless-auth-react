@@ -50,7 +50,6 @@ describe('createSeamlessAuthClient', () => {
 
     const client = createSeamlessAuthClient({
       apiHost: 'https://api.example.com',
-      mode: 'server',
     });
 
     await expect(
@@ -72,7 +71,6 @@ describe('createSeamlessAuthClient', () => {
 
     const client = createSeamlessAuthClient({
       apiHost: 'https://api.example.com',
-      mode: 'server',
     });
 
     await expect(client.requestLoginPhoneOtp()).resolves.toBe(response);
@@ -102,7 +100,6 @@ describe('createSeamlessAuthClient', () => {
 
     const client = createSeamlessAuthClient({
       apiHost: 'https://api.example.com',
-      mode: 'server',
     });
 
     await expect(client.requestLoginEmailOtp()).resolves.toBe(response);
@@ -130,7 +127,6 @@ describe('createSeamlessAuthClient', () => {
 
     const client = createSeamlessAuthClient({
       apiHost: 'https://api.example.com',
-      mode: 'server',
     });
 
     await expect(client.listOrganizations()).resolves.toBe(response);
@@ -180,7 +176,6 @@ describe('createSeamlessAuthClient', () => {
 
     const client = createSeamlessAuthClient({
       apiHost: 'https://api.example.com',
-      mode: 'server',
     });
 
     await expect(client.listOAuthProviders()).resolves.toEqual(providersResult);
@@ -229,7 +224,6 @@ describe('createSeamlessAuthClient', () => {
 
     const client = createSeamlessAuthClient({
       apiHost: 'https://api.example.com',
-      mode: 'web',
     });
 
     await expect(client.loginWithPasskey()).resolves.toEqual({
@@ -278,7 +272,6 @@ describe('createSeamlessAuthClient', () => {
 
     const client = createSeamlessAuthClient({
       apiHost: 'https://api.example.com',
-      mode: 'web',
     });
 
     const result = await client.loginWithPasskey({
@@ -309,7 +302,6 @@ describe('createSeamlessAuthClient', () => {
 
     const client = createSeamlessAuthClient({
       apiHost: 'https://api.example.com',
-      mode: 'web',
     });
 
     await expect(
@@ -343,7 +335,6 @@ describe('createSeamlessAuthClient', () => {
 
     const client = createSeamlessAuthClient({
       apiHost: 'https://api.example.com',
-      mode: 'web',
     });
 
     await expect(
@@ -395,7 +386,6 @@ describe('createSeamlessAuthClient', () => {
 
     const client = createSeamlessAuthClient({
       apiHost: 'https://api.example.com',
-      mode: 'server',
     });
 
     await expect(client.getStepUpStatus()).resolves.toBe(response);
@@ -426,7 +416,6 @@ describe('createSeamlessAuthClient', () => {
 
     const client = createSeamlessAuthClient({
       apiHost: 'https://api.example.com',
-      mode: 'web',
     });
 
     await expect(client.verifyStepUpWithPasskey()).resolves.toEqual({
@@ -453,7 +442,6 @@ describe('createSeamlessAuthClient', () => {
 
     const client = createSeamlessAuthClient({
       apiHost: 'https://api.example.com',
-      mode: 'web',
     });
 
     await expect(client.verifyStepUpWithPasskey()).resolves.toEqual({
@@ -515,7 +503,6 @@ describe('createSeamlessAuthClient', () => {
 
     const client = createSeamlessAuthClient({
       apiHost: 'https://api.example.com',
-      mode: 'web',
     });
 
     const result = await client.verifyStepUpWithPasskeyPrf({ salt });

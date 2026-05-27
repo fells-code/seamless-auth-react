@@ -26,7 +26,6 @@ import React, {
   useState,
 } from 'react';
 
-import { AuthMode } from './fetchWithAuth';
 import { usePreviousSignIn } from './hooks/usePreviousSignIn';
 import { hasScopedRole as rolesGrantScopedAccess } from './scopedRoles';
 
@@ -41,7 +40,6 @@ export interface AuthContextType {
   apiHost: string;
   markSignedIn: () => void;
   hasSignedInBefore: boolean;
-  mode: AuthMode;
   credentials: Credential[];
   organizations: Organization[];
   activeOrganization: Organization | null;
@@ -80,14 +78,12 @@ interface AuthProviderProps {
   children: ReactNode;
   apiHost: string;
   autoDetectPreviousSignin?: boolean;
-  mode?: AuthMode;
 }
 
 export const AuthProvider: React.FC<AuthProviderProps> = ({
   children,
   apiHost,
   autoDetectPreviousSignin = true,
-  mode = 'web',
 }) => {
   const [user, setUser] = useState<User | null>(null);
   const [credentials, setCredentials] = useState<Credential[]>([]);
@@ -97,15 +93,13 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
   const [loading, setLoading] = useState<boolean>(true);
   const { hasSignedInBefore, markSignedIn } = usePreviousSignIn();
-  const authMode = mode;
 
   const authClient = useMemo(
     () =>
       createSeamlessAuthClient({
-        mode: authMode,
         apiHost,
       }),
-    [authMode, apiHost]
+    [apiHost]
   );
 
   const login = async (
@@ -333,7 +327,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({
         apiHost,
         markSignedIn,
         hasSignedInBefore: autoDetectPreviousSignin ? hasSignedInBefore : false,
-        mode: authMode,
         credentials,
         organizations,
         activeOrganization,
