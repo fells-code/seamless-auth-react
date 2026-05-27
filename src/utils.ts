@@ -77,8 +77,8 @@ export async function isPasskeySupported(): Promise<boolean> {
   ) {
     try {
       return await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable();
-    } catch (error) {
-      console.error('Error checking passkey support:', error);
+    } catch {
+      console.error('Error checking passkey support.');
       return false;
     }
   }

@@ -45,8 +45,7 @@ const Login: React.FC = () => {
   const [emailError, setEmailError] = useState<string>('');
   const [identifierError, setIdentifierError] = useState<string>('');
   const [showFallbackOptions, setShowFallbackOptions] = useState(false);
-  const [loginMethods, setLoginMethods] =
-    useState<LoginMethod[]>(DEFAULT_LOGIN_METHODS);
+  const [loginMethods, setLoginMethods] = useState<LoginMethod[]>(DEFAULT_LOGIN_METHODS);
   const [bootstrapToken, setBootstrapToken] = useState<string | null>(null);
 
   useEffect(() => {
@@ -59,7 +58,6 @@ const Login: React.FC = () => {
 
     if (token && token.length > 10) {
       setBootstrapToken(token);
-      console.log('Bootstrap token detected in URL');
     }
   }, [hasSignedInBefore]);
 
@@ -105,8 +103,8 @@ const Login: React.FC = () => {
       setFormErrors(
         'An unexpected error occurred. Try again. If the problem persists, try resetting your password.'
       );
-    } catch (err) {
-      console.error('Unexpected login error', err);
+    } catch {
+      console.error('Unexpected login error.');
       setFormErrors(
         'An unexpected error occurred. Try again. If the problem persists, try resetting your password.'
       );
@@ -123,8 +121,8 @@ const Login: React.FC = () => {
       }
 
       navigate('/magiclinks-sent', { state: { identifier } });
-    } catch (err) {
-      console.error(err);
+    } catch {
+      console.error('Failed to send magic link.');
       setFormErrors('Failed to send magic link.');
     }
   };
@@ -139,8 +137,8 @@ const Login: React.FC = () => {
       }
 
       navigate('/verifyPhoneOTP', { state: { flow: 'login' } });
-    } catch (err) {
-      console.error(err);
+    } catch {
+      console.error('Failed to send phone OTP.');
       setFormErrors('Failed to send OTP.');
     }
   };
@@ -155,8 +153,8 @@ const Login: React.FC = () => {
       }
 
       navigate('/verifyEmailOTP', { state: { flow: 'login' } });
-    } catch (err) {
-      console.error(err);
+    } catch {
+      console.error('Failed to send email OTP.');
       setFormErrors('Failed to send email code.');
     }
   };
@@ -175,11 +173,7 @@ const Login: React.FC = () => {
           : DEFAULT_LOGIN_METHODS;
         setLoginMethods(availableMethods);
 
-        if (
-          loginRes?.ok &&
-          passkeySupported &&
-          availableMethods.includes('passkey')
-        ) {
+        if (loginRes?.ok && passkeySupported && availableMethods.includes('passkey')) {
           const passkeyResult = await handlePasskeyLogin();
           if (passkeyResult) {
             navigate('/');
@@ -205,8 +199,8 @@ const Login: React.FC = () => {
       if (mode === 'register') {
         await register();
       }
-    } catch (err) {
-      console.error(err);
+    } catch {
+      console.error('Failed to continue sign-in.');
       setFormErrors('Failed to continue sign-in. Please try again.');
     }
   };

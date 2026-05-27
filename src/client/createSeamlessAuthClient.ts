@@ -229,10 +229,7 @@ export interface SeamlessAuthClient {
     userId: string,
     input: OrganizationMemberUpdateInput
   ) => Promise<Response>;
-  removeOrganizationMember: (
-    organizationId: string,
-    userId: string
-  ) => Promise<Response>;
+  removeOrganizationMember: (organizationId: string, userId: string) => Promise<Response>;
 }
 
 const staleStepUpResult = (message: string): StepUpVerificationResult => ({
@@ -544,7 +541,7 @@ export const createSeamlessAuthClient = (
           };
         }
 
-        console.error('Passkey registration error:', error);
+        console.error('Passkey registration error.');
         return {
           success: false,
           message: 'Passkey registration failed.',

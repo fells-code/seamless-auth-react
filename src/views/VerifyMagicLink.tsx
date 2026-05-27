@@ -30,7 +30,7 @@ const VerifyMagicLink: React.FC = () => {
         if (mounted) {
           setError('Missing token for verification.');
         }
-        console.error('No token found', token);
+        console.error('No magic-link token found.');
         return;
       }
 
@@ -44,8 +44,8 @@ const VerifyMagicLink: React.FC = () => {
           }
           return;
         }
-      } catch (error) {
-        console.error(error);
+      } catch {
+        console.error('Failed to verify magic-link token.');
       }
 
       if (!mounted) {

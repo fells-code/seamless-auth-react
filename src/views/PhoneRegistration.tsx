@@ -16,8 +16,7 @@ const PhoneRegistration: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { refreshSession } = useAuth();
-  const isLoginFlow =
-    (location.state as { flow?: string } | null)?.flow === 'login';
+  const isLoginFlow = (location.state as { flow?: string } | null)?.flow === 'login';
 
   const [phoneOtp, setPhoneOtp] = useState('');
   const [phoneVerified, setPhoneVerified] = useState<boolean | null>(null);
@@ -67,8 +66,8 @@ const PhoneRegistration: React.FC = () => {
           setPhoneVerified(true);
         }
       }
-    } catch (error: unknown) {
-      console.error(error);
+    } catch {
+      console.error('Phone OTP verification failed.');
       setError('Verification failed.');
     }
 
@@ -81,18 +80,12 @@ const PhoneRegistration: React.FC = () => {
       ? await authClient.requestLoginPhoneOtp()
       : await authClient.requestPhoneOtp();
 
-    const data = await response.json();
-
     if (!response.ok) {
       setError(
         'Failed to send SMS code. If this persists, refresh the page and try again.'
       );
       return;
     } else {
-      if (data.token) {
-        // Set a new token
-        localStorage.setItem('token', data.token);
-      }
       setResendMsg('Verification SMS has been resent.');
     }
   };

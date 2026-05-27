@@ -78,9 +78,13 @@ describe('createSeamlessAuthClient', () => {
     await expect(client.requestLoginPhoneOtp()).resolves.toBe(response);
     await expect(client.verifyLoginPhoneOtp('123456')).resolves.toBe(response);
 
-    expect(mockFetchWithAuth).toHaveBeenNthCalledWith(1, '/otp/generate-login-phone-otp', {
-      method: 'GET',
-    });
+    expect(mockFetchWithAuth).toHaveBeenNthCalledWith(
+      1,
+      '/otp/generate-login-phone-otp',
+      {
+        method: 'GET',
+      }
+    );
     expect(mockFetchWithAuth).toHaveBeenNthCalledWith(
       2,
       '/otp/verify-login-phone-otp',

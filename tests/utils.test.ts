@@ -103,8 +103,7 @@ describe('isPasskeySupported', () => {
     const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
     await expect(isPasskeySupported()).resolves.toBe(false);
     expect(consoleSpy).toHaveBeenCalledWith(
-      expect.stringContaining('Error checking passkey support:'),
-      expect.any(Error)
+      expect.stringContaining('Error checking passkey support.')
     );
     consoleSpy.mockRestore();
   });

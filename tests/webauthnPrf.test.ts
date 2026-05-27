@@ -38,9 +38,9 @@ describe('webauthnPrf helpers', () => {
     });
 
     expect((options.extensions as any).prf.eval.first).toBeInstanceOf(ArrayBuffer);
-    expect(Array.from(new Uint8Array((options.extensions as any).prf.eval.first))).toEqual([
-      1, 2, 3, 4,
-    ]);
+    expect(
+      Array.from(new Uint8Array((options.extensions as any).prf.eval.first))
+    ).toEqual([1, 2, 3, 4]);
   });
 
   it('extracts PRF output and strips it from assertion payloads', () => {
@@ -67,7 +67,9 @@ describe('webauthnPrf helpers', () => {
       output: Uint8Array.from([5, 6, 7, 8]),
       outputBase64url: 'BQYHCA',
     });
-    expect(JSON.stringify(stripPrfResultsFromAssertion(assertion))).not.toContain('BQYHCA');
+    expect(JSON.stringify(stripPrfResultsFromAssertion(assertion))).not.toContain(
+      'BQYHCA'
+    );
     expect(
       (stripPrfResultsFromAssertion(assertion).clientExtensionResults as any).prf.results
     ).toBeUndefined();

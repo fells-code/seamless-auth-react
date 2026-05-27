@@ -161,6 +161,8 @@ describe('RegisterPasskey', () => {
 
     render(<RegisterPasskey />);
 
-    expect(screen.getByText(/passkeys are not supported on this device/i)).toBeInTheDocument();
+    expect(
+      screen.getByText(/passkeys are not supported on this device/i)
+    ).toBeInTheDocument();
   });
 });

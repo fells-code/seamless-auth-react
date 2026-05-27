@@ -36,7 +36,7 @@ export const createFetchWithAuth = (opts: FetchWithAuthOptions) => {
     const response = await fetch(url, requestInit);
 
     if (!response.ok) {
-      console.warn('Auth fetch failed:', response.status, url);
+      console.warn('Auth fetch failed:', response.status);
     }
 
     return response;
