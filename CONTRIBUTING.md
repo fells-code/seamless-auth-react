@@ -50,9 +50,8 @@ cp .env.example .env
 ```
 
 > IMPORTANT
-> Change the AUTH_MODE env to "web" NOT "server".
-> Change the APP_ORIGIN env to `http://localhost:5173` to match vite
-> This lets you authenticate between a web app and the auth server with no need for an API.
+> Change the APP_ORIGIN env to `http://localhost:5173` to match vite.
+> The React SDK talks to a server adapter mounted at `/auth`, not directly to API auth cookies.
 
 ### If docker and docker compose are avaliable
 
@@ -160,7 +159,7 @@ function ApplicationRoutes() {
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <BrowserRouter>
-      <AuthProvider apiHost="http://localhost:5312" mode="web">
+      <AuthProvider apiHost="http://localhost:5312">
         <ApplicationRoutes />
       </AuthProvider>
     </BrowserRouter>

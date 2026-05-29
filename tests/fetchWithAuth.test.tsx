@@ -14,9 +14,8 @@ describe('createFetchWithAuth', () => {
     jest.clearAllMocks();
   });
 
-  it('builds correct URL in web mode', async () => {
+  it('builds correct server-adapter URL', async () => {
     const fetchWithAuth = createFetchWithAuth({
-      authMode: 'web',
       authHost: 'https://auth.example.com',
     });
 
@@ -27,13 +26,12 @@ describe('createFetchWithAuth', () => {
 
     expect(mockFetch).toHaveBeenCalledTimes(1);
     const [url, options] = mockFetch.mock.calls[0];
-    expect(url).toBe('https://auth.example.com/login/start');
+    expect(url).toBe('https://auth.example.com/auth/login/start');
     expect(options.credentials).toBe('include');
   });
 
-  it('builds correct URL in server mode when auth host has a trailing slash', async () => {
+  it('builds correct URL when auth host has a trailing slash', async () => {
     const fetchWithAuth = createFetchWithAuth({
-      authMode: 'server',
       authHost: 'https://api.example.com/',
     });
 
@@ -45,9 +43,8 @@ describe('createFetchWithAuth', () => {
     expect(url).toBe('https://api.example.com/auth/users/me');
   });
 
-  it('builds correct URL in server mode when auth host has no trailing slash', async () => {
+  it('builds correct URL when auth host has no trailing slash', async () => {
     const fetchWithAuth = createFetchWithAuth({
-      authMode: 'server',
       authHost: 'https://api.example.com',
     });
 
@@ -61,7 +58,6 @@ describe('createFetchWithAuth', () => {
 
   it('returns the raw response when fetch response is not ok', async () => {
     const fetchWithAuth = createFetchWithAuth({
-      authMode: 'web',
       authHost: 'https://auth.example.com',
     });
 

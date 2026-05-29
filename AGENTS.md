@@ -41,15 +41,12 @@ Common usage patterns:
 
 ## Runtime Model
 
-This package assumes cookie-based auth flows and a Seamless Auth-compatible backend.
+This package assumes a Seamless Auth-compatible backend mounted under `/auth`.
 
 `createFetchWithAuth()` is the shared request helper:
 
 - it always sends `credentials: "include"`
-- in `web` mode it targets `${authHost}/...`
-- in `server` mode it targets `${authHost}/auth/...`
-
-The common deployment shape is `server` mode against a backend that mounts the Seamless Auth routes under `/auth`.
+- it targets `${authHost}/auth/...`
 
 Important implication:
 
@@ -70,7 +67,6 @@ Exports from `src/index.ts` currently include:
 Exported types currently include:
 
 - `AuthContextType`
-- `AuthMode`
 - `Credential`
 - `CurrentUserResult`
 - `LoginInput`
@@ -111,7 +107,7 @@ The current package is organized around a shared SDK core with optional UI layer
 - `src/components/*`
   - reusable UI pieces for those bundled screens
 - `src/fetchWithAuth.ts`
-  - mode-aware request construction
+  - `/auth` request construction
 - `src/types.ts`
   - shared user and credential types
 - `tests/*`

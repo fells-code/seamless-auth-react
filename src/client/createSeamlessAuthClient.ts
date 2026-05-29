@@ -12,7 +12,7 @@ import {
   WebAuthnError,
 } from '@simplewebauthn/browser';
 
-import { AuthMode, createFetchWithAuth } from '../fetchWithAuth';
+import { createFetchWithAuth } from '../fetchWithAuth';
 import { Credential, Organization, OrganizationMembership, User } from '../types';
 import {
   createPrfRequestBody,
@@ -27,7 +27,6 @@ import {
 
 export interface SeamlessAuthClientOptions {
   apiHost: string;
-  mode: AuthMode;
 }
 
 export interface LoginInput {
@@ -287,7 +286,6 @@ export const createSeamlessAuthClient = (
   opts: SeamlessAuthClientOptions
 ): SeamlessAuthClient => {
   const fetchWithAuth = createFetchWithAuth({
-    authMode: opts.mode,
     authHost: opts.apiHost,
   });
 

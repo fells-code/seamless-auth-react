@@ -44,7 +44,6 @@ import {
   PasskeyPrfInput,
   PasskeyPrfResult,
 } from '@/client/webauthnPrf';
-import { AuthMode } from '@/fetchWithAuth';
 import { useAuthClient } from '@/hooks/useAuthClient';
 import { usePasskeySupport } from '@/hooks/usePasskeySupport';
 import { hasScopedRole, roleGrantsAccess } from '@/scopedRoles';
@@ -65,7 +64,6 @@ export {
 };
 export type {
   AuthContextType,
-  AuthMode,
   Credential,
   CreateOrganizationInput,
   CurrentUserResult,

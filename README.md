@@ -15,7 +15,7 @@
 - `useAuthClient()`
 - `usePasskeySupport()`
 - `hasScopedRole()` and `roleGrantsAccess()`
-- types including `AuthMode`, `AuthContextType`, `Credential`, `User`, `OAuthProvider`, `StepUpStatus`, and the headless client input/result types
+- types including `AuthContextType`, `Credential`, `User`, `OAuthProvider`, `StepUpStatus`, and the headless client input/result types
 
 ## Installation
 
@@ -42,7 +42,7 @@ import { AuthProvider } from '@seamless-auth/react';
 import { BrowserRouter } from 'react-router-dom';
 
 <BrowserRouter>
-  <AuthProvider apiHost="https://your.api" mode="server">
+  <AuthProvider apiHost="https://your.api">
     <AppRoutes />
   </AuthProvider>
 </BrowserRouter>;
@@ -101,7 +101,6 @@ You are still responsible for your app’s route protection and redirects.
   isAuthenticated: boolean;
   loading: boolean;
   apiHost: string;
-  mode: AuthMode;
   hasSignedInBefore: boolean;
   markSignedIn(): void;
   hasRole(role: string): boolean | undefined;
@@ -221,7 +220,6 @@ import { createSeamlessAuthClient } from '@seamless-auth/react';
 
 const authClient = createSeamlessAuthClient({
   apiHost: 'https://your.api',
-  mode: 'server',
 });
 
 const prfSupported = await authClient.isPasskeyPrfSupported();
@@ -360,7 +358,6 @@ import { createSeamlessAuthClient } from '@seamless-auth/react';
 
 const authClient = createSeamlessAuthClient({
   apiHost: 'https://your.api',
-  mode: 'server',
 });
 
 const response = await authClient.login({
@@ -444,10 +441,9 @@ These are optional UI wrappers over the same SDK primitives the package now expo
 
 ## Backend Expectations
 
-This package assumes a Seamless Auth-compatible backend with cookie-based auth flows.
+This package assumes a Seamless Auth-compatible backend with the auth adapter mounted at `/auth`.
 
-- In `web` mode, requests target `${apiHost}/...`
-- In `server` mode, requests target `${apiHost}/auth/...`
+- Requests target `${apiHost}/auth/...`
 - `apiHost` may be provided with or without a trailing slash
 - Requests are sent with `credentials: 'include'`
 - `AuthProvider` validates the current session by calling `/users/me` on load
