@@ -28,8 +28,9 @@ npm install @seamless-auth/react
 ## Releases
 
 Published versions are listed in [CHANGELOG.md](./CHANGELOG.md) and GitHub Releases. Releases are
-created automatically from release-eligible Conventional Commits merged to `main`, then published to
-npm with provenance from GitHub Actions.
+managed with Changesets: adopter-facing changes include a changeset, the `Release` workflow opens a
+version PR for review, and merging that PR publishes the npm package with provenance from GitHub
+Actions. See [RELEASES.md](./RELEASES.md) for maintainer release details.
 
 ## Choose Your Integration Style
 

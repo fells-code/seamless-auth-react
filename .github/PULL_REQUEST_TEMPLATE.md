@@ -12,13 +12,13 @@ Describe the change.
 
 ## Release Impact
 
-- [ ] Release-eligible commit message used (`feat:`, `fix:`, `perf:`, `revert:`, release-scoped `docs:`, or documented breaking change)
+- [ ] Changeset added for adopter-facing package change
 - [ ] No package release expected
 
 ## Checklist
 
 - [ ] Tests pass
 - [ ] No breaking changes
-- [ ] Changelog impact is clear from the commit subject/body
+- [ ] Changeset summary is clear for SDK adopters
 - [ ] Docs updated (if needed)
 - [ ] Security implications considered

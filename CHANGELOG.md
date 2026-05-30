@@ -1,5 +1,7 @@
-# Changelog
+# @seamless-auth/react
 
-All notable changes to `@seamless-auth/react` are generated from Conventional Commits by semantic-release.
+## 0.1.1
 
-The first automated release will replace this note with the generated changelog entry for the next version.
+### Patch Changes
+
+- Last published version before Changesets-managed release PRs.
