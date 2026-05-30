@@ -32,6 +32,7 @@ import { hasScopedRole as rolesGrantScopedAccess } from './scopedRoles';
 export interface AuthContextType {
   user: User | null;
   logout: () => Promise<void>;
+  logoutAllSessions: () => Promise<void>;
   deleteUser: () => Promise<void>;
   refreshSession: () => Promise<void>;
   isAuthenticated: boolean;
@@ -128,20 +129,34 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({
     return false;
   };
 
+  const resetAuthState = useCallback(() => {
+    setIsAuthenticated(false);
+    setUser(null);
+    setCredentials([]);
+    setOrganizations([]);
+    setActiveOrganization(null);
+    setStepUpStatus(null);
+  }, []);
+
   const logout = useCallback(async () => {
     try {
       await authClient.logout();
     } catch {
       console.error('Error during logout');
     } finally {
-      setIsAuthenticated(false);
-      setUser(null);
-      setCredentials([]);
-      setOrganizations([]);
-      setActiveOrganization(null);
-      setStepUpStatus(null);
+      resetAuthState();
     }
-  }, [authClient]);
+  }, [authClient, resetAuthState]);
+
+  const logoutAllSessions = useCallback(async () => {
+    try {
+      await authClient.logoutAllSessions();
+    } catch {
+      console.error('Error during logout');
+    } finally {
+      resetAuthState();
+    }
+  }, [authClient, resetAuthState]);
 
   const deleteUser = async () => {
     try {
@@ -318,6 +333,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({
       value={{
         user,
         logout,
+        logoutAllSessions,
         refreshSession: validateToken,
         loading,
         deleteUser,
