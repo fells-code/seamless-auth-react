@@ -1,6 +1,8 @@
 # @seamless-auth/react
 
 [![npm version](https://img.shields.io/npm/v/@seamless-auth/react.svg?label=%40seamless-auth%2Freact)](https://www.npmjs.com/package/@seamless-auth/react)
+[![CI](https://github.com/fells-code/seamless-auth-react/actions/workflows/ci.yml/badge.svg)](https://github.com/fells-code/seamless-auth-react/actions/workflows/ci.yml)
+[![Release](https://github.com/fells-code/seamless-auth-react/actions/workflows/release.yml/badge.svg)](https://github.com/fells-code/seamless-auth-react/actions/workflows/release.yml)
 [![coverage](https://img.shields.io/codecov/c/github/fells-code/seamless-auth-react)](https://app.codecov.io/gh/fells-code/seamless-auth-react)
 [![license](https://img.shields.io/github/license/fells-code/seamless-auth-react)](./LICENSE)
 
@@ -22,6 +24,12 @@
 ```bash
 npm install @seamless-auth/react
 ```
+
+## Releases
+
+Published versions are listed in [CHANGELOG.md](./CHANGELOG.md) and GitHub Releases. Releases are
+created automatically from release-eligible Conventional Commits merged to `main`, then published to
+npm with provenance from GitHub Actions.
 
 ## Choose Your Integration Style
 
@@ -113,6 +121,7 @@ You are still responsible for your app’s route protection and redirects.
   verifyStepUpWithPasskey(): Promise<StepUpVerificationResult>;
   verifyStepUpWithPasskeyPrf(input: PasskeyPrfInput): Promise<StepUpWithPasskeyPrfResult>;
   logout(): Promise<void>;
+  logoutAllSessions(): Promise<void>;
   deleteUser(): Promise<void>;
   login(identifier: string, passkeyAvailable: boolean): Promise<Response>;
   handlePasskeyLogin(): Promise<boolean>;
@@ -455,7 +464,8 @@ This package assumes a Seamless Auth-compatible backend with the auth adapter mo
 The built-in flows assume compatible endpoints for:
 
 - `/login`
-- `/logout`
+- `DELETE /logout` for the current session
+- `DELETE /logout/all` for every session owned by the current user
 - `/registration/register`
 - `/webAuthn/login/start`
 - `/webAuthn/login/finish`

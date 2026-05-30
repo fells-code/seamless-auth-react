@@ -175,11 +175,18 @@ export interface StepUpWithPasskeyPrfResult extends StepUpVerificationResult {
   prf: PasskeyPrfResult | null;
 }
 
+export type LogoutScope = 'current_session' | 'all_sessions';
+
+export interface LogoutOptions {
+  scope?: LogoutScope;
+}
+
 export interface SeamlessAuthClient {
   getCurrentUser: () => Promise<Response>;
   login: (input: LoginInput) => Promise<Response>;
   loginWithPasskey: (options?: PasskeyLoginOptions) => Promise<PasskeyLoginWithPrfResult>;
-  logout: () => Promise<Response>;
+  logout: (options?: LogoutOptions) => Promise<Response>;
+  logoutAllSessions: () => Promise<Response>;
   deleteUser: () => Promise<Response>;
   register: (input: RegisterInput) => Promise<Response>;
   requestPhoneOtp: () => Promise<Response>;
@@ -363,9 +370,14 @@ export const createSeamlessAuthClient = (
       }
     },
 
-    logout: () =>
-      fetchWithAuth(`/logout`, {
-        method: 'GET',
+    logout: (options = {}) =>
+      fetchWithAuth(options.scope === 'all_sessions' ? `/logout/all` : `/logout`, {
+        method: 'DELETE',
+      }),
+
+    logoutAllSessions: () =>
+      fetchWithAuth(`/logout/all`, {
+        method: 'DELETE',
       }),
 
     deleteUser: () =>

@@ -65,6 +65,29 @@ describe('createSeamlessAuthClient', () => {
     });
   });
 
+  it('uses explicit logout endpoints for current and all sessions', async () => {
+    const response = { ok: true };
+    mockFetchWithAuth.mockResolvedValue(response);
+
+    const client = createSeamlessAuthClient({
+      apiHost: 'https://api.example.com',
+    });
+
+    await expect(client.logout()).resolves.toBe(response);
+    await expect(client.logout({ scope: 'all_sessions' })).resolves.toBe(response);
+    await expect(client.logoutAllSessions()).resolves.toBe(response);
+
+    expect(mockFetchWithAuth).toHaveBeenNthCalledWith(1, '/logout', {
+      method: 'DELETE',
+    });
+    expect(mockFetchWithAuth).toHaveBeenNthCalledWith(2, '/logout/all', {
+      method: 'DELETE',
+    });
+    expect(mockFetchWithAuth).toHaveBeenNthCalledWith(3, '/logout/all', {
+      method: 'DELETE',
+    });
+  });
+
   it('uses login-specific phone OTP endpoints', async () => {
     const response = { ok: true };
     mockFetchWithAuth.mockResolvedValue(response);
