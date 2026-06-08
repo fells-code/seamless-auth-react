@@ -23,9 +23,9 @@ describe('AuthRoutes', () => {
     expect(screen.getByText('Login Page')).toBeInTheDocument();
   });
 
-  it('renders Passkey Login page on /passKeyLogin', () => {
+  it('renders Passkey Login page on /passkeyLogin', () => {
     render(
-      <MemoryRouter initialEntries={['/passKeyLogin']}>
+      <MemoryRouter initialEntries={['/passkeyLogin']}>
         <AuthRoutes />
       </MemoryRouter>
     );
