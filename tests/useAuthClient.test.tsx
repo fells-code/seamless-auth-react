@@ -18,7 +18,6 @@ describe('useAuthClient', () => {
     const client = { login: jest.fn() };
     (useAuth as jest.Mock).mockReturnValue({
       apiHost: 'https://api.example.com',
-      mode: 'server',
     });
     (createSeamlessAuthClient as jest.Mock).mockReturnValue(client);
 
@@ -26,7 +25,6 @@ describe('useAuthClient', () => {
 
     expect(createSeamlessAuthClient).toHaveBeenCalledWith({
       apiHost: 'https://api.example.com',
-      mode: 'server',
     });
     expect(result.current).toBe(client);
   });

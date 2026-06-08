@@ -59,8 +59,8 @@ const PasskeyRegistration: React.FC = () => {
       setStatus('success');
       setMessage(result.message);
       navigate('/');
-    } catch (error) {
-      console.error(error);
+    } catch {
+      console.error('Passkey registration failed.');
       setStatus('error');
       setMessage('Error registering passkey.');
     } finally {

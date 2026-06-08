@@ -10,14 +10,13 @@ import { useAuth } from '@/AuthProvider';
 import { createSeamlessAuthClient } from '@/client/createSeamlessAuthClient';
 
 export const useAuthClient = () => {
-  const { apiHost, mode } = useAuth();
+  const { apiHost } = useAuth();
 
   return useMemo(
     () =>
       createSeamlessAuthClient({
         apiHost,
-        mode,
       }),
-    [apiHost, mode]
+    [apiHost]
   );
 };

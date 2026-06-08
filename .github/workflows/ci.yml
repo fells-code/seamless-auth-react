@@ -3,19 +3,35 @@ name: CI
 on:
   pull_request:
     branches: ['**']
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   test:
     runs-on: ubuntu-latest
+    env:
+      HUSKY: 0
+    strategy:
+      fail-fast: false
+      matrix:
+        node-version: [20, 24]
 
     steps:
       - name: Checkout repo
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
-          node-version: 20
+          node-version: ${{ matrix.node-version }}
           cache: 'npm'
 
       - name: Install dependencies
@@ -25,13 +41,16 @@ jobs:
         run: npm run lint
 
       - name: Run Tests with Coverage
-        run: npm test -- --coverage
+        run: npm test -- --coverage --runInBand
 
       - name: Build
         run: npm run build
 
+      - name: Verify package contents
+        run: npm run check-npm-build
+
       - name: Upload coverage reports to Codecov
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main' && matrix.node-version == 24
         uses: codecov/codecov-action@v5
         with:
           token: ${{ secrets.CODECOV_TOKEN }}

@@ -4,23 +4,21 @@
  * See LICENSE file in the project root for full license information
  */
 
-export type AuthMode = 'web' | 'server';
-
 interface FetchWithAuthOptions {
-  authMode: AuthMode;
   authHost?: string;
 }
 
 export const createFetchWithAuth = (opts: FetchWithAuthOptions) => {
-  const { authMode, authHost } = opts;
+  const { authHost } = opts;
 
   return async function fetchWithAuth(
     input: string,
     init?: RequestInit
   ): Promise<Response> {
-    const base = authMode === 'server' ? `auth` : '';
+    const host = authHost?.replace(/\/+$/, '') ?? '';
+    const path = input.startsWith('/') ? input : `/${input}`;
 
-    const url = `${authHost}${base}${input.startsWith('/') ? input : `/${input}`}`;
+    const url = `${host}/auth${path}`;
 
     const requestInit: RequestInit = {
       ...init,
@@ -34,7 +32,7 @@ export const createFetchWithAuth = (opts: FetchWithAuthOptions) => {
     const response = await fetch(url, requestInit);
 
     if (!response.ok) {
-      console.warn('Auth fetch failed:', response.status, url);
+      console.warn('Auth fetch failed:', response.status);
     }
 
     return response;

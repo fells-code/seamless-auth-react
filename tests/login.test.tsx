@@ -37,8 +37,10 @@ jest.mock('@/components/phoneInput', () => (props: any) => (
 jest.mock('@/components/AuthFallbackOptions', () => (props: any) => (
   <div data-testid="fallback-options">
     <button onClick={props.onMagicLink}>MagicLink</button>
+    <button onClick={props.onEmailOtp}>EmailOTP</button>
     <button onClick={props.onPhoneOtp}>PhoneOTP</button>
     <button onClick={props.onPasskeyRetry}>RetryPasskey</button>
+    <span data-testid="fallback-methods">{props.loginMethods?.join(',')}</span>
   </div>
 ));
 
@@ -48,6 +50,8 @@ describe('Login', () => {
     register: jest.fn(),
     requestMagicLink: jest.fn(),
     requestPhoneOtp: jest.fn(),
+    requestLoginPhoneOtp: jest.fn(),
+    requestLoginEmailOtp: jest.fn(),
   };
 
   beforeEach(() => {
@@ -56,7 +60,6 @@ describe('Login', () => {
     (useAuth as jest.Mock).mockReturnValue({
       apiHost: 'http://localhost',
       hasSignedInBefore: true,
-      mode: 'web',
       login: jest.fn().mockResolvedValue({ ok: true }),
       handlePasskeyLogin: jest.fn().mockResolvedValue(false),
     });
@@ -76,6 +79,8 @@ describe('Login', () => {
     });
     mockAuthClient.requestMagicLink.mockResolvedValue({ ok: true });
     mockAuthClient.requestPhoneOtp.mockResolvedValue({ ok: true });
+    mockAuthClient.requestLoginPhoneOtp.mockResolvedValue({ ok: true });
+    mockAuthClient.requestLoginEmailOtp.mockResolvedValue({ ok: true });
 
     jest.clearAllMocks();
   });
@@ -103,12 +108,14 @@ describe('Login', () => {
   });
 
   test('login triggers API request', async () => {
-    const mockLogin = jest.fn().mockResolvedValueOnce({ ok: true });
+    const mockLogin = jest.fn().mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ loginMethods: ['passkey', 'magic_link'] }),
+    });
     const mockHandlePasskeyLogin = jest.fn().mockResolvedValue(false);
     (useAuth as jest.Mock).mockReturnValue({
       apiHost: 'http://localhost',
       hasSignedInBefore: true,
-      mode: 'web',
       login: mockLogin,
       handlePasskeyLogin: mockHandlePasskeyLogin,
     });
@@ -149,6 +156,33 @@ describe('Login', () => {
     fireEvent.click(loginButton);
 
     expect(await screen.findByTestId('fallback-options')).toBeInTheDocument();
+  });
+
+  test('passes login methods from login start response into fallback options', async () => {
+    const mockLogin = jest.fn().mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ loginMethods: ['magic_link', 'email_otp'] }),
+    });
+    (useAuth as jest.Mock).mockReturnValue({
+      apiHost: 'http://localhost',
+      hasSignedInBefore: true,
+      login: mockLogin,
+      handlePasskeyLogin: jest.fn().mockResolvedValue(false),
+    });
+
+    render(<Login />);
+
+    fireEvent.change(screen.getByPlaceholderText(/email or phone number/i), {
+      target: { value: 'test@example.com' },
+    });
+
+    await act(async () => {
+      fireEvent.click(await screen.findByRole('button', { name: /login/i }));
+    });
+
+    expect(await screen.findByTestId('fallback-methods')).toHaveTextContent(
+      'magic_link,email_otp'
+    );
   });
 
   test('magic link option navigates to magic link sent page', async () => {
@@ -197,8 +231,33 @@ describe('Login', () => {
       fireEvent.click(phoneOtp);
     });
 
-    expect(mockAuthClient.requestPhoneOtp).toHaveBeenCalled();
-    expect(navigate).toHaveBeenCalledWith('/verifyPhoneOTP');
+    expect(mockAuthClient.requestLoginPhoneOtp).toHaveBeenCalled();
+    expect(navigate).toHaveBeenCalledWith('/verifyPhoneOTP', {
+      state: { flow: 'login' },
+    });
+  });
+
+  test('email OTP option navigates to verify email for login flow', async () => {
+    render(<Login />);
+
+    fireEvent.change(screen.getByPlaceholderText(/email or phone number/i), {
+      target: { value: 'test@example.com' },
+    });
+
+    await act(async () => {
+      fireEvent.click(await screen.findByRole('button', { name: /login/i }));
+    });
+
+    const emailOtp = await screen.findByText('EmailOTP');
+
+    await act(async () => {
+      fireEvent.click(emailOtp);
+    });
+
+    expect(mockAuthClient.requestLoginEmailOtp).toHaveBeenCalled();
+    expect(navigate).toHaveBeenCalledWith('/verifyEmailOTP', {
+      state: { flow: 'login' },
+    });
   });
 
   test('register mode submits registration', async () => {
@@ -236,5 +295,4 @@ describe('Login', () => {
 
     expect(navigate).toHaveBeenCalledWith('/verifyPhoneOTP');
   });
-
 });

@@ -14,6 +14,30 @@ export interface User {
   email: string;
   phone: string;
   roles?: string[];
+  activeOrganizationId?: string | null;
+}
+
+export interface OrganizationMembership {
+  id: string;
+  organizationId: string;
+  userId: string;
+  roles: string[];
+  scopes: string[];
+  createdAt: string | Date;
+  updatedAt: string | Date;
+  user?: User;
+}
+
+export interface Organization {
+  id: string;
+  name: string;
+  slug: string;
+  createdByUserId: string | null;
+  metadata: Record<string, unknown> | null;
+  createdAt: string | Date;
+  updatedAt: string | Date;
+  membership?: OrganizationMembership;
+  memberCount?: number;
 }
 
 export interface Credential {
@@ -22,6 +46,8 @@ export interface Credential {
   transports?: AuthenticatorTransportFuture[];
   deviceType: CredentialDeviceType;
   backedup: boolean;
+  backedUp?: boolean;
+  prfCapable?: boolean;
   friendlyName: string | null;
   lastUsedAt: Date | null;
   platform: string | null;

@@ -8,16 +8,18 @@ import { useAuth } from '@/AuthProvider';
 import React, { useEffect, useState } from 'react';
 import { useAuthClient } from '@/hooks/useAuthClient';
 import { usePasskeySupport } from '@/hooks/usePasskeySupport';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 
 import styles from '@/styles/verifyOTP.module.css';
 import OtpInput from '@/components/OtpInput';
 
 const EmailRegistration: React.FC = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { refreshSession } = useAuth();
   const authClient = useAuthClient();
   const { passkeySupported } = usePasskeySupport();
+  const isLoginFlow = (location.state as { flow?: string } | null)?.flow === 'login';
 
   const [loading, setLoading] = useState(false);
   const [emailOtp, setEmailOtp] = useState('');
@@ -29,7 +31,9 @@ const EmailRegistration: React.FC = () => {
     setError('');
     setResendMsg('');
 
-    const response = await authClient.requestEmailOtp();
+    const response = isLoginFlow
+      ? await authClient.requestLoginEmailOtp()
+      : await authClient.requestEmailOtp();
 
     if (!response.ok) {
       setError(
@@ -53,10 +57,18 @@ const EmailRegistration: React.FC = () => {
     setLoading(true);
 
     try {
-      const response = await authClient.verifyEmailOtp(emailOtp);
+      const response = isLoginFlow
+        ? await authClient.verifyLoginEmailOtp(emailOtp)
+        : await authClient.verifyEmailOtp(emailOtp);
 
       if (!response.ok) {
         setError('Verification failed.');
+        return;
+      }
+
+      if (isLoginFlow) {
+        await refreshSession();
+        navigate('/');
         return;
       }
 
@@ -66,8 +78,8 @@ const EmailRegistration: React.FC = () => {
         await refreshSession();
         navigate('/');
       }
-    } catch (err) {
-      console.error(err);
+    } catch {
+      console.error('Email OTP verification failed.');
       setError('Verification failed.');
     } finally {
       setLoading(false);
