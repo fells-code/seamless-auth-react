@@ -34,7 +34,7 @@ describe('AuthRoutes', () => {
 
   it('renders Passkey Login page on /pass-key-login', () => {
     render(
-      <MemoryRouter initialEntries={['/passKeyLogin']}>
+      <MemoryRouter initialEntries={['/pass-key-login']}>
         <AuthRoutes />
       </MemoryRouter>
     );
