@@ -293,6 +293,6 @@ describe('Login', () => {
       fireEvent.click(registerButton);
     });
 
-    expect(navigate).toHaveBeenCalledWith('/verifyPhoneOTP');
+    expect(navigate).toHaveBeenCalledWith('/verifyEmailOTP');
   });
 });

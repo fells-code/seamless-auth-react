@@ -76,7 +76,9 @@ const Login: React.FC = () => {
       return isValidEmail(identifier) || isValidPhoneNumber(identifier);
     }
 
-    return isValidEmail(email) && isValidPhoneNumber(phone);
+    // Registration starts with just an email; a phone is optional but, if given,
+    // must be valid.
+    return isValidEmail(email) && (!phone || isValidPhoneNumber(phone));
   };
 
   const register = async () => {
@@ -97,7 +99,7 @@ const Login: React.FC = () => {
       const data = await response.json();
 
       if (data.message === 'Success') {
-        navigate('/verifyPhoneOTP');
+        navigate('/verifyEmailOTP');
         return;
       }
       setFormErrors(
