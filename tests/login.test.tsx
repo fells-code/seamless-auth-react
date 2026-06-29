@@ -60,6 +60,7 @@ describe('Login', () => {
     (useAuth as jest.Mock).mockReturnValue({
       apiHost: 'http://localhost',
       hasSignedInBefore: true,
+      listOAuthProviders: jest.fn().mockResolvedValue({ providers: [] }),
       login: jest.fn().mockResolvedValue({ ok: true }),
       handlePasskeyLogin: jest.fn().mockResolvedValue(false),
     });
@@ -116,6 +117,7 @@ describe('Login', () => {
     (useAuth as jest.Mock).mockReturnValue({
       apiHost: 'http://localhost',
       hasSignedInBefore: true,
+      listOAuthProviders: jest.fn().mockResolvedValue({ providers: [] }),
       login: mockLogin,
       handlePasskeyLogin: mockHandlePasskeyLogin,
     });
@@ -166,6 +168,7 @@ describe('Login', () => {
     (useAuth as jest.Mock).mockReturnValue({
       apiHost: 'http://localhost',
       hasSignedInBefore: true,
+      listOAuthProviders: jest.fn().mockResolvedValue({ providers: [] }),
       login: mockLogin,
       handlePasskeyLogin: jest.fn().mockResolvedValue(false),
     });

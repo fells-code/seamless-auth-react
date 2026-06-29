@@ -227,3 +227,4 @@ Avoid these patterns unless the user explicitly asks for them:
 - changing endpoint assumptions without checking the server/api repos
 - leaving README or repo guidance out of sync with the actual exports
 - creating a second source of truth for session state outside `AuthProvider`
+- using em dashes (—) in public-facing text: commit messages, code comments, PR/issue descriptions, changesets, and docs. Use a comma, parentheses, or a separate sentence instead.

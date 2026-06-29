@@ -13,6 +13,7 @@ import { useNavigate } from 'react-router-dom';
 import styles from '@/styles/login.module.css';
 import { isValidEmail, isValidPhoneNumber } from '../utils';
 import AuthFallbackOptions from '@/components/AuthFallbackOptions';
+import OAuthProviderButtons from '@/components/OAuthProviderButtons';
 import type { LoginMethod, LoginStartResult } from '@/client/createSeamlessAuthClient';
 
 const DEFAULT_LOGIN_METHODS: LoginMethod[] = ['passkey', 'magic_link', 'phone_otp'];
@@ -303,6 +304,8 @@ const Login: React.FC = () => {
                 : 'Already have an account? Sign in'}
             </button>
           </form>
+
+          <OAuthProviderButtons />
         </>
       </div>
     </div>

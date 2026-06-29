@@ -12,6 +12,7 @@ import PasskeyRegistration from '@/views/PassKeyRegistration';
 import PhoneRegistration from '@/views/PhoneRegistration';
 import EmailRegistration from '@/views/EmailRegistration';
 import VerifyMagicLink from '@/views/VerifyMagicLink';
+import OAuthCallback from '@/views/OAuthCallback';
 import MagicLinkSent from './components/MagicLinkSent';
 
 export const AuthRoutes = () => (
@@ -21,6 +22,7 @@ export const AuthRoutes = () => (
     <Route path="/verifyPhoneOTP" element={<PhoneRegistration />} />
     <Route path="/verifyEmailOTP" element={<EmailRegistration />} />
     <Route path="/verify-magiclink" element={<VerifyMagicLink />} />
+    <Route path="/oauth/callback" element={<OAuthCallback />} />
     <Route path="/registerPasskey" element={<PasskeyRegistration />} />
     <Route path="/magiclinks-sent" element={<MagicLinkSent />} />
     <Route path="*" element={<Navigate to="/login" replace />} />
