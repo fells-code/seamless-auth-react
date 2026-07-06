@@ -104,12 +104,12 @@ const Login: React.FC = () => {
         return;
       }
       setFormErrors(
-        'An unexpected error occurred. Try again. If the problem persists, try resetting your password.'
+        'An unexpected error occurred. Try again. If the problem persists, contact support.'
       );
     } catch {
       console.error('Unexpected login error.');
       setFormErrors(
-        'An unexpected error occurred. Try again. If the problem persists, try resetting your password.'
+        'An unexpected error occurred. Try again. If the problem persists, contact support.'
       );
     }
   };
