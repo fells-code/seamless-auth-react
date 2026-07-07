@@ -55,7 +55,10 @@ Important implication:
 
 ## Current Public API
 
-Exports from `src/index.ts` currently include:
+`src/index.ts` is the authoritative export list. Treat the enumeration below as a
+summary and re-check `src/index.ts` before relying on it.
+
+Runtime exports currently include:
 
 - `AuthProvider`
 - `AuthRoutes`
@@ -63,20 +66,20 @@ Exports from `src/index.ts` currently include:
 - `useAuth`
 - `useAuthClient`
 - `usePasskeySupport`
+- `hasScopedRole` and `roleGrantsAccess`
+- `encodePrfSalt`, `extractPasskeyPrfResult`, and `isPasskeyPrfSupported`
 
-Exported types currently include:
+Exported types currently include the provider/client input and result types plus
+domain models, for example:
 
-- `AuthContextType`
-- `Credential`
-- `CurrentUserResult`
-- `LoginInput`
-- `PasskeyLoginResult`
-- `PasskeyMetadata`
-- `PasskeyRegistrationResult`
-- `RegisterInput`
-- `SeamlessAuthClient`
-- `SeamlessAuthClientOptions`
-- `User`
+- `AuthContextType`, `Credential`, `User`, `Organization`, `OrganizationMembership`
+- `LoginInput`, `LoginMethod`, `LoginStartResult`, `RegisterInput`, `CurrentUserResult`
+- `PasskeyMetadata`, `PasskeyLoginResult`, `PasskeyLoginWithPrfResult`, `PasskeyRegistrationResult`, `RegisterPasskeyOptions`
+- `PasskeyPrfInput`, `PasskeyPrfResult`
+- OAuth types: `OAuthProvider`, `OAuthProvidersResult`, `StartOAuthLoginInput`, `StartOAuthLoginResult`, `FinishOAuthLoginInput`
+- Organization types: `CreateOrganizationInput`, `UpdateOrganizationInput`, `OrganizationMemberInput`, `OrganizationMemberUpdateInput`, `OrganizationsResult`, `OrganizationResult`, `OrganizationMembersResult`
+- Step-up types: `StepUpMethod`, `StepUpStatus`, `StepUpVerificationResult`, `StepUpWithPasskeyPrfResult`
+- `SeamlessAuthClient` and `SeamlessAuthClientOptions`
 
 Public API changes should be treated deliberately:
 
@@ -124,22 +127,28 @@ Important architectural reality:
 The built-in flows and exported client assume these route families exist:
 
 - `/login`
-- `/logout`
+- `/logout` and `/logout/all`
 - `/registration/register`
 - `/webAuthn/login/start`
 - `/webAuthn/login/finish`
 - `/webAuthn/register/start`
 - `/webAuthn/register/finish`
-- `/otp/generate-phone-otp`
-- `/otp/generate-email-otp`
-- `/otp/verify-phone-otp`
-- `/otp/verify-email-otp`
+- `/otp/generate-phone-otp`, `/otp/generate-email-otp`, and their `-login-` variants
+- `/otp/verify-phone-otp`, `/otp/verify-email-otp`, and their `-login-` variants
 - `/magic-link`
 - `/magic-link/check`
 - `/magic-link/verify/:token`
+- `/oauth/providers`, `/oauth/:providerId/start`, `/oauth/:providerId/callback`
+- `/step-up/status`, `/step-up/webauthn/start`, `/step-up/webauthn/finish`
+- `/organizations` and `/organizations/:organizationId` (plus `/switch` and `/members` subroutes)
 - `/users/me`
 - `/users/credentials`
 - `/users/delete`
+
+The `@seamless-auth/express` adapter mounts the WebAuthn routes as `/webAuthn`
+(camelCase), and its cookie middleware matches request paths case-sensitively.
+Keep the client paths byte-for-byte aligned with the adapter's mounted paths;
+do not "normalize" casing here in isolation.
 
 Before documenting new flow behavior, verify the route contract in `seamless-auth-server` or `seamless-auth-api`.
 
@@ -228,3 +237,4 @@ Avoid these patterns unless the user explicitly asks for them:
 - leaving README or repo guidance out of sync with the actual exports
 - creating a second source of truth for session state outside `AuthProvider`
 - using em dashes (—) in public-facing text: commit messages, code comments, PR/issue descriptions, changesets, and docs. Use a comma, parentheses, or a separate sentence instead.
+- adding AI or assistant attribution to commits or pull requests. Do not add `Co-Authored-By: Claude` (or any other AI/assistant) trailers, "Generated with Claude Code" lines, or similar credits. Commits and PRs are authored solely under the repository owner's identity.
