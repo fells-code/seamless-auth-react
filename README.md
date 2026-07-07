@@ -323,11 +323,14 @@ function OAuthCallback() {
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    const providerId = 'google';
+    // Persist the provider you passed to startOAuthLogin so the callback knows
+    // which provider to finish. The built-in AuthRoutes flow stores this in
+    // sessionStorage; use whatever your custom start flow saved.
+    const providerId = sessionStorage.getItem('seamless:oauth:provider');
     const code = params.get('code');
     const state = params.get('state');
 
-    if (!code || !state) {
+    if (!providerId || !code || !state) {
       return;
     }
 
@@ -448,6 +451,7 @@ function CustomLogin() {
 - `/verifyPhoneOTP`
 - `/verifyEmailOTP`
 - `/verify-magiclink`
+- `/oauth/callback`
 - `/registerPasskey`
 - `/magiclinks-sent`
 
@@ -476,6 +480,10 @@ The built-in flows assume compatible endpoints for:
 - `/otp/generate-email-otp`
 - `/otp/verify-phone-otp`
 - `/otp/verify-email-otp`
+- `/otp/generate-login-phone-otp`
+- `/otp/generate-login-email-otp`
+- `/otp/verify-login-phone-otp`
+- `/otp/verify-login-email-otp`
 - `/magic-link`
 - `/magic-link/check`
 - `/magic-link/verify/:token`
@@ -488,6 +496,11 @@ The built-in flows assume compatible endpoints for:
 - `/users/me`
 - `/users/credentials`
 - `/users/delete`
+- `/organizations`
+- `/organizations/:organizationId`
+- `/organizations/:organizationId/switch`
+- `/organizations/:organizationId/members`
+- `/organizations/:organizationId/members/:userId`
 
 ## Notes
 
