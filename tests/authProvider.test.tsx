@@ -32,6 +32,9 @@ const Consumer = () => {
         {auth.credentials.map(credential => credential.friendlyName).join(',')}
       </span>
       <button onClick={() => void auth.refreshStepUpStatus()}>Refresh step-up</button>
+      <button onClick={() => void auth.verifyStepUpWithTotp('123456')}>
+        Verify TOTP step-up
+      </button>
       <button
         onClick={() => {
           if (firstCredential) {
@@ -206,6 +209,56 @@ describe('AuthProvider', () => {
 
     await waitFor(() => {
       expect(screen.getByTestId('stepUpFresh')).toHaveTextContent('true');
+    });
+  });
+
+  it('records a fresh step-up after a successful TOTP verification', async () => {
+    mockFetchWithAuthImpl
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          user: {
+            id: '1',
+            email: 'test@example.com',
+            phone: '555-1234',
+            roles: ['admin'],
+          },
+          credentials: [],
+        }),
+      } as any)
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          message: 'Success',
+          fresh: true,
+          method: 'totp',
+          verifiedAt: '2026-05-15T12:00:00.000Z',
+          expiresAt: '2026-05-15T12:05:00.000Z',
+          maxAgeSeconds: 300,
+        }),
+      } as any);
+
+    await act(async () => {
+      render(
+        <AuthProvider apiHost={apiHost}>
+          <Consumer />
+        </AuthProvider>
+      );
+    });
+
+    await waitFor(() => {
+      expect(screen.getByTestId('user')).toHaveTextContent('test@example.com');
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: /verify totp step-up/i }));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('stepUpFresh')).toHaveTextContent('true');
+    });
+
+    expect(mockFetchWithAuthImpl).toHaveBeenCalledWith('/totp/verify-mfa', {
+      method: 'POST',
+      body: JSON.stringify({ code: '123456' }),
     });
   });
 

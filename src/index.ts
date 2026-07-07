@@ -35,6 +35,8 @@ import {
   StepUpStatus,
   StepUpWithPasskeyPrfResult,
   StepUpVerificationResult,
+  TotpEnrollmentStartResult,
+  TotpStatus,
   UpdateOrganizationInput,
 } from '@/client/createSeamlessAuthClient';
 import {
@@ -96,6 +98,8 @@ export type {
   StepUpStatus,
   StepUpWithPasskeyPrfResult,
   StepUpVerificationResult,
+  TotpEnrollmentStartResult,
+  TotpStatus,
   UpdateOrganizationInput,
   User,
 };

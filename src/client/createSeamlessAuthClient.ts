@@ -147,7 +147,24 @@ export interface RegisterPasskeyOptions {
   requirePrf?: boolean;
 }
 
-export type StepUpMethod = 'webauthn';
+export type StepUpMethod = 'webauthn' | 'totp';
+
+export interface TotpStatus {
+  enabled: boolean;
+  verifiedAt: string | null;
+  lastUsedAt: string | null;
+}
+
+export interface TotpEnrollmentStartResult {
+  message: string;
+  secret: string;
+  otpauthUrl: string;
+  issuer: string;
+  accountName: string;
+  algorithm: string;
+  digits: number;
+  period: number;
+}
 
 export interface StepUpStatus {
   fresh: boolean;
@@ -212,6 +229,11 @@ export interface SeamlessAuthClient {
   verifyStepUpWithPasskeyPrf: (
     input: PasskeyPrfInput
   ) => Promise<StepUpWithPasskeyPrfResult>;
+  getTotpStatus: () => Promise<Response>;
+  startTotpEnrollment: () => Promise<Response>;
+  verifyTotpEnrollment: (code: string) => Promise<Response>;
+  disableTotp: (code: string) => Promise<Response>;
+  verifyStepUpWithTotp: (code: string) => Promise<StepUpVerificationResult>;
   updateCredential: (input: {
     id: string;
     friendlyName: string | null;
@@ -697,6 +719,64 @@ export const createSeamlessAuthClient = (
       } catch {
         console.error('Step-up authentication error.');
         return staleStepUpPrfResult('Step-up authentication failed.');
+      }
+    },
+
+    getTotpStatus: () =>
+      fetchWithAuth(`/totp/status`, {
+        method: 'GET',
+      }),
+
+    startTotpEnrollment: () =>
+      fetchWithAuth(`/totp/enroll/start`, {
+        method: 'POST',
+      }),
+
+    verifyTotpEnrollment: code =>
+      fetchWithAuth(`/totp/enroll/verify`, {
+        method: 'POST',
+        body: JSON.stringify({ code }),
+      }),
+
+    disableTotp: code =>
+      fetchWithAuth(`/totp/disable`, {
+        method: 'POST',
+        body: JSON.stringify({ code }),
+      }),
+
+    verifyStepUpWithTotp: async code => {
+      const response = await fetchWithAuth(`/totp/verify-mfa`, {
+        method: 'POST',
+        body: JSON.stringify({ code }),
+      });
+
+      if (!response.ok) {
+        return staleStepUpResult('Failed to verify step-up authentication.');
+      }
+
+      try {
+        const verificationResult = await response.json();
+        const method =
+          verificationResult.method === 'totp' ? verificationResult.method : null;
+        const success =
+          verificationResult.message === 'Success' &&
+          verificationResult.fresh === true &&
+          method === 'totp';
+
+        return {
+          success,
+          fresh: Boolean(verificationResult.fresh),
+          method,
+          verifiedAt: verificationResult.verifiedAt ?? null,
+          expiresAt: verificationResult.expiresAt ?? null,
+          maxAgeSeconds: verificationResult.maxAgeSeconds ?? 0,
+          message: success
+            ? 'Step-up authentication succeeded.'
+            : (verificationResult.message ?? 'Step-up authentication failed.'),
+        };
+      } catch {
+        console.error('Step-up authentication error.');
+        return staleStepUpResult('Step-up authentication failed.');
       }
     },
 
