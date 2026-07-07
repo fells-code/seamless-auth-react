@@ -121,6 +121,7 @@ You are still responsible for your app’s route protection and redirects.
   refreshStepUpStatus(): Promise<StepUpStatus | null>;
   verifyStepUpWithPasskey(): Promise<StepUpVerificationResult>;
   verifyStepUpWithPasskeyPrf(input: PasskeyPrfInput): Promise<StepUpWithPasskeyPrfResult>;
+  verifyStepUpWithTotp(code: string): Promise<StepUpVerificationResult>;
   logout(): Promise<void>;
   logoutAllSessions(): Promise<void>;
   deleteUser(): Promise<void>;
@@ -214,7 +215,48 @@ function DeleteAccountButton() {
 }
 ```
 
-The current step-up backend supports WebAuthn/passkeys. `refreshStepUpStatus()` calls `/step-up/status`, and `verifyStepUpWithPasskey()` performs the `/step-up/webauthn/start` and `/step-up/webauthn/finish` challenge flow.
+Step-up supports WebAuthn/passkeys and TOTP (authenticator apps). `refreshStepUpStatus()` calls `/step-up/status`, `verifyStepUpWithPasskey()` performs the `/step-up/webauthn/start` and `/step-up/webauthn/finish` challenge flow, and `verifyStepUpWithTotp(code)` verifies a 6-digit authenticator code via `/totp/verify-mfa`. Both verification helpers return a `StepUpVerificationResult` and refresh the provider's `stepUpStatus` on success.
+
+```tsx
+const { verifyStepUpWithTotp } = useAuth();
+
+const result = await verifyStepUpWithTotp('123456'); // 6-digit code from the user's authenticator app
+if (result.success) {
+  // step-up is fresh; proceed with the sensitive action
+}
+```
+
+### TOTP (authenticator apps)
+
+TOTP lets users register an authenticator app (Google Authenticator, 1Password, etc.) as a second factor for step-up verification. The SDK exposes headless client methods for enrollment and management; use them from a settings screen. All require an authenticated session.
+
+```ts
+import { createSeamlessAuthClient } from '@seamless-auth/react';
+import type { TotpStatus, TotpEnrollmentStartResult } from '@seamless-auth/react';
+
+const authClient = createSeamlessAuthClient({ apiHost: 'https://your.api' });
+
+// 1. Check whether TOTP is already enabled
+const status: TotpStatus = await (await authClient.getTotpStatus()).json();
+
+// 2. Start enrollment: render `otpauthUrl` as a QR code (or show `secret` for manual entry)
+const enrollment: TotpEnrollmentStartResult = await (
+  await authClient.startTotpEnrollment()
+).json();
+
+// 3. Confirm the first code from the user's authenticator app
+const verifyResponse = await authClient.verifyTotpEnrollment('123456');
+if (verifyResponse.ok) {
+  // TOTP is now enabled
+}
+
+// Disabling requires a current code
+await authClient.disableTotp('123456');
+```
+
+`getTotpStatus`, `startTotpEnrollment`, `verifyTotpEnrollment`, and `disableTotp` return raw `Response` objects, so check `response.ok` and parse the body yourself. Enrolling TOTP is a sensitive change; gate it behind a fresh step-up when appropriate.
+
+> TOTP is not currently a login second factor. The Seamless Auth API issues a full session on the first factor and does not gate login on TOTP, so TOTP applies to step-up verification, not to the login flow.
 
 ### WebAuthn PRF
 
@@ -396,16 +438,18 @@ The headless client exposes helpers for:
 - magic-link request, verify, and polling
 - OAuth provider listing, start, and callback completion
 - passkey registration
-- step-up status and passkey verification
+- step-up status, passkey verification, and TOTP verification
+- TOTP enrollment, status, and disable
 - logout and delete-user
 - credential update and deletion
 
-Client methods return raw `Response` objects except for the passkey convenience helpers:
+Client methods return raw `Response` objects except for the passkey and step-up convenience helpers:
 
 - `loginWithPasskey(options?: PasskeyLoginOptions): Promise<PasskeyLoginWithPrfResult>`
 - `registerPasskey(metadata | { metadata, requestPrf?, requirePrf? }): Promise<PasskeyRegistrationResult>`
 - `isPasskeyPrfSupported(): Promise<boolean>`
 - `verifyStepUpWithPasskey(): Promise<StepUpVerificationResult>`
+- `verifyStepUpWithTotp(code): Promise<StepUpVerificationResult>`
 - `verifyStepUpWithPasskeyPrf(input): Promise<StepUpWithPasskeyPrfResult>`
 - `listOAuthProviders(): Promise<OAuthProvidersResult>`
 - `startOAuthLogin(input): Promise<StartOAuthLoginResult>`
@@ -493,6 +537,11 @@ The built-in flows assume compatible endpoints for:
 - `/step-up/status`
 - `/step-up/webauthn/start`
 - `/step-up/webauthn/finish`
+- `/totp/status`
+- `/totp/enroll/start`
+- `/totp/enroll/verify`
+- `/totp/disable`
+- `/totp/verify-mfa`
 - `/users/me`
 - `/users/credentials`
 - `/users/delete`

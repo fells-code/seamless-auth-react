@@ -58,6 +58,7 @@ export interface AuthContextType {
   verifyStepUpWithPasskeyPrf: (
     input: PasskeyPrfInput
   ) => Promise<StepUpWithPasskeyPrfResult>;
+  verifyStepUpWithTotp: (code: string) => Promise<StepUpVerificationResult>;
   loading: boolean;
 }
 
@@ -318,6 +319,25 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({
     [authClient]
   );
 
+  const verifyStepUpWithTotp = useCallback(
+    async (code: string) => {
+      const result = await authClient.verifyStepUpWithTotp(code);
+
+      if (result.success) {
+        setStepUpStatus({
+          fresh: result.fresh,
+          method: result.method,
+          verifiedAt: result.verifiedAt,
+          expiresAt: result.expiresAt,
+          maxAgeSeconds: result.maxAgeSeconds,
+        });
+      }
+
+      return result;
+    },
+    [authClient]
+  );
+
   useEffect(() => {
     void validateToken();
   }, [validateToken]);
@@ -358,6 +378,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({
         refreshStepUpStatus,
         verifyStepUpWithPasskey,
         verifyStepUpWithPasskeyPrf,
+        verifyStepUpWithTotp,
       }}
     >
       {children}

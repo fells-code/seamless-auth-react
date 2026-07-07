@@ -550,4 +550,99 @@ describe('createSeamlessAuthClient', () => {
       JSON.parse(finishBody).assertionResponse.clientExtensionResults.prf.results
     ).toBeUndefined();
   });
+
+  it('requests TOTP status through the shared auth fetch helper', async () => {
+    const response = { ok: true };
+    mockFetchWithAuth.mockResolvedValueOnce(response);
+
+    const client = createSeamlessAuthClient({ apiHost: 'https://api.example.com' });
+
+    await expect(client.getTotpStatus()).resolves.toBe(response);
+    expect(mockFetchWithAuth).toHaveBeenCalledWith('/totp/status', { method: 'GET' });
+  });
+
+  it('starts TOTP enrollment', async () => {
+    const response = { ok: true };
+    mockFetchWithAuth.mockResolvedValueOnce(response);
+
+    const client = createSeamlessAuthClient({ apiHost: 'https://api.example.com' });
+
+    await expect(client.startTotpEnrollment()).resolves.toBe(response);
+    expect(mockFetchWithAuth).toHaveBeenCalledWith('/totp/enroll/start', {
+      method: 'POST',
+    });
+  });
+
+  it('verifies TOTP enrollment with the entered code', async () => {
+    const response = { ok: true };
+    mockFetchWithAuth.mockResolvedValueOnce(response);
+
+    const client = createSeamlessAuthClient({ apiHost: 'https://api.example.com' });
+
+    await expect(client.verifyTotpEnrollment('123456')).resolves.toBe(response);
+    expect(mockFetchWithAuth).toHaveBeenCalledWith('/totp/enroll/verify', {
+      method: 'POST',
+      body: JSON.stringify({ code: '123456' }),
+    });
+  });
+
+  it('disables TOTP with the entered code', async () => {
+    const response = { ok: true };
+    mockFetchWithAuth.mockResolvedValueOnce(response);
+
+    const client = createSeamlessAuthClient({ apiHost: 'https://api.example.com' });
+
+    await expect(client.disableTotp('123456')).resolves.toBe(response);
+    expect(mockFetchWithAuth).toHaveBeenCalledWith('/totp/disable', {
+      method: 'POST',
+      body: JSON.stringify({ code: '123456' }),
+    });
+  });
+
+  it('returns a successful step-up result when TOTP verification completes', async () => {
+    mockFetchWithAuth.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        message: 'Success',
+        fresh: true,
+        method: 'totp',
+        verifiedAt: '2026-05-15T12:00:00.000Z',
+        expiresAt: '2026-05-15T12:05:00.000Z',
+        maxAgeSeconds: 300,
+      }),
+    });
+
+    const client = createSeamlessAuthClient({ apiHost: 'https://api.example.com' });
+
+    await expect(client.verifyStepUpWithTotp('123456')).resolves.toEqual({
+      success: true,
+      fresh: true,
+      method: 'totp',
+      verifiedAt: '2026-05-15T12:00:00.000Z',
+      expiresAt: '2026-05-15T12:05:00.000Z',
+      maxAgeSeconds: 300,
+      message: 'Step-up authentication succeeded.',
+    });
+
+    expect(mockFetchWithAuth).toHaveBeenCalledWith('/totp/verify-mfa', {
+      method: 'POST',
+      body: JSON.stringify({ code: '123456' }),
+    });
+  });
+
+  it('returns a stale step-up result when TOTP verification is rejected', async () => {
+    mockFetchWithAuth.mockResolvedValueOnce({ ok: false });
+
+    const client = createSeamlessAuthClient({ apiHost: 'https://api.example.com' });
+
+    await expect(client.verifyStepUpWithTotp('000000')).resolves.toEqual({
+      success: false,
+      fresh: false,
+      method: null,
+      verifiedAt: null,
+      expiresAt: null,
+      maxAgeSeconds: 0,
+      message: 'Failed to verify step-up authentication.',
+    });
+  });
 });
