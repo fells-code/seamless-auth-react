@@ -1,5 +1,35 @@
 # @seamless-auth/react
 
+## 0.4.0
+
+### Minor Changes
+
+- f26c5c0: Add TOTP (authenticator app) support. The headless client gains
+  `getTotpStatus()`, `startTotpEnrollment()`, `verifyTotpEnrollment(code)`, and
+  `disableTotp(code)` for enrollment and management, plus
+  `verifyStepUpWithTotp(code)` for TOTP-based step-up verification.
+  `AuthProvider`/`useAuth()` expose `verifyStepUpWithTotp(code)`, which refreshes
+  `stepUpStatus` on success alongside the existing passkey step-up helpers. The
+  `StepUpMethod` type now includes `'totp'`, and `TotpStatus` and
+  `TotpEnrollmentStartResult` are exported.
+
+  TOTP applies to step-up verification, not to the login flow: the auth API issues
+  a full session on the first factor and does not gate login on TOTP.
+
+  Requires an auth backend that exposes the `/totp/*` routes (available in
+  `@seamless-auth/express` 0.6+).
+
+### Patch Changes
+
+- 55d5855: Fix a passwordless copy slip in the built-in Login view, which previously
+  suggested resetting a password on an unexpected error (there are no passwords in
+  this system).
+
+  Docs: correct the OAuth callback example to read the provider from
+  sessionStorage (matching the bundled flow) instead of hardcoding a provider,
+  list the `/oauth/callback` built-in route, and complete the backend endpoint
+  expectations (login OTP variants and organization routes).
+
 ## 0.3.0
 
 ### Minor Changes
