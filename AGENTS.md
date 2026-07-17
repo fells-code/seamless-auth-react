@@ -72,7 +72,7 @@ This package is the frontend React SDK in a wider Seamless Auth stack.
 
 Useful sibling repos to inspect when behavior is unclear:
 
-- `../seamless-auth-starter-react`
+- `../seamless-templates`
 - `../seamless-auth-admin-dashboard`
 - `../seamless-auth-docs`
 - `../seamless-auth-server`
@@ -80,7 +80,7 @@ Useful sibling repos to inspect when behavior is unclear:
 
 Common usage patterns:
 
-- `seamless-auth-starter-react` is the best reference for the drop-in `AuthRoutes` path
+- `seamless-templates` (`templates/web/react-vite`) is the best reference for the drop-in `AuthRoutes` path
 - `seamless-auth-admin-dashboard` is a good reference for consuming provider state and helpers without using bundled routes
 - `seamless-auth-docs` may lag behind this repo, so treat this repo as the source of truth when docs conflict with source
 
