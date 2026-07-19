@@ -114,13 +114,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({
   const handlePasskeyLogin = async () => {
     const result = await authClient.loginWithPasskey();
 
-    if (result.mfaRequired) {
-      console.warn(
-        'Passkey login requested MFA, but the built-in MFA route is not currently available.'
-      );
-      return false;
-    }
-
     if (result.success) {
       await validateToken();
       return true;

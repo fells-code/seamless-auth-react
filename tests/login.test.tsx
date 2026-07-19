@@ -76,7 +76,7 @@ describe('Login', () => {
 
     mockAuthClient.register.mockResolvedValue({
       ok: true,
-      json: async () => ({ message: 'Success', mfaLogin: false }),
+      json: async () => ({ message: 'Success' }),
     });
     mockAuthClient.requestMagicLink.mockResolvedValue({ ok: true });
     mockAuthClient.requestPhoneOtp.mockResolvedValue({ ok: true });
