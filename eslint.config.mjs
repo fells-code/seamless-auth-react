@@ -56,6 +56,53 @@ export default [
     },
   },
   {
+    // The client layer stays framework agnostic so it can be extracted into a
+    // shared package for non-React adapters. See #64.
+    files: [
+      'src/client/**/*.ts',
+      'src/fetchWithAuth.ts',
+      'src/scopedRoles.ts',
+      'src/types.ts',
+    ],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          patterns: [
+            {
+              group: [
+                'react',
+                'react/*',
+                'react-dom',
+                'react-dom/*',
+                'react-router',
+                'react-router-dom',
+              ],
+              message:
+                'The client layer must stay framework agnostic. Keep React and router imports in the binding layer. See #64.',
+            },
+            {
+              group: [
+                '@/AuthProvider',
+                '@/AuthRoutes',
+                '@/hooks/*',
+                '@/views/*',
+                '@/components/*',
+                '**/AuthProvider',
+                '**/AuthRoutes',
+                '**/hooks/*',
+                '**/views/*',
+                '**/components/*',
+              ],
+              message:
+                'The client layer must not import from the React binding layer. See #64.',
+            },
+          ],
+        },
+      ],
+    },
+  },
+  {
     ignores: ['dist/', 'coverage/', 'node_modules/'],
   },
 ];
