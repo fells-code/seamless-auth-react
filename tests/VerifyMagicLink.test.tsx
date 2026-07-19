@@ -7,11 +7,13 @@
 import { render, screen, act } from '@testing-library/react';
 import VerifyMagicLink from '@/views/VerifyMagicLink';
 
+import { useAuth } from '@/AuthProvider';
 import { useAuthClient } from '@/hooks/useAuthClient';
 
 import { useNavigate, useSearchParams } from 'react-router-dom';
 
 jest.mock('@/hooks/useAuthClient');
+jest.mock('@/AuthProvider');
 
 jest.mock('react-router-dom', () => ({
   ...jest.requireActual('react-router-dom'),
@@ -21,6 +23,7 @@ jest.mock('react-router-dom', () => ({
 
 describe('VerifyMagicLink', () => {
   const navigate = jest.fn();
+  const refreshSession = jest.fn().mockResolvedValue(undefined);
   const mockAuthClient = {
     verifyMagicLink: jest.fn(),
   };
@@ -32,6 +35,7 @@ describe('VerifyMagicLink', () => {
 
     (useNavigate as jest.Mock).mockReturnValue(navigate);
     (useAuthClient as jest.Mock).mockReturnValue(mockAuthClient);
+    (useAuth as jest.Mock).mockReturnValue({ refreshSession });
 
     global.BroadcastChannel = jest.fn(() => ({
       postMessage,
@@ -119,6 +123,38 @@ describe('VerifyMagicLink', () => {
     });
 
     expect(navigate).toHaveBeenCalledWith('/');
+  });
+
+  test('refreshes provider session on successful verification', async () => {
+    (useSearchParams as jest.Mock).mockReturnValue([
+      new URLSearchParams('?token=abc123'),
+    ]);
+
+    mockAuthClient.verifyMagicLink.mockResolvedValue({
+      ok: true,
+    });
+
+    render(<VerifyMagicLink />);
+
+    await screen.findByText(/login verified/i);
+
+    expect(refreshSession).toHaveBeenCalledTimes(1);
+  });
+
+  test('does not refresh session when verification fails', async () => {
+    (useSearchParams as jest.Mock).mockReturnValue([
+      new URLSearchParams('?token=abc123'),
+    ]);
+
+    mockAuthClient.verifyMagicLink.mockResolvedValue({
+      ok: false,
+    });
+
+    render(<VerifyMagicLink />);
+
+    await screen.findByText(/failed to verify token/i);
+
+    expect(refreshSession).not.toHaveBeenCalled();
   });
 
   test('cleans up broadcast channel and redirect timeout on unmount', async () => {
