@@ -43,7 +43,9 @@ const OAuthCallback: React.FC = () => {
 
   return (
     <div className={styles.container}>
-      <h2 className={styles.title}>{error ? 'Sign-in failed' : 'Completing sign-in...'}</h2>
+      <h2 className={styles.title}>
+        {error ? 'Sign-in failed' : 'Completing sign-in...'}
+      </h2>
       {error && (
         <>
           <p>{error}</p>

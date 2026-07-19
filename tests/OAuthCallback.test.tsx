@@ -31,7 +31,9 @@ describe('OAuthCallback', () => {
   test('finishes the login and navigates home', async () => {
     finishOAuthLogin.mockResolvedValue(undefined);
     window.sessionStorage.setItem('seamless:oauth:provider', 'mock');
-    (useSearchParams as jest.Mock).mockReturnValue([new URLSearchParams('code=abc&state=xyz')]);
+    (useSearchParams as jest.Mock).mockReturnValue([
+      new URLSearchParams('code=abc&state=xyz'),
+    ]);
 
     render(<OAuthCallback />);
 
