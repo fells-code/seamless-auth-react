@@ -31,6 +31,10 @@ export function isWebAuthnAvailable(): boolean {
  * and similar) can be used on this device.
  */
 export async function isPlatformAuthenticatorAvailable(): Promise<boolean> {
+  if (typeof window === 'undefined') {
+    return false;
+  }
+
   if (
     window.PublicKeyCredential &&
     typeof window.PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable ===
