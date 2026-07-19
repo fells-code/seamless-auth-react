@@ -130,7 +130,6 @@ export interface FinishOAuthLoginInput {
 
 export interface PasskeyLoginResult {
   success: boolean;
-  mfaRequired: boolean;
   message: string;
 }
 
@@ -338,7 +337,6 @@ export const createSeamlessAuthClient = (
       if (!response.ok) {
         return {
           success: false,
-          mfaRequired: false,
           message: 'Failed to start passkey login.',
         };
       }
@@ -359,7 +357,6 @@ export const createSeamlessAuthClient = (
         if (!verificationResponse.ok) {
           return {
             success: false,
-            mfaRequired: false,
             message: 'Failed to verify passkey.',
           };
         }
@@ -368,25 +365,20 @@ export const createSeamlessAuthClient = (
 
         if (verificationResult.message === 'Success') {
           return {
-            success: !verificationResult.mfaLogin,
-            mfaRequired: Boolean(verificationResult.mfaLogin),
-            message: verificationResult.mfaLogin
-              ? 'Passkey login requires MFA.'
-              : 'Passkey login succeeded.',
+            success: true,
+            message: 'Passkey login succeeded.',
             ...(prf ? { prf } : {}),
           };
         }
 
         return {
           success: false,
-          mfaRequired: false,
           message: verificationResult.message ?? 'Passkey login failed.',
         };
       } catch {
         console.error('Passkey login error.');
         return {
           success: false,
-          mfaRequired: false,
           message: 'Passkey login failed.',
         };
       }
