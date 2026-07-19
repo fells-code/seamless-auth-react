@@ -1,6 +1,6 @@
 # License
 
-Seamless Auth Server - Express ("@seamlessauth/express") is licensed under the **GNU Affero General Public License v3.0 (AGPL-3.0-only)**.
+`@seamless-auth/react` is licensed under the **GNU Affero General Public License v3.0 (AGPL-3.0-only)**.
 
 - SPDX: `AGPL-3.0-only`
 
@@ -21,6 +21,6 @@ You should include a copy of the AGPLv3 license in your distribution. If this re
 
 ## Commercial licensing
 
-If you would like to embed Seamless Auth API into a proprietary product, redistribute it under different terms, or offer it as a managed service without AGPL obligations, commercial licensing may be available.
+If you would like to embed `@seamless-auth/react` into a proprietary product, redistribute it under different terms, or offer it as a managed service without AGPL obligations, commercial licensing may be available.
 
 Contact: support@seamlessauth.com
