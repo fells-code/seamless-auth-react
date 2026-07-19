@@ -241,7 +241,7 @@ describe('createSeamlessAuthClient', () => {
       })
       .mockResolvedValueOnce({
         ok: true,
-        json: async () => ({ message: 'Success', mfaLogin: false }),
+        json: async () => ({ message: 'Success' }),
       });
     (startAuthentication as jest.Mock).mockResolvedValueOnce({ credential: 'assertion' });
 
@@ -251,7 +251,6 @@ describe('createSeamlessAuthClient', () => {
 
     await expect(client.loginWithPasskey()).resolves.toEqual({
       success: true,
-      mfaRequired: false,
       message: 'Passkey login succeeded.',
     });
   });
@@ -273,7 +272,7 @@ describe('createSeamlessAuthClient', () => {
       })
       .mockResolvedValueOnce({
         ok: true,
-        json: async () => ({ message: 'Success', mfaLogin: false }),
+        json: async () => ({ message: 'Success' }),
       });
     (startAuthentication as jest.Mock).mockResolvedValueOnce({
       id: 'cred-prf',
