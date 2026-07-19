@@ -5,6 +5,7 @@
  */
 
 import React, { useEffect, useState } from 'react';
+import { useAuth } from '@/AuthProvider';
 import { useAuthClient } from '@/hooks/useAuthClient';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 
@@ -19,6 +20,7 @@ const VerifyMagicLink: React.FC = () => {
   const [successMsg, setSuccessMsg] = useState('');
 
   const authClient = useAuthClient();
+  const { refreshSession } = useAuth();
 
   useEffect(() => {
     let mounted = true;
@@ -44,6 +46,11 @@ const VerifyMagicLink: React.FC = () => {
           }
           return;
         }
+
+        // The verify call sets the session cookie for this browser. Sync
+        // provider state here so the tab that completed verification lands
+        // authenticated instead of relying on another tab or a manual reload.
+        await refreshSession();
       } catch {
         console.error('Failed to verify magic-link token.');
       }
@@ -80,7 +87,7 @@ const VerifyMagicLink: React.FC = () => {
         clearTimeout(redirectTimeout);
       }
     };
-  }, [token, authClient, navigate]);
+  }, [token, authClient, navigate, refreshSession]);
 
   return (
     <div className={styles.container}>
