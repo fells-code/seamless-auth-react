@@ -261,9 +261,9 @@ The workflow:
 Do not create release tags manually for normal releases. The workflow owns stable package tags after
 the reviewed release PR is merged.
 
-The package runtime still supports Node 20, but release automation runs on Node 24 in GitHub
-Actions. If you need to run release commands locally, use Node 24.10 or newer so it matches the
-release workflow.
+This package targets a Node 24 baseline. The `engines` field requires Node 24 (`>=24.0.0 <25.0.0`),
+`.nvmrc` pins 24, and both CI and release automation run on Node 24 in GitHub Actions. Use Node 24.10
+or newer locally so development and release commands match the workflows.
 
 ### npm Publishing
 
