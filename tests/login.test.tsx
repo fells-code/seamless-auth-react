@@ -24,6 +24,7 @@ jest.mock('@/utils', () => ({
 jest.mock('react-router-dom', () => ({
   ...jest.requireActual('react-router-dom'),
   useNavigate: jest.fn(),
+  useHref: jest.fn((to: string) => to),
 }));
 
 jest.mock('@/components/phoneInput', () => (props: any) => (

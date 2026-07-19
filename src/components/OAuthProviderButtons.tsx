@@ -5,6 +5,7 @@
  */
 
 import React, { useEffect, useState } from 'react';
+import { useHref } from 'react-router-dom';
 import { useAuth } from '@/AuthProvider';
 import type { OAuthProvider } from '@/client/createSeamlessAuthClient';
 
@@ -14,6 +15,9 @@ export const OAUTH_PROVIDER_STORAGE_KEY = 'seamless:oauth:provider';
 
 const OAuthProviderButtons: React.FC = () => {
   const { listOAuthProviders, startOAuthLogin } = useAuth();
+  // useHref applies the router basename, so the callback URL stays correct for
+  // apps mounted under a non-root basename (for example /app/oauth/callback).
+  const callbackHref = useHref('/oauth/callback');
   const [providers, setProviders] = useState<OAuthProvider[]>([]);
   const [error, setError] = useState('');
 
@@ -45,7 +49,7 @@ const OAuthProviderButtons: React.FC = () => {
 
       const { authorizationUrl } = await startOAuthLogin({
         providerId,
-        redirectUri: `${window.location.origin}/oauth/callback`,
+        redirectUri: new URL(callbackHref, window.location.origin).toString(),
       });
 
       window.location.assign(authorizationUrl);

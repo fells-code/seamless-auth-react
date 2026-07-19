@@ -5,11 +5,19 @@
  */
 
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { MemoryRouter } from 'react-router-dom';
 import OAuthProviderButtons from '@/components/OAuthProviderButtons';
 
 import { useAuth } from '@/AuthProvider';
 
 jest.mock('@/AuthProvider');
+
+const renderInRouter = (basename?: string) =>
+  render(
+    <MemoryRouter basename={basename} initialEntries={[basename ?? '/']}>
+      <OAuthProviderButtons />
+    </MemoryRouter>
+  );
 
 describe('OAuthProviderButtons', () => {
   const listOAuthProviders = jest.fn();
@@ -24,7 +32,7 @@ describe('OAuthProviderButtons', () => {
   test('renders nothing when no providers are configured', async () => {
     listOAuthProviders.mockResolvedValue({ providers: [] });
 
-    const { container } = render(<OAuthProviderButtons />);
+    const { container } = renderInRouter();
 
     await waitFor(() => expect(listOAuthProviders).toHaveBeenCalled());
     expect(container).toBeEmptyDOMElement();
@@ -36,7 +44,7 @@ describe('OAuthProviderButtons', () => {
     });
     startOAuthLogin.mockResolvedValue({ authorizationUrl: 'http://idp.test/authorize' });
 
-    render(<OAuthProviderButtons />);
+    renderInRouter();
 
     const button = await screen.findByRole('button', { name: /Continue with Mock OIDC/ });
     fireEvent.click(button);
@@ -48,5 +56,24 @@ describe('OAuthProviderButtons', () => {
       })
     );
     expect(window.sessionStorage.getItem('seamless:oauth:provider')).toBe('mock');
+  });
+
+  test('includes the router basename in the callback redirect URI', async () => {
+    listOAuthProviders.mockResolvedValue({
+      providers: [{ id: 'mock', name: 'Mock OIDC', scopes: [] }],
+    });
+    startOAuthLogin.mockResolvedValue({ authorizationUrl: 'http://idp.test/authorize' });
+
+    renderInRouter('/app');
+
+    const button = await screen.findByRole('button', { name: /Continue with Mock OIDC/ });
+    fireEvent.click(button);
+
+    await waitFor(() =>
+      expect(startOAuthLogin).toHaveBeenCalledWith({
+        providerId: 'mock',
+        redirectUri: `${window.location.origin}/app/oauth/callback`,
+      })
+    );
   });
 });
