@@ -5,6 +5,8 @@
  */
 
 import parsePhoneNumberFromString from 'libphonenumber-js';
+
+import { isPlatformAuthenticatorAvailable } from '@/client/webauthnSupport';
 /**
  * isValidEmail
  *
@@ -70,19 +72,7 @@ export const isValidPhoneNumber = (phone: string): boolean => {
  * @returns {boolean} - If the current context supports passkeys
  */
 export async function isPasskeySupported(): Promise<boolean> {
-  if (
-    window.PublicKeyCredential &&
-    typeof window.PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable ===
-      'function'
-  ) {
-    try {
-      return await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable();
-    } catch {
-      console.error('Error checking passkey support.');
-      return false;
-    }
-  }
-  return false;
+  return isPlatformAuthenticatorAvailable();
 }
 
 export function parseUserAgent() {

@@ -6,11 +6,12 @@
 
 import {
   base64URLStringToBuffer,
-  browserSupportsWebAuthn,
   bufferToBase64URLString,
   type AuthenticationResponseJSON,
   type PublicKeyCredentialRequestOptionsJSON,
 } from '@simplewebauthn/browser';
+
+import { isWebAuthnAvailable } from './webauthnSupport';
 
 export type PasskeyPrfSalt = ArrayBuffer | ArrayBufferView | string;
 
@@ -96,19 +97,7 @@ export function createPrfRequestBody(input: PasskeyPrfInput) {
 }
 
 export async function isPasskeyPrfSupported(): Promise<boolean> {
-  if (!browserSupportsWebAuthn()) {
-    return false;
-  }
-
-  if (typeof window !== 'undefined' && window.isSecureContext === false) {
-    return false;
-  }
-
-  return (
-    typeof globalThis.PublicKeyCredential !== 'undefined' &&
-    typeof navigator !== 'undefined' &&
-    typeof navigator.credentials?.get === 'function'
-  );
+  return isWebAuthnAvailable();
 }
 
 export function preparePrfRequestOptions(
