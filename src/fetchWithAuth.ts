@@ -20,21 +20,19 @@ export const createFetchWithAuth = (opts: FetchWithAuthOptions) => {
 
     const url = `${host}/auth${path}`;
 
+    // Only declare a JSON content type when a body is actually sent. Some
+    // proxies reject a bodyless GET that advertises a request content type.
+    const hasBody = init?.body != null;
+
     const requestInit: RequestInit = {
       ...init,
       credentials: 'include',
       headers: {
-        'Content-Type': 'application/json',
+        ...(hasBody ? { 'Content-Type': 'application/json' } : {}),
         ...init?.headers,
       },
     };
 
-    const response = await fetch(url, requestInit);
-
-    if (!response.ok) {
-      console.warn('Auth fetch failed:', response.status);
-    }
-
-    return response;
+    return fetch(url, requestInit);
   };
 };

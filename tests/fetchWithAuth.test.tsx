@@ -66,4 +66,64 @@ describe('createFetchWithAuth', () => {
 
     await expect(fetchWithAuth('/login')).resolves.toBe(response);
   });
+
+  it('does not set a JSON content type on a bodyless request', async () => {
+    const fetchWithAuth = createFetchWithAuth({
+      authHost: 'https://auth.example.com',
+    });
+
+    mockFetch.mockResolvedValueOnce({ ok: true, status: 200 });
+
+    await fetchWithAuth('/users/me', { method: 'GET' });
+
+    const [, options] = mockFetch.mock.calls[0];
+    expect(options.headers['Content-Type']).toBeUndefined();
+  });
+
+  it('sets a JSON content type when a body is present', async () => {
+    const fetchWithAuth = createFetchWithAuth({
+      authHost: 'https://auth.example.com',
+    });
+
+    mockFetch.mockResolvedValueOnce({ ok: true, status: 200 });
+
+    await fetchWithAuth('/login', {
+      method: 'POST',
+      body: JSON.stringify({ identifier: 'test@example.com' }),
+    });
+
+    const [, options] = mockFetch.mock.calls[0];
+    expect(options.headers['Content-Type']).toBe('application/json');
+  });
+
+  it('lets caller-provided headers win', async () => {
+    const fetchWithAuth = createFetchWithAuth({
+      authHost: 'https://auth.example.com',
+    });
+
+    mockFetch.mockResolvedValueOnce({ ok: true, status: 200 });
+
+    await fetchWithAuth('/upload', {
+      method: 'POST',
+      body: 'raw',
+      headers: { 'Content-Type': 'text/plain' },
+    });
+
+    const [, options] = mockFetch.mock.calls[0];
+    expect(options.headers['Content-Type']).toBe('text/plain');
+  });
+
+  it('does not log a warning when the response is not ok', async () => {
+    const fetchWithAuth = createFetchWithAuth({
+      authHost: 'https://auth.example.com',
+    });
+
+    const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+    mockFetch.mockResolvedValueOnce({ ok: false, status: 401 });
+
+    await fetchWithAuth('/users/me', { method: 'GET' });
+
+    expect(warnSpy).not.toHaveBeenCalled();
+    warnSpy.mockRestore();
+  });
 });
