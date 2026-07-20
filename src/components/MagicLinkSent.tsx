@@ -37,13 +37,21 @@ const MagicLinkSent: React.FC = () => {
     setCooldown(30);
   };
 
+  // The poll endpoint answers 204 while the emailed link is still unused, and
+  // only reports Success once it has been consumed. A bare ok check would treat
+  // that 204 as completion and redirect before the user clicks the link.
+  const magicLinkCompleted = async () => {
+    const { data, error } = await authClient.checkMagicLink();
+
+    return !error && data?.message === 'Success';
+  };
+
   useEffect(() => {
     const channel = new BroadcastChannel('seamless-auth');
 
     channel.onmessage = async event => {
       if (event.data?.type === 'MAGIC_LINK_AUTH_SUCCESS') {
-        const { error } = await authClient.checkMagicLink();
-        if (!error) {
+        if (await magicLinkCompleted()) {
           await refreshSession();
           navigate('/');
         }
@@ -58,8 +66,7 @@ const MagicLinkSent: React.FC = () => {
   useEffect(() => {
     const interval = setInterval(async () => {
       try {
-        const { error } = await authClient.checkMagicLink();
-        if (!error) {
+        if (await magicLinkCompleted()) {
           await refreshSession();
           navigate('/');
         }
