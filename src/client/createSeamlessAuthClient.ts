@@ -480,7 +480,13 @@ export const createSeamlessAuthClient = (
 
     requestPhoneOtp: () =>
       requestResult<MessageResult>(
-        fetchWithAuth(`/otp/generate-phone-otp`, { method: 'GET' }),
+        // POST with an empty JSON body on purpose. These routes send an SMS or
+        // email, so they are state changing. The JSON content type forces a CORS
+        // preflight, which keeps them from being triggered by a cross-site GET.
+        fetchWithAuth(`/otp/generate-phone-otp`, {
+          method: 'POST',
+          body: JSON.stringify({}),
+        }),
         'Failed to send the SMS code.'
       ),
 
@@ -495,7 +501,13 @@ export const createSeamlessAuthClient = (
 
     requestLoginPhoneOtp: () =>
       requestResult<MessageResult>(
-        fetchWithAuth(`/otp/generate-login-phone-otp`, { method: 'GET' }),
+        // POST with an empty JSON body on purpose. These routes send an SMS or
+        // email, so they are state changing. The JSON content type forces a CORS
+        // preflight, which keeps them from being triggered by a cross-site GET.
+        fetchWithAuth(`/otp/generate-login-phone-otp`, {
+          method: 'POST',
+          body: JSON.stringify({}),
+        }),
         'Failed to send the SMS code.'
       ),
 
@@ -510,7 +522,13 @@ export const createSeamlessAuthClient = (
 
     requestEmailOtp: () =>
       requestResult<MessageResult>(
-        fetchWithAuth(`/otp/generate-email-otp`, { method: 'GET' }),
+        // POST with an empty JSON body on purpose. These routes send an SMS or
+        // email, so they are state changing. The JSON content type forces a CORS
+        // preflight, which keeps them from being triggered by a cross-site GET.
+        fetchWithAuth(`/otp/generate-email-otp`, {
+          method: 'POST',
+          body: JSON.stringify({}),
+        }),
         'Failed to send the email code.'
       ),
 
@@ -525,7 +543,13 @@ export const createSeamlessAuthClient = (
 
     requestLoginEmailOtp: () =>
       requestResult<MessageResult>(
-        fetchWithAuth(`/otp/generate-login-email-otp`, { method: 'GET' }),
+        // POST with an empty JSON body on purpose. These routes send an SMS or
+        // email, so they are state changing. The JSON content type forces a CORS
+        // preflight, which keeps them from being triggered by a cross-site GET.
+        fetchWithAuth(`/otp/generate-login-email-otp`, {
+          method: 'POST',
+          body: JSON.stringify({}),
+        }),
         'Failed to send the email code.'
       ),
 

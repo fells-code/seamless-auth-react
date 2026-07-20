@@ -103,14 +103,37 @@ describe('createSeamlessAuthClient', () => {
     expect(mockFetchWithAuth).toHaveBeenNthCalledWith(
       1,
       '/otp/generate-login-phone-otp',
-      {
-        method: 'GET',
-      }
+      { method: 'POST', body: JSON.stringify({}) }
     );
     expect(mockFetchWithAuth).toHaveBeenNthCalledWith(2, '/otp/verify-login-phone-otp', {
       method: 'POST',
       body: JSON.stringify({ verificationToken: '123456' }),
     });
+  });
+
+  it('requests OTP generation over POST so the routes are not simple GETs', async () => {
+    mockFetchWithAuth.mockResolvedValue({
+      ok: true,
+      json: async () => ({ message: 'Success' }),
+    });
+
+    const client = createSeamlessAuthClient({
+      apiHost: 'https://api.example.com',
+    });
+
+    await client.requestPhoneOtp();
+    await client.requestEmailOtp();
+    await client.requestLoginPhoneOtp();
+    await client.requestLoginEmailOtp();
+
+    // A bodyless GET would be a simple cross-site request. POST with a JSON body
+    // forces a preflight, which is the whole point of the change.
+    for (const [path] of mockFetchWithAuth.mock.calls) {
+      expect(path).toMatch(/\/otp\/generate-/);
+    }
+    for (const [, init] of mockFetchWithAuth.mock.calls) {
+      expect(init).toEqual({ method: 'POST', body: JSON.stringify({}) });
+    }
   });
 
   it('uses login-specific email OTP endpoints', async () => {
@@ -127,7 +150,7 @@ describe('createSeamlessAuthClient', () => {
     expect(mockFetchWithAuth).toHaveBeenNthCalledWith(
       1,
       '/otp/generate-login-email-otp',
-      expect.objectContaining({ method: 'GET' })
+      { method: 'POST', body: JSON.stringify({}) }
     );
     expect(mockFetchWithAuth).toHaveBeenNthCalledWith(2, '/otp/verify-login-email-otp', {
       method: 'POST',
