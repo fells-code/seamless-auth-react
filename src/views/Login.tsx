@@ -146,8 +146,9 @@ const Login: React.FC = () => {
         setLoginMethods(availableMethods);
 
         if (passkeySupported && availableMethods.includes('passkey')) {
-          const passkeyResult = await handlePasskeyLogin();
-          if (passkeyResult) {
+          const { error: passkeyError } = await handlePasskeyLogin();
+
+          if (!passkeyError) {
             navigate('/');
             return;
           }

@@ -30,7 +30,7 @@ describe('OAuthProviderButtons', () => {
   });
 
   test('renders nothing when no providers are configured', async () => {
-    listOAuthProviders.mockResolvedValue({ providers: [] });
+    listOAuthProviders.mockResolvedValue({ data: { providers: [] }, error: null });
 
     const { container } = renderInRouter();
 
@@ -40,9 +40,13 @@ describe('OAuthProviderButtons', () => {
 
   test('starts the flow and stores the provider when one is selected', async () => {
     listOAuthProviders.mockResolvedValue({
-      providers: [{ id: 'mock', name: 'Mock OIDC', scopes: [] }],
+      data: { providers: [{ id: 'mock', name: 'Mock OIDC', scopes: [] }] },
+      error: null,
     });
-    startOAuthLogin.mockResolvedValue({ authorizationUrl: 'http://idp.test/authorize' });
+    startOAuthLogin.mockResolvedValue({
+      data: { authorizationUrl: 'http://idp.test/authorize' },
+      error: null,
+    });
 
     renderInRouter();
 
@@ -60,9 +64,13 @@ describe('OAuthProviderButtons', () => {
 
   test('includes the router basename in the callback redirect URI', async () => {
     listOAuthProviders.mockResolvedValue({
-      providers: [{ id: 'mock', name: 'Mock OIDC', scopes: [] }],
+      data: { providers: [{ id: 'mock', name: 'Mock OIDC', scopes: [] }] },
+      error: null,
     });
-    startOAuthLogin.mockResolvedValue({ authorizationUrl: 'http://idp.test/authorize' });
+    startOAuthLogin.mockResolvedValue({
+      data: { authorizationUrl: 'http://idp.test/authorize' },
+      error: null,
+    });
 
     renderInRouter('/app');
 

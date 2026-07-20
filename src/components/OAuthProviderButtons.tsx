@@ -24,13 +24,9 @@ const OAuthProviderButtons: React.FC = () => {
   useEffect(() => {
     let active = true;
 
-    listOAuthProviders()
-      .then(result => {
-        if (active) setProviders(result.providers ?? []);
-      })
-      .catch(() => {
-        if (active) setProviders([]);
-      });
+    void listOAuthProviders().then(({ data }) => {
+      if (active) setProviders(data?.providers ?? []);
+    });
 
     return () => {
       active = false;
@@ -43,19 +39,21 @@ const OAuthProviderButtons: React.FC = () => {
 
   const handleSelect = async (providerId: string) => {
     setError('');
-    try {
-      // The callback route reads this to know which provider to finish with.
-      sessionStorage.setItem(OAUTH_PROVIDER_STORAGE_KEY, providerId);
 
-      const { authorizationUrl } = await startOAuthLogin({
-        providerId,
-        redirectUri: new URL(callbackHref, window.location.origin).toString(),
-      });
+    // The callback route reads this to know which provider to finish with.
+    sessionStorage.setItem(OAUTH_PROVIDER_STORAGE_KEY, providerId);
 
-      window.location.assign(authorizationUrl);
-    } catch {
+    const { data, error } = await startOAuthLogin({
+      providerId,
+      redirectUri: new URL(callbackHref, window.location.origin).toString(),
+    });
+
+    if (error) {
       setError('Could not start sign-in with this provider.');
+      return;
     }
+
+    window.location.assign(data.authorizationUrl);
   };
 
   return (

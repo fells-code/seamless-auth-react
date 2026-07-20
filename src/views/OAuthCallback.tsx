@@ -31,14 +31,15 @@ const OAuthCallback: React.FC = () => {
       return;
     }
 
-    finishOAuthLogin({ providerId, code, state })
-      .then(() => {
-        sessionStorage.removeItem(OAUTH_PROVIDER_STORAGE_KEY);
-        navigate('/');
-      })
-      .catch(() => {
+    void finishOAuthLogin({ providerId, code, state }).then(({ error: finishError }) => {
+      if (finishError) {
         setError('We could not complete sign-in. Please try again.');
-      });
+        return;
+      }
+
+      sessionStorage.removeItem(OAUTH_PROVIDER_STORAGE_KEY);
+      navigate('/');
+    });
   }, [finishOAuthLogin, navigate, searchParams]);
 
   return (
