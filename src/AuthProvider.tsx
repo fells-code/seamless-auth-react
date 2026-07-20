@@ -6,9 +6,13 @@
 
 import {
   createSeamlessAuthClient,
+  CurrentUserResult,
   FinishOAuthLoginInput,
   LoginStartResult,
+  MessageResult,
   OAuthProvidersResult,
+  OrganizationSwitchResult,
+  PasskeyLoginData,
   StartOAuthLoginInput,
   StartOAuthLoginResult,
   StepUpPrfData,
@@ -32,10 +36,10 @@ import { hasScopedRole as rolesGrantScopedAccess } from './scopedRoles';
 
 export interface AuthContextType {
   user: User | null;
-  logout: () => Promise<void>;
-  logoutAllSessions: () => Promise<void>;
-  deleteUser: () => Promise<void>;
-  refreshSession: () => Promise<void>;
+  logout: () => Promise<SeamlessAuthResult<MessageResult>>;
+  logoutAllSessions: () => Promise<SeamlessAuthResult<MessageResult>>;
+  deleteUser: () => Promise<SeamlessAuthResult<MessageResult>>;
+  refreshSession: () => Promise<SeamlessAuthResult<CurrentUserResult>>;
   isAuthenticated: boolean;
   hasRole: (role: string) => boolean | undefined;
   hasScopedRole: (role: string | string[]) => boolean | undefined;
@@ -45,19 +49,25 @@ export interface AuthContextType {
   credentials: Credential[];
   organizations: Organization[];
   activeOrganization: Organization | null;
-  switchOrganization: (organizationId: string) => Promise<void>;
-  listOAuthProviders: () => Promise<OAuthProvidersResult>;
-  startOAuthLogin: (input: StartOAuthLoginInput) => Promise<StartOAuthLoginResult>;
-  finishOAuthLogin: (input: FinishOAuthLoginInput) => Promise<void>;
+  switchOrganization: (
+    organizationId: string
+  ) => Promise<SeamlessAuthResult<OrganizationSwitchResult>>;
+  listOAuthProviders: () => Promise<SeamlessAuthResult<OAuthProvidersResult>>;
+  startOAuthLogin: (
+    input: StartOAuthLoginInput
+  ) => Promise<SeamlessAuthResult<StartOAuthLoginResult>>;
+  finishOAuthLogin: (
+    input: FinishOAuthLoginInput
+  ) => Promise<SeamlessAuthResult<MessageResult>>;
   stepUpStatus: StepUpStatus | null;
-  updateCredential: (credential: Credential) => Promise<Credential>;
-  deleteCredential: (credentialId: string) => Promise<void>;
+  updateCredential: (credential: Credential) => Promise<SeamlessAuthResult<Credential>>;
+  deleteCredential: (credentialId: string) => Promise<SeamlessAuthResult<MessageResult>>;
   login: (
     identifier: string,
     passkeyAvailable: boolean
   ) => Promise<SeamlessAuthResult<LoginStartResult>>;
-  handlePasskeyLogin: () => Promise<boolean>;
-  refreshStepUpStatus: () => Promise<StepUpStatus | null>;
+  handlePasskeyLogin: () => Promise<SeamlessAuthResult<PasskeyLoginData>>;
+  refreshStepUpStatus: () => Promise<SeamlessAuthResult<StepUpStatus>>;
   verifyStepUpWithPasskey: () => Promise<SeamlessAuthResult<StepUpStatus>>;
   verifyStepUpWithPasskeyPrf: (
     input: PasskeyPrfInput
@@ -112,15 +122,13 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({
     authClient.login({ identifier, passkeyAvailable });
 
   const handlePasskeyLogin = async () => {
-    const { error } = await authClient.loginWithPasskey();
+    const result = await authClient.loginWithPasskey();
 
-    if (error) {
-      console.error('Passkey login failed.');
-      return false;
+    if (!result.error) {
+      await validateToken();
     }
 
-    await validateToken();
-    return true;
+    return result;
   };
 
   const resetAuthState = useCallback(() => {
@@ -138,7 +146,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({
     // when the server call fails, otherwise the UI keeps presenting a signed-in
     // user whose session is already gone.
     try {
-      await authClient.logout();
+      return await authClient.logout();
     } finally {
       resetAuthState();
     }
@@ -150,21 +158,20 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({
     // when the server call fails, otherwise the UI keeps presenting a signed-in
     // user whose session is already gone.
     try {
-      await authClient.logoutAllSessions();
+      return await authClient.logoutAllSessions();
     } finally {
       resetAuthState();
     }
   }, [authClient, resetAuthState]);
 
   const deleteUser = async () => {
-    const { error } = await authClient.deleteUser();
+    const result = await authClient.deleteUser();
 
-    if (error) {
-      console.error('Something went wrong deleting user.');
-      throw error;
+    if (!result.error) {
+      resetAuthState();
     }
 
-    resetAuthState();
+    return result;
   };
 
   const hasRole = (role: string) => user?.roles?.includes(role);
@@ -174,20 +181,23 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({
   const validateToken = useCallback(async () => {
     setLoading(true);
 
-    const { data, error } = await authClient.getCurrentUser();
+    const result = await authClient.getCurrentUser();
 
-    if (error) {
+    if (result.error) {
+      // An unusable session is cleared rather than left half-applied.
       await logout();
       setLoading(false);
-      return;
+      return result;
     }
 
-    setUser(data.user);
-    setCredentials(data.credentials ?? []);
-    setOrganizations(data.organizations ?? []);
-    setActiveOrganization(data.activeOrganization ?? null);
+    setUser(result.data.user);
+    setCredentials(result.data.credentials ?? []);
+    setOrganizations(result.data.organizations ?? []);
+    setActiveOrganization(result.data.activeOrganization ?? null);
     setIsAuthenticated(true);
     setLoading(false);
+
+    return result;
   }, [authClient, logout]);
 
   const updateCredential = async (credential: Credential) => {
@@ -197,7 +207,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({
     });
 
     if (error) {
-      throw error;
+      return { data: null, error };
     }
 
     const updatedCredential = data.credential;
@@ -210,71 +220,52 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({
       )
     );
 
-    return updatedCredential;
+    return { data: updatedCredential, error: null };
   };
 
   const deleteCredential = async (credentialId: string) => {
-    const { error } = await authClient.deleteCredential(credentialId);
+    const result = await authClient.deleteCredential(credentialId);
 
-    if (error) {
-      throw error;
+    if (!result.error) {
+      setCredentials(currentCredentials =>
+        currentCredentials.filter(credential => credential.id !== credentialId)
+      );
     }
 
-    setCredentials(currentCredentials =>
-      currentCredentials.filter(credential => credential.id !== credentialId)
-    );
+    return result;
   };
 
   const switchOrganization = async (organizationId: string) => {
-    const { error } = await authClient.switchOrganization(organizationId);
+    const result = await authClient.switchOrganization(organizationId);
 
-    if (error) {
-      throw error;
+    if (!result.error) {
+      await validateToken();
     }
 
-    await validateToken();
+    return result;
   };
 
-  const listOAuthProviders = async () => {
-    const { data, error } = await authClient.listOAuthProviders();
+  const listOAuthProviders = () => authClient.listOAuthProviders();
 
-    if (error) {
-      throw error;
-    }
-
-    return data;
-  };
-
-  const startOAuthLogin = async (input: StartOAuthLoginInput) => {
-    const { data, error } = await authClient.startOAuthLogin(input);
-
-    if (error) {
-      throw error;
-    }
-
-    return data;
-  };
+  const startOAuthLogin = (input: StartOAuthLoginInput) =>
+    authClient.startOAuthLogin(input);
 
   const finishOAuthLogin = async (input: FinishOAuthLoginInput) => {
-    const { error } = await authClient.finishOAuthLogin(input);
+    const result = await authClient.finishOAuthLogin(input);
 
-    if (error) {
-      throw error;
+    if (!result.error) {
+      await validateToken();
     }
 
-    await validateToken();
+    return result;
   };
 
   const refreshStepUpStatus = useCallback(async () => {
-    const { data, error } = await authClient.getStepUpStatus();
+    const result = await authClient.getStepUpStatus();
 
-    if (error) {
-      setStepUpStatus(null);
-      return null;
-    }
+    setStepUpStatus(result.error ? null : result.data);
 
-    setStepUpStatus(data);
-    return data;
+    return result;
   }, [authClient]);
 
   const verifyStepUpWithPasskey = useCallback(async () => {

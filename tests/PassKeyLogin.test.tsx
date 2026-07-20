@@ -39,7 +39,7 @@ describe('PassKeyLogin', () => {
   });
 
   it('navigates home when passkey login succeeds', async () => {
-    mockHandlePasskeyLogin.mockResolvedValueOnce(true);
+    mockHandlePasskeyLogin.mockResolvedValueOnce({ data: {}, error: null });
 
     render(<PassKeyLogin />);
     fireEvent.click(screen.getByRole('button', { name: /use passkey/i }));
@@ -51,7 +51,10 @@ describe('PassKeyLogin', () => {
   });
 
   it('shows an error when passkey login cannot be completed', async () => {
-    mockHandlePasskeyLogin.mockResolvedValueOnce(false);
+    mockHandlePasskeyLogin.mockResolvedValueOnce({
+      data: null,
+      error: new Error('nope'),
+    });
 
     render(<PassKeyLogin />);
     fireEvent.click(screen.getByRole('button', { name: /use passkey/i }));

@@ -114,21 +114,21 @@ You are still responsible for your app’s route protection and redirects.
   markSignedIn(): void;
   hasRole(role: string): boolean | undefined;
   hasScopedRole(role: string | string[]): boolean | undefined;
-  listOAuthProviders(): Promise<OAuthProvidersResult>;
-  startOAuthLogin(input: StartOAuthLoginInput): Promise<StartOAuthLoginResult>;
-  finishOAuthLogin(input: FinishOAuthLoginInput): Promise<void>;
-  refreshSession(): Promise<void>;
-  refreshStepUpStatus(): Promise<StepUpStatus | null>;
+  listOAuthProviders(): Promise<SeamlessAuthResult<OAuthProvidersResult>>;
+  startOAuthLogin(input: StartOAuthLoginInput): Promise<SeamlessAuthResult<StartOAuthLoginResult>>;
+  finishOAuthLogin(input: FinishOAuthLoginInput): Promise<SeamlessAuthResult<MessageResult>>;
+  refreshSession(): Promise<SeamlessAuthResult<CurrentUserResult>>;
+  refreshStepUpStatus(): Promise<SeamlessAuthResult<StepUpStatus>>;
   verifyStepUpWithPasskey(): Promise<SeamlessAuthResult<StepUpStatus>>;
   verifyStepUpWithPasskeyPrf(input: PasskeyPrfInput): Promise<SeamlessAuthResult<StepUpPrfData>>;
   verifyStepUpWithTotp(code: string): Promise<SeamlessAuthResult<StepUpStatus>>;
-  logout(): Promise<void>;
-  logoutAllSessions(): Promise<void>;
-  deleteUser(): Promise<void>;
+  logout(): Promise<SeamlessAuthResult<MessageResult>>;
+  logoutAllSessions(): Promise<SeamlessAuthResult<MessageResult>>;
+  deleteUser(): Promise<SeamlessAuthResult<MessageResult>>;
   login(identifier: string, passkeyAvailable: boolean): Promise<SeamlessAuthResult<LoginStartResult>>;
-  handlePasskeyLogin(): Promise<boolean>;
-  updateCredential(credential: Credential): Promise<Credential>;
-  deleteCredential(credentialId: string): Promise<void>;
+  handlePasskeyLogin(): Promise<SeamlessAuthResult<PasskeyLoginData>>;
+  updateCredential(credential: Credential): Promise<SeamlessAuthResult<Credential>>;
+  deleteCredential(credentialId: string): Promise<SeamlessAuthResult<MessageResult>>;
 }
 ```
 
@@ -201,7 +201,7 @@ function DeleteAccountButton() {
   const { refreshStepUpStatus, verifyStepUpWithPasskey } = useAuth();
 
   async function handleDeleteAccount() {
-    const status = await refreshStepUpStatus();
+    const { data: status } = await refreshStepUpStatus();
     const fresh = status?.fresh ? true : !(await verifyStepUpWithPasskey()).error;
 
     if (!fresh) {
@@ -511,16 +511,21 @@ function CustomLogin() {
 }
 ```
 
-### Two error styles, on purpose
+### One error style everywhere
 
-The headless client and the provider helpers report failure differently:
+`useAuth()` helpers and the headless client report failure the same way: both return
+`{ data, error }` and neither throws. Whatever surface you reach for, the handling is identical.
 
-- `useAuthClient()` and `createSeamlessAuthClient()` return `{ data, error }` and never throw.
-- `useAuth()` helpers such as `updateCredential`, `deleteCredential`, `switchOrganization`,
-  `finishOAuthLogin`, `listOAuthProviders`, and `startOAuthLogin` **throw** a `SeamlessAuthError`.
+```tsx
+const { error } = await updateCredential({ ...credential, friendlyName: 'Work laptop' });
 
-The provider helpers throw because they also mutate provider state, so there is no partial success to
-hand back. Wrap those in `try`/`catch`, and check `error` on client calls.
+if (error) {
+  setMessage(error.message);
+}
+```
+
+Helpers that also mutate provider state, such as `switchOrganization` and `deleteCredential`, apply
+that state change only when the call succeeds, then hand the result back for you to inspect.
 
 ## Custom UI Recipes
 
@@ -679,10 +684,10 @@ path.
 ### Credential management
 
 `useAuth()` exposes the signed-in user's passkeys plus helpers to rename and remove them. These
-helpers update provider state and throw on failure.
+helpers update provider state on success and report failure through `error`.
 
 ```tsx
-import { SeamlessAuthError, useAuth } from '@seamless-auth/react';
+import { useAuth } from '@seamless-auth/react';
 import type { Credential } from '@seamless-auth/react';
 import { useState } from 'react';
 
@@ -691,18 +696,18 @@ function PasskeyList() {
   const [message, setMessage] = useState('');
 
   async function rename(credential: Credential, friendlyName: string) {
-    try {
-      await updateCredential({ ...credential, friendlyName });
-    } catch (error) {
-      setMessage(error instanceof SeamlessAuthError ? error.message : 'Rename failed.');
+    const { error } = await updateCredential({ ...credential, friendlyName });
+
+    if (error) {
+      setMessage(error.message);
     }
   }
 
   async function remove(credentialId: string) {
-    try {
-      await deleteCredential(credentialId);
-    } catch (error) {
-      setMessage(error instanceof SeamlessAuthError ? error.message : 'Removal failed.');
+    const { error } = await deleteCredential(credentialId);
+
+    if (error) {
+      setMessage(error.message);
     }
   }
 

@@ -18,9 +18,9 @@ const PassKeyLogin: React.FC = () => {
   const handlePasskeyLoginClick = async () => {
     setError('');
 
-    const success = await runPasskeyLogin();
+    const { error: passkeyError } = await runPasskeyLogin();
 
-    if (success) {
+    if (!passkeyError) {
       navigate('/');
       return;
     }

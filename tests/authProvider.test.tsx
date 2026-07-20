@@ -446,11 +446,12 @@ describe('AuthProvider', () => {
       friendlyName: 'Renamed passkey',
     });
 
-    // The API wraps the payload as { message, credential }. Returning the
+    // The API wraps the payload as { message, credential }. Surfacing the
     // wrapper would hand callers an object with no credential fields on it.
-    expect(returned).toEqual(updatedCredential);
-    expect(returned.friendlyName).toBe('Renamed passkey');
-    expect(returned).not.toHaveProperty('message');
+    expect(returned.error).toBeNull();
+    expect(returned.data).toEqual(updatedCredential);
+    expect(returned.data?.friendlyName).toBe('Renamed passkey');
+    expect(returned.data).not.toHaveProperty('message');
   });
 
   describe('failure paths', () => {
@@ -473,7 +474,7 @@ describe('AuthProvider', () => {
       // The start call fails, so no assertion is ever attempted.
       mockFetchWithAuthImpl.mockResolvedValueOnce(failure(401));
 
-      await expect(auth.handlePasskeyLogin()).resolves.toBe(false);
+      expect((await auth.handlePasskeyLogin()).error).not.toBeNull();
     });
 
     it('clears auth state even when signing out fails', async () => {
@@ -497,10 +498,9 @@ describe('AuthProvider', () => {
         failure(403, { error: 'Deletion is disabled' })
       );
 
-      await expect(auth.deleteUser()).rejects.toMatchObject({
-        message: 'Deletion is disabled',
-        status: 403,
-      });
+      const { error } = await auth.deleteUser();
+
+      expect(error).toMatchObject({ message: 'Deletion is disabled', status: 403 });
     });
 
     it('surfaces a failed credential update', async () => {
@@ -510,9 +510,12 @@ describe('AuthProvider', () => {
         failure(409, { error: 'Name already used' })
       );
 
-      await expect(
-        auth.updateCredential({ ...buildCredential(), friendlyName: 'x' })
-      ).rejects.toMatchObject({ message: 'Name already used', status: 409 });
+      const { error } = await auth.updateCredential({
+        ...buildCredential(),
+        friendlyName: 'x',
+      });
+
+      expect(error).toMatchObject({ message: 'Name already used', status: 409 });
     });
 
     it('surfaces a failed credential deletion', async () => {
@@ -520,9 +523,9 @@ describe('AuthProvider', () => {
 
       mockFetchWithAuthImpl.mockResolvedValueOnce(failure(404));
 
-      await expect(auth.deleteCredential('cred-1')).rejects.toMatchObject({
-        status: 404,
-      });
+      const { error } = await auth.deleteCredential('cred-1');
+
+      expect(error).toMatchObject({ status: 404 });
     });
 
     it('surfaces a failed organization switch', async () => {
@@ -532,20 +535,20 @@ describe('AuthProvider', () => {
         failure(403, { error: 'Not a member' })
       );
 
-      await expect(auth.switchOrganization('org-1')).rejects.toMatchObject({
-        message: 'Not a member',
-      });
+      const { error } = await auth.switchOrganization('org-1');
+
+      expect(error).toMatchObject({ message: 'Not a member' });
     });
 
-    it('throws from the OAuth helpers rather than returning a result', async () => {
+    it('reports OAuth helper failures as results', async () => {
       const auth = await renderAndCaptureAuth();
 
       mockFetchWithAuthImpl
         .mockResolvedValueOnce(failure(500))
         .mockResolvedValueOnce(failure(400, { error: 'Unknown provider' }));
 
-      await expect(auth.listOAuthProviders()).rejects.toMatchObject({ status: 500 });
-      await expect(auth.startOAuthLogin({ providerId: 'nope' })).rejects.toMatchObject({
+      expect((await auth.listOAuthProviders()).error).toMatchObject({ status: 500 });
+      expect((await auth.startOAuthLogin({ providerId: 'nope' })).error).toMatchObject({
         message: 'Unknown provider',
       });
     });
@@ -555,7 +558,10 @@ describe('AuthProvider', () => {
 
       mockFetchWithAuthImpl.mockResolvedValueOnce(failure(401));
 
-      await expect(auth.refreshStepUpStatus()).resolves.toBeNull();
+      const { data, error } = await auth.refreshStepUpStatus();
+
+      expect(data).toBeNull();
+      expect(error).not.toBeNull();
     });
 
     it('leaves step-up status untouched when verification fails', async () => {
@@ -611,7 +617,9 @@ describe('AuthProvider', () => {
         json: async () => ({ error: 'OAuth signup is disabled' }),
       } as any);
 
-      await expect(auth.finishOAuthLogin(input)).rejects.toMatchObject({
+      const { error } = await auth.finishOAuthLogin(input);
+
+      expect(error).toMatchObject({
         name: 'SeamlessAuthError',
         message: 'OAuth signup is disabled',
         status: 403,
@@ -630,7 +638,9 @@ describe('AuthProvider', () => {
         },
       } as any);
 
-      await expect(auth.finishOAuthLogin(input)).rejects.toMatchObject({
+      const { error } = await auth.finishOAuthLogin(input);
+
+      expect(error).toMatchObject({
         name: 'SeamlessAuthError',
         message: 'Failed to finish OAuth login.',
         status: 502,
