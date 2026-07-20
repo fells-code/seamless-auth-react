@@ -5,7 +5,6 @@
  */
 
 import { useAuth } from '@/AuthProvider';
-import PhoneInputWithCountryCode from '@/components/phoneInput';
 import React, { useEffect, useState } from 'react';
 import { useAuthClient } from '@/hooks/useAuthClient';
 import { usePasskeySupport } from '@/hooks/usePasskeySupport';
@@ -27,9 +26,7 @@ const Login: React.FC = () => {
   const [identifier, setIdentifier] = useState<string>('');
   const [email, setEmail] = useState<string>('');
   const [mode, setMode] = useState<'login' | 'register'>('register');
-  const [phone, setPhone] = useState<string>('');
   const [formErrors, setFormErrors] = useState<string>('');
-  const [phoneError, setPhoneError] = useState<string>('');
   const [emailError, setEmailError] = useState<string>('');
   const [identifierError, setIdentifierError] = useState<string>('');
   const [showFallbackOptions, setShowFallbackOptions] = useState(false);
@@ -64,9 +61,8 @@ const Login: React.FC = () => {
       return isValidEmail(identifier) || isValidPhoneNumber(identifier);
     }
 
-    // Registration starts with just an email; a phone is optional but, if given,
-    // must be valid.
-    return isValidEmail(email) && (!phone || isValidPhoneNumber(phone));
+    // Registration only needs a valid email. A phone can be added later.
+    return isValidEmail(email);
   };
 
   const register = async () => {
@@ -74,7 +70,6 @@ const Login: React.FC = () => {
 
     const { data, error } = await authClient.register({
       email,
-      phone,
       bootstrapToken,
     });
 
@@ -226,36 +221,27 @@ const Login: React.FC = () => {
               </div>
             )}
             {mode === 'register' && (
-              <>
-                <div className={styles.inputGroup}>
-                  <label htmlFor="email" className={styles.label}>
-                    Email Address
-                  </label>
-                  <input
-                    id="email"
-                    type="email"
-                    value={email}
-                    onChange={handleEmailChange}
-                    autoComplete="off"
-                    className={styles.input}
-                    onBlur={() => {
-                      if (email) {
-                        const isValid = isValidEmail(email);
-                        setEmailError(isValid ? '' : 'Please enter a valid email');
-                      }
-                    }}
-                    required
-                  />
-                  {emailError && <p className={styles.error}>{emailError}</p>}
-                </div>
-
-                <PhoneInputWithCountryCode
-                  phone={phone}
-                  setPhone={setPhone}
-                  phoneError={phoneError}
-                  setPhoneError={setPhoneError}
+              <div className={styles.inputGroup}>
+                <label htmlFor="email" className={styles.label}>
+                  Email Address
+                </label>
+                <input
+                  id="email"
+                  type="email"
+                  value={email}
+                  onChange={handleEmailChange}
+                  autoComplete="off"
+                  className={styles.input}
+                  onBlur={() => {
+                    if (email) {
+                      const isValid = isValidEmail(email);
+                      setEmailError(isValid ? '' : 'Please enter a valid email');
+                    }
+                  }}
+                  required
                 />
-              </>
+                {emailError && <p className={styles.error}>{emailError}</p>}
+              </div>
             )}
             <button type="submit" className={styles.button} disabled={!canSubmit()}>
               {mode === 'login' ? 'Login' : 'Register'}

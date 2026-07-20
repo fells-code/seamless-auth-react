@@ -47,7 +47,9 @@ export interface LoginStartResult {
 
 export interface RegisterInput {
   email: string;
-  phone: string;
+  // Registration only needs an email. A phone can be added and verified later,
+  // so it is optional here and only sent when a caller supplies one.
+  phone?: string | null;
   bootstrapToken?: string | null;
 }
 
@@ -471,7 +473,7 @@ export const createSeamlessAuthClient = (
           method: 'POST',
           body: JSON.stringify({
             email: input.email,
-            phone: input.phone,
+            ...(input.phone ? { phone: input.phone } : {}),
             ...(input.bootstrapToken ? { bootstrapToken: input.bootstrapToken } : {}),
           }),
         }),
