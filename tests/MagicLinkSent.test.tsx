@@ -44,7 +44,10 @@ describe('MagicLinkSent', () => {
     (useAuthClient as jest.Mock).mockReturnValue(mockAuthClient);
 
     mockAuthClient.requestMagicLink.mockResolvedValue({ ok: true });
-    mockAuthClient.checkMagicLink.mockResolvedValue({ status: 200 });
+    mockAuthClient.checkMagicLink.mockResolvedValue({
+      data: { message: 'Success' },
+      error: null,
+    });
   });
 
   afterEach(() => {
@@ -116,7 +119,10 @@ describe('MagicLinkSent', () => {
       return createdChannel;
     });
 
-    mockAuthClient.checkMagicLink.mockResolvedValue({ status: 200 });
+    mockAuthClient.checkMagicLink.mockResolvedValue({
+      data: { message: 'Success' },
+      error: null,
+    });
 
     render(<MagicLinkSent />);
 
@@ -142,5 +148,21 @@ describe('MagicLinkSent', () => {
 
     expect(refreshSession).toHaveBeenCalled();
     expect(navigate).toHaveBeenCalledWith('/');
+  });
+
+  test('keeps waiting while the link is unused', async () => {
+    // The API answers 204 with no body until the emailed link is consumed.
+    // Treating that as completion would redirect before the user clicks it.
+    mockAuthClient.checkMagicLink.mockResolvedValue({ data: undefined, error: null });
+
+    render(<MagicLinkSent />);
+
+    await act(async () => {
+      jest.advanceTimersByTime(5000);
+    });
+
+    expect(mockAuthClient.checkMagicLink).toHaveBeenCalled();
+    expect(refreshSession).not.toHaveBeenCalled();
+    expect(navigate).not.toHaveBeenCalled();
   });
 });
