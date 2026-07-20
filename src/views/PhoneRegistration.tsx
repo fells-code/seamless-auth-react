@@ -51,11 +51,11 @@ const PhoneRegistration: React.FC = () => {
     setLoading(true);
     try {
       if (!phoneVerified) {
-        const response = isLoginFlow
+        const { error } = isLoginFlow
           ? await authClient.verifyLoginPhoneOtp(phoneOtp)
           : await authClient.verifyPhoneOtp(phoneOtp);
 
-        if (!response.ok) {
+        if (error) {
           setError('Verification failed.');
         } else {
           if (isLoginFlow) {
@@ -77,11 +77,11 @@ const PhoneRegistration: React.FC = () => {
 
   const onResendPhone = async () => {
     setError('');
-    const response = isLoginFlow
+    const { error } = isLoginFlow
       ? await authClient.requestLoginPhoneOtp()
       : await authClient.requestPhoneOtp();
 
-    if (!response.ok) {
+    if (error) {
       setError(
         'Failed to send SMS code. If this persists, refresh the page and try again.'
       );
@@ -121,9 +121,9 @@ const PhoneRegistration: React.FC = () => {
 
   useEffect(() => {
     const nextStep = async () => {
-      const response = await authClient.requestEmailOtp();
+      const { error } = await authClient.requestEmailOtp();
 
-      if (!response.ok) {
+      if (error) {
         setError(
           'Failed to send Email code. If this persists, refresh the page and try registering again.'
         );

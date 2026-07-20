@@ -62,7 +62,7 @@ describe('Login', () => {
       apiHost: 'http://localhost',
       hasSignedInBefore: true,
       listOAuthProviders: jest.fn().mockResolvedValue({ providers: [] }),
-      login: jest.fn().mockResolvedValue({ ok: true }),
+      login: jest.fn().mockResolvedValue({ data: {}, error: null }),
       handlePasskeyLogin: jest.fn().mockResolvedValue(false),
     });
 
@@ -76,13 +76,25 @@ describe('Login', () => {
     (isValidPhoneNumber as jest.Mock).mockReturnValue(false);
 
     mockAuthClient.register.mockResolvedValue({
-      ok: true,
-      json: async () => ({ message: 'Success' }),
+      data: { message: 'Success' },
+      error: null,
     });
-    mockAuthClient.requestMagicLink.mockResolvedValue({ ok: true });
-    mockAuthClient.requestPhoneOtp.mockResolvedValue({ ok: true });
-    mockAuthClient.requestLoginPhoneOtp.mockResolvedValue({ ok: true });
-    mockAuthClient.requestLoginEmailOtp.mockResolvedValue({ ok: true });
+    mockAuthClient.requestMagicLink.mockResolvedValue({
+      data: { message: 'Success' },
+      error: null,
+    });
+    mockAuthClient.requestPhoneOtp.mockResolvedValue({
+      data: { message: 'Success' },
+      error: null,
+    });
+    mockAuthClient.requestLoginPhoneOtp.mockResolvedValue({
+      data: { message: 'Success' },
+      error: null,
+    });
+    mockAuthClient.requestLoginEmailOtp.mockResolvedValue({
+      data: { message: 'Success' },
+      error: null,
+    });
 
     jest.clearAllMocks();
   });
@@ -111,8 +123,8 @@ describe('Login', () => {
 
   test('login triggers API request', async () => {
     const mockLogin = jest.fn().mockResolvedValueOnce({
-      ok: true,
-      json: async () => ({ loginMethods: ['passkey', 'magic_link'] }),
+      data: { loginMethods: ['passkey', 'magic_link'] },
+      error: null,
     });
     const mockHandlePasskeyLogin = jest.fn().mockResolvedValue(false);
     (useAuth as jest.Mock).mockReturnValue({
@@ -163,8 +175,8 @@ describe('Login', () => {
 
   test('passes login methods from login start response into fallback options', async () => {
     const mockLogin = jest.fn().mockResolvedValueOnce({
-      ok: true,
-      json: async () => ({ loginMethods: ['magic_link', 'email_otp'] }),
+      data: { loginMethods: ['magic_link', 'email_otp'] },
+      error: null,
     });
     (useAuth as jest.Mock).mockReturnValue({
       apiHost: 'http://localhost',
@@ -269,8 +281,8 @@ describe('Login', () => {
     (isValidPhoneNumber as jest.Mock).mockReturnValue(true);
 
     mockAuthClient.register.mockResolvedValueOnce({
-      ok: true,
-      json: async () => ({ message: 'Success' }),
+      data: { message: 'Success' },
+      error: null,
     });
 
     render(<Login />);

@@ -49,15 +49,15 @@ const PasskeyRegistration: React.FC = () => {
     setStatus('loading');
 
     try {
-      const result = await authClient.registerPasskey(metadata);
+      const { error } = await authClient.registerPasskey(metadata);
 
-      if (!result.success) {
-        throw new Error(result.message);
+      if (error) {
+        throw error;
       }
 
       await refreshSession();
       setStatus('success');
-      setMessage(result.message);
+      setMessage('Passkey registered successfully.');
       navigate('/');
     } catch {
       console.error('Passkey registration failed.');

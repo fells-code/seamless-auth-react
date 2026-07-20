@@ -42,8 +42,8 @@ const MagicLinkSent: React.FC = () => {
 
     channel.onmessage = async event => {
       if (event.data?.type === 'MAGIC_LINK_AUTH_SUCCESS') {
-        const response = await authClient.checkMagicLink();
-        if (response.status === 200) {
+        const { error } = await authClient.checkMagicLink();
+        if (!error) {
           await refreshSession();
           navigate('/');
         }
@@ -58,8 +58,8 @@ const MagicLinkSent: React.FC = () => {
   useEffect(() => {
     const interval = setInterval(async () => {
       try {
-        const response = await authClient.checkMagicLink();
-        if (response.status === 200) {
+        const { error } = await authClient.checkMagicLink();
+        if (!error) {
           await refreshSession();
           navigate('/');
         }
