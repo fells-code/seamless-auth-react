@@ -135,6 +135,26 @@ describe('createSeamlessAuthClient', () => {
     });
   });
 
+  // A GET here was CSRF-able: an img tag on any page triggered magic-link
+  // emails to the victim. The JSON body is what forces the preflight.
+  it('requests a magic link over POST with a content type that forces a preflight', async () => {
+    mockFetchWithAuth.mockResolvedValue({
+      ok: true,
+      json: async () => ({ message: 'Success' }),
+    });
+
+    const client = createSeamlessAuthClient({
+      apiHost: 'https://api.example.com',
+    });
+
+    expect((await client.requestMagicLink()).error).toBeNull();
+
+    expect(mockFetchWithAuth).toHaveBeenCalledWith('/magic-link', {
+      method: 'POST',
+      body: JSON.stringify({}),
+    });
+  });
+
   it('keeps an untrusted magic-link token inside its own path segment', async () => {
     mockFetchWithAuth.mockResolvedValue({
       ok: true,
@@ -263,7 +283,8 @@ describe('createSeamlessAuthClient', () => {
       method: 'DELETE',
     });
     expect(mockFetchWithAuth).toHaveBeenNthCalledWith(2, '/magic-link', {
-      method: 'GET',
+      method: 'POST',
+      body: JSON.stringify({}),
     });
   });
 
