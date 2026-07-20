@@ -8,7 +8,7 @@ import { AuthContextType, AuthProvider, useAuth } from '@/AuthProvider';
 import { AuthRoutes } from '@/AuthRoutes';
 import {
   createSeamlessAuthClient,
-  CredentialMutationResult,
+  CredentialUpdateResult,
   CreateOrganizationInput,
   CurrentUserResult,
   FinishOAuthLoginInput,
@@ -68,7 +68,7 @@ export {
   usePasskeySupport,
 };
 export type {
-  CredentialMutationResult,
+  CredentialUpdateResult,
   AuthContextType,
   Credential,
   CreateOrganizationInput,

@@ -196,8 +196,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({
       throw error;
     }
 
-    // Older responses return the credential at the top level.
-    const updatedCredential = (data.credential ?? data) as Credential;
+    const updatedCredential = data.credential;
 
     setCredentials(currentCredentials =>
       currentCredentials.map(currentCredential =>
@@ -207,7 +206,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({
       )
     );
 
-    return data as unknown as Credential;
+    return updatedCredential;
   };
 
   const deleteCredential = async (credentialId: string) => {

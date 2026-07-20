@@ -147,10 +147,10 @@ export interface PasskeyRegistrationData {
   prfCapable: boolean;
 }
 
-/** Response body for credential mutations. */
-export interface CredentialMutationResult {
-  credential?: Credential;
-  message?: string;
+/** Response body returned when credential metadata is updated. */
+export interface CredentialUpdateResult {
+  message: string;
+  credential: Credential;
 }
 
 export interface RegisterPasskeyOptions {
@@ -216,9 +216,9 @@ export interface SeamlessAuthClient {
   loginWithPasskey: (
     options?: PasskeyLoginOptions
   ) => Promise<SeamlessAuthResult<PasskeyLoginData>>;
-  logout: (options?: LogoutOptions) => Promise<SeamlessAuthResult<void>>;
-  logoutAllSessions: () => Promise<SeamlessAuthResult<void>>;
-  deleteUser: () => Promise<SeamlessAuthResult<void>>;
+  logout: (options?: LogoutOptions) => Promise<SeamlessAuthResult<MessageResult>>;
+  logoutAllSessions: () => Promise<SeamlessAuthResult<MessageResult>>;
+  deleteUser: () => Promise<SeamlessAuthResult<MessageResult>>;
   register: (input: RegisterInput) => Promise<SeamlessAuthResult<MessageResult>>;
   requestPhoneOtp: () => Promise<SeamlessAuthResult<MessageResult>>;
   verifyPhoneOtp: (
@@ -263,8 +263,8 @@ export interface SeamlessAuthClient {
   updateCredential: (input: {
     id: string;
     friendlyName: string | null;
-  }) => Promise<SeamlessAuthResult<CredentialMutationResult>>;
-  deleteCredential: (id: string) => Promise<SeamlessAuthResult<CredentialMutationResult>>;
+  }) => Promise<SeamlessAuthResult<CredentialUpdateResult>>;
+  deleteCredential: (id: string) => Promise<SeamlessAuthResult<MessageResult>>;
   listOrganizations: () => Promise<SeamlessAuthResult<OrganizationsResult>>;
   createOrganization: (
     input: CreateOrganizationInput
@@ -430,7 +430,7 @@ export const createSeamlessAuthClient = (
     },
 
     logout: (options = {}) =>
-      requestResult<void>(
+      requestResult<MessageResult>(
         fetchWithAuth(options.scope === 'all_sessions' ? `/logout/all` : `/logout`, {
           method: 'DELETE',
         }),
@@ -438,13 +438,13 @@ export const createSeamlessAuthClient = (
       ),
 
     logoutAllSessions: () =>
-      requestResult<void>(
+      requestResult<MessageResult>(
         fetchWithAuth(`/logout/all`, { method: 'DELETE' }),
         'Failed to sign out of all sessions.'
       ),
 
     deleteUser: () =>
-      requestResult<void>(
+      requestResult<MessageResult>(
         fetchWithAuth(`/users/delete`, { method: 'DELETE' }),
         'Failed to delete the account.'
       ),
@@ -764,7 +764,7 @@ export const createSeamlessAuthClient = (
     },
 
     updateCredential: input =>
-      requestResult<CredentialMutationResult>(
+      requestResult<CredentialUpdateResult>(
         fetchWithAuth(`users/credentials`, {
           method: 'POST',
           body: JSON.stringify(input),
@@ -773,7 +773,7 @@ export const createSeamlessAuthClient = (
       ),
 
     deleteCredential: id =>
-      requestResult<CredentialMutationResult>(
+      requestResult<MessageResult>(
         fetchWithAuth(`users/credentials`, {
           method: 'DELETE',
           body: JSON.stringify({ id }),

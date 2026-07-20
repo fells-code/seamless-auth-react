@@ -364,6 +364,55 @@ describe('AuthProvider', () => {
     ).toHaveLength(1);
   });
 
+  it('returns the credential itself rather than the response wrapper', async () => {
+    let auth: ReturnType<typeof useAuth> | null = null;
+
+    const Capture = () => {
+      auth = useAuth();
+      return null;
+    };
+
+    const credential = buildCredential();
+    const updatedCredential = buildCredential({ friendlyName: 'Renamed passkey' });
+
+    mockFetchWithAuthImpl
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          user: { id: '1', email: 'test@example.com', phone: '', roles: [] },
+          credentials: [credential],
+        }),
+      } as any)
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          message: 'Credential updated',
+          credential: updatedCredential,
+        }),
+      } as any);
+
+    await act(async () => {
+      render(
+        <AuthProvider apiHost={apiHost}>
+          <Capture />
+        </AuthProvider>
+      );
+    });
+
+    const returned = await (
+      auth as unknown as ReturnType<typeof useAuth>
+    ).updateCredential({
+      ...credential,
+      friendlyName: 'Renamed passkey',
+    });
+
+    // The API wraps the payload as { message, credential }. Returning the
+    // wrapper would hand callers an object with no credential fields on it.
+    expect(returned).toEqual(updatedCredential);
+    expect(returned.friendlyName).toBe('Renamed passkey');
+    expect(returned).not.toHaveProperty('message');
+  });
+
   describe('finishOAuthLogin failures', () => {
     const renderAndCaptureAuth = async () => {
       let auth: ReturnType<typeof useAuth> | null = null;
