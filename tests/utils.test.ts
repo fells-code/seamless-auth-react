@@ -184,4 +184,68 @@ describe('parseUserAgent', () => {
     expect(result.platform).toBe('unknown');
     expect(result.browser).toBe('unknown');
   });
+
+  it('detects Opera ahead of the chrome token', () => {
+    setUserAgent(
+      'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120.0 Safari/537.36 OPR/106.0'
+    );
+
+    const result = parseUserAgent();
+
+    expect(result.platform).toBe('windows');
+    expect(result.browser).toBe('opera');
+  });
+
+  it('detects Vivaldi ahead of the chrome token', () => {
+    setUserAgent(
+      'Mozilla/5.0 (Mac OS X 13_0) AppleWebKit/537.36 Chrome/120.0 Safari/537.36 Vivaldi/6.5'
+    );
+
+    expect(parseUserAgent().browser).toBe('vivaldi');
+  });
+
+  it('detects Samsung Internet ahead of the chrome token', () => {
+    setUserAgent(
+      'Mozilla/5.0 (Linux; Android 13) AppleWebKit/537.36 SamsungBrowser/23.0 Chrome/115.0 Mobile Safari/537.36'
+    );
+
+    expect(parseUserAgent().browser).toBe('samsung');
+  });
+
+  it('detects Chrome on iOS via the CriOS token', () => {
+    setUserAgent(
+      'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 CriOS/120.0 Mobile/15E148 Safari/604.1'
+    );
+
+    const result = parseUserAgent();
+
+    expect(result.platform).toBe('ios');
+    expect(result.browser).toBe('chrome');
+  });
+
+  it('detects Brave through navigator.brave, since its user agent matches Chrome', () => {
+    setUserAgent(
+      'Mozilla/5.0 (Mac OS X 13_0) AppleWebKit/537.36 Chrome/120.0 Safari/537.36'
+    );
+    Object.defineProperty(window.navigator, 'brave', {
+      value: {},
+      configurable: true,
+    });
+
+    try {
+      expect(parseUserAgent().browser).toBe('brave');
+    } finally {
+      delete (window.navigator as Navigator & { brave?: unknown }).brave;
+    }
+  });
+
+  it('reports Arc as chrome, which is the documented limitation', () => {
+    // Arc ships a Chrome user agent with no distinguishing token, so it cannot
+    // be told apart from Chrome. This test pins the known behavior.
+    setUserAgent(
+      'Mozilla/5.0 (Mac OS X 14_0) AppleWebKit/537.36 Chrome/120.0 Safari/537.36'
+    );
+
+    expect(parseUserAgent().browser).toBe('chrome');
+  });
 });

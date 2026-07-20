@@ -75,6 +75,8 @@ export async function isPasskeySupported(): Promise<boolean> {
   return isPlatformAuthenticatorAvailable();
 }
 
+type NavigatorWithBrave = Navigator & { brave?: unknown };
+
 export function parseUserAgent() {
   const ua = navigator.userAgent.toLowerCase();
 
@@ -87,10 +89,18 @@ export function parseUserAgent() {
   else if (/windows/.test(ua)) platform = 'windows';
   else if (/linux/.test(ua)) platform = 'linux';
 
-  if (/chrome/.test(ua)) browser = 'chrome';
-  if (/safari/.test(ua) && !/chrome/.test(ua)) browser = 'safari';
-  if (/firefox/.test(ua)) browser = 'firefox';
-  if (/edg/.test(ua)) browser = 'edge';
+  // Order matters: every Chromium derivative also carries a chrome token, so the
+  // specific ones have to be tested first. Brave is only detectable through
+  // navigator.brave because it ships a user agent identical to Chrome's. Arc
+  // exposes no marker at all and is reported as chrome.
+  if ((navigator as NavigatorWithBrave).brave) browser = 'brave';
+  else if (/edg\/|edgios/.test(ua)) browser = 'edge';
+  else if (/opr\/|opt\/|opera/.test(ua)) browser = 'opera';
+  else if (/vivaldi/.test(ua)) browser = 'vivaldi';
+  else if (/samsungbrowser/.test(ua)) browser = 'samsung';
+  else if (/firefox|fxios/.test(ua)) browser = 'firefox';
+  else if (/chrome|crios/.test(ua)) browser = 'chrome';
+  else if (/safari/.test(ua)) browser = 'safari';
 
   const deviceInfo = `${platform} • ${browser}`;
 
