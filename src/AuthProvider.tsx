@@ -133,20 +133,24 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({
   }, []);
 
   const logout = useCallback(async () => {
+    // The client reports failures through its result, so there is nothing to
+    // catch. The finally is deliberate: local auth state has to be cleared even
+    // when the server call fails, otherwise the UI keeps presenting a signed-in
+    // user whose session is already gone.
     try {
       await authClient.logout();
-    } catch {
-      console.error('Error during logout');
     } finally {
       resetAuthState();
     }
   }, [authClient, resetAuthState]);
 
   const logoutAllSessions = useCallback(async () => {
+    // The client reports failures through its result, so there is nothing to
+    // catch. The finally is deliberate: local auth state has to be cleared even
+    // when the server call fails, otherwise the UI keeps presenting a signed-in
+    // user whose session is already gone.
     try {
       await authClient.logoutAllSessions();
-    } catch {
-      console.error('Error during logout');
     } finally {
       resetAuthState();
     }

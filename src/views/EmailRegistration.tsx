@@ -80,6 +80,8 @@ const EmailRegistration: React.FC = () => {
         navigate('/');
       }
     } catch {
+      // Backstop for unexpected errors only. The client reports request
+      // failures through `error`, not by throwing.
       console.error('Email OTP verification failed.');
       setError('Verification failed.');
     } finally {
