@@ -27,14 +27,6 @@ jest.mock('react-router-dom', () => ({
   useHref: jest.fn((to: string) => to),
 }));
 
-jest.mock('@/components/phoneInput', () => (props: any) => (
-  <input
-    data-testid="phone-input"
-    value={props.phone}
-    onChange={e => props.setPhone(e.target.value)}
-  />
-));
-
 jest.mock('@/components/AuthFallbackOptions', () => (props: any) => (
   <div data-testid="fallback-options">
     <button onClick={props.onMagicLink}>MagicLink</button>
@@ -276,9 +268,8 @@ describe('Login', () => {
     });
   });
 
-  test('register mode submits registration', async () => {
+  test('register mode submits with only an email', async () => {
     (isValidEmail as jest.Mock).mockReturnValue(true);
-    (isValidPhoneNumber as jest.Mock).mockReturnValue(true);
 
     mockAuthClient.register.mockResolvedValueOnce({
       data: { message: 'Success' },
@@ -289,12 +280,11 @@ describe('Login', () => {
 
     fireEvent.click(screen.getByText(/don't have an account/i));
 
+    // Registration collects only an email; there is no phone field to fill.
+    expect(screen.queryByTestId('phone-input')).toBeNull();
+
     fireEvent.change(screen.getByLabelText(/email address/i), {
       target: { value: 'test@example.com' },
-    });
-
-    fireEvent.change(screen.getByTestId('phone-input'), {
-      target: { value: '+15555555555' },
     });
 
     const registerButton = await screen.findByRole('button', {
@@ -309,6 +299,10 @@ describe('Login', () => {
       fireEvent.click(registerButton);
     });
 
+    expect(mockAuthClient.register).toHaveBeenCalledWith(
+      expect.objectContaining({ email: 'test@example.com' })
+    );
+    expect(mockAuthClient.register.mock.calls[0][0]).not.toHaveProperty('phone');
     expect(navigate).toHaveBeenCalledWith('/verify-email-otp');
   });
 });
