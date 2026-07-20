@@ -208,7 +208,7 @@ describe('Login', () => {
       fireEvent.click(magicLink);
     });
 
-    expect(navigate).toHaveBeenCalledWith('/magiclinks-sent', {
+    expect(navigate).toHaveBeenCalledWith('/magic-link-sent', {
       state: { identifier: 'test@example.com' },
     });
   });
@@ -236,7 +236,7 @@ describe('Login', () => {
     });
 
     expect(mockAuthClient.requestLoginPhoneOtp).toHaveBeenCalled();
-    expect(navigate).toHaveBeenCalledWith('/verifyPhoneOTP', {
+    expect(navigate).toHaveBeenCalledWith('/verify-phone-otp', {
       state: { flow: 'login' },
     });
   });
@@ -259,7 +259,7 @@ describe('Login', () => {
     });
 
     expect(mockAuthClient.requestLoginEmailOtp).toHaveBeenCalled();
-    expect(navigate).toHaveBeenCalledWith('/verifyEmailOTP', {
+    expect(navigate).toHaveBeenCalledWith('/verify-email-otp', {
       state: { flow: 'login' },
     });
   });
@@ -297,6 +297,6 @@ describe('Login', () => {
       fireEvent.click(registerButton);
     });
 
-    expect(navigate).toHaveBeenCalledWith('/verifyEmailOTP');
+    expect(navigate).toHaveBeenCalledWith('/verify-email-otp');
   });
 });
