@@ -4,7 +4,7 @@
  * See LICENSE file in the project root for full license information
  */
 
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { useAuth } from '@/AuthProvider';
 import { useAuthClient } from '@/hooks/useAuthClient';
 import { useNavigate, useLocation } from 'react-router-dom';
@@ -40,11 +40,11 @@ const MagicLinkSent: React.FC = () => {
   // The poll endpoint answers 204 while the emailed link is still unused, and
   // only reports Success once it has been consumed. A bare ok check would treat
   // that 204 as completion and redirect before the user clicks the link.
-  const magicLinkCompleted = async () => {
+  const magicLinkCompleted = useCallback(async () => {
     const { data, error } = await authClient.checkMagicLink();
 
     return !error && data?.message === 'Success';
-  };
+  }, [authClient]);
 
   useEffect(() => {
     const channel = new BroadcastChannel('seamless-auth');
@@ -61,7 +61,7 @@ const MagicLinkSent: React.FC = () => {
     return () => {
       channel.close();
     };
-  }, [authClient, navigate, refreshSession]);
+  }, [magicLinkCompleted, navigate, refreshSession]);
 
   useEffect(() => {
     const interval = setInterval(async () => {
@@ -76,7 +76,7 @@ const MagicLinkSent: React.FC = () => {
     }, 5000);
 
     return () => clearInterval(interval);
-  }, [authClient, refreshSession, navigate]);
+  }, [magicLinkCompleted, refreshSession, navigate]);
 
   return (
     <div className={styles.container}>
