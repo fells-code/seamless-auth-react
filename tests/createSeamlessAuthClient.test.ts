@@ -221,6 +221,65 @@ describe('createSeamlessAuthClient', () => {
     expect(removed.data?.message).toBe('Success');
   });
 
+  it('uses the remaining organization read and update endpoints', async () => {
+    mockFetchWithAuth.mockResolvedValue({ ok: true, json: async () => ({}) });
+
+    const client = createSeamlessAuthClient({
+      apiHost: 'https://api.example.com',
+    });
+
+    await client.getOrganization('org 1');
+    await client.updateOrganization('org 1', { name: 'Renamed' });
+    await client.listOrganizationMembers('org 1');
+
+    expect(mockFetchWithAuth).toHaveBeenNthCalledWith(1, '/organizations/org%201', {
+      method: 'GET',
+    });
+    expect(mockFetchWithAuth).toHaveBeenNthCalledWith(2, '/organizations/org%201', {
+      method: 'PATCH',
+      body: JSON.stringify({ name: 'Renamed' }),
+    });
+    expect(mockFetchWithAuth).toHaveBeenNthCalledWith(
+      3,
+      '/organizations/org%201/members',
+      { method: 'GET' }
+    );
+  });
+
+  it('uses the account and magic-link request endpoints', async () => {
+    mockFetchWithAuth.mockResolvedValue({
+      ok: true,
+      json: async () => ({ message: 'Success' }),
+    });
+
+    const client = createSeamlessAuthClient({
+      apiHost: 'https://api.example.com',
+    });
+
+    expect((await client.deleteUser()).error).toBeNull();
+    expect((await client.requestMagicLink()).data?.message).toBe('Success');
+
+    expect(mockFetchWithAuth).toHaveBeenNthCalledWith(1, '/users/delete', {
+      method: 'DELETE',
+    });
+    expect(mockFetchWithAuth).toHaveBeenNthCalledWith(2, '/magic-link', {
+      method: 'GET',
+    });
+  });
+
+  it('reports a transport failure as an error result rather than rejecting', async () => {
+    mockFetchWithAuth.mockRejectedValueOnce(new TypeError('Failed to fetch'));
+
+    const client = createSeamlessAuthClient({
+      apiHost: 'https://api.example.com',
+    });
+
+    const { data, error } = await client.getCurrentUser();
+
+    expect(data).toBeNull();
+    expect(error?.status).toBe(0);
+  });
+
   it('uses OAuth login endpoints', async () => {
     const providersResult = {
       providers: [{ id: 'google', name: 'Google', scopes: ['openid', 'email'] }],

@@ -69,9 +69,43 @@ const buildCredential = (overrides = {}) =>
     ...overrides,
   }) as any;
 
-describe('AuthProvider', () => {
-  const apiHost = 'https://api.example.com/';
+const apiHost = 'https://api.example.com/';
 
+/**
+ * Renders the provider with an authenticated session already loaded and hands
+ * back the context, so tests can drive helpers directly rather than through UI.
+ */
+const renderAndCaptureAuth = async (credentials: unknown[] = []) => {
+  let auth: ReturnType<typeof useAuth> | null = null;
+
+  const Capture = () => {
+    auth = useAuth();
+    return null;
+  };
+
+  mockFetchWithAuthImpl.mockResolvedValueOnce({
+    ok: true,
+    json: async () => ({
+      user: { id: '1', email: 'test@example.com', phone: '', roles: [] },
+      credentials,
+    }),
+  } as any);
+
+  await act(async () => {
+    render(
+      <AuthProvider apiHost={apiHost}>
+        <Capture />
+      </AuthProvider>
+    );
+  });
+
+  return auth as unknown as ReturnType<typeof useAuth>;
+};
+
+const failure = (status = 500, body: unknown = { error: 'Nope' }) =>
+  ({ ok: false, status, json: async () => body }) as any;
+
+describe('AuthProvider', () => {
   beforeEach(() => {
     jest.clearAllMocks();
   });
@@ -413,34 +447,153 @@ describe('AuthProvider', () => {
     expect(returned).not.toHaveProperty('message');
   });
 
-  describe('finishOAuthLogin failures', () => {
-    const renderAndCaptureAuth = async () => {
-      let auth: ReturnType<typeof useAuth> | null = null;
-
-      const Capture = () => {
-        auth = useAuth();
+  describe('failure paths', () => {
+    it('throws when useAuth is called outside a provider', () => {
+      const Orphan = () => {
+        useAuth();
         return null;
       };
 
-      mockFetchWithAuthImpl.mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({
-          user: { id: '1', email: 'test@example.com', phone: '', roles: [] },
-          credentials: [],
-        }),
-      } as any);
+      const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+
+      expect(() => render(<Orphan />)).toThrow(/must be used within an AuthProvider/i);
+
+      consoleSpy.mockRestore();
+    });
+
+    it('reports a failed passkey login without touching the session', async () => {
+      const auth = await renderAndCaptureAuth();
+
+      // The start call fails, so no assertion is ever attempted.
+      mockFetchWithAuthImpl.mockResolvedValueOnce(failure(401));
+
+      await expect(auth.handlePasskeyLogin()).resolves.toBe(false);
+    });
+
+    it('clears auth state even when signing out fails', async () => {
+      const auth = await renderAndCaptureAuth();
+
+      mockFetchWithAuthImpl.mockResolvedValueOnce(failure(500));
+
+      await act(async () => {
+        await auth.logoutAllSessions();
+      });
+
+      // Local state must not survive a failed sign-out, otherwise the UI keeps
+      // showing an authenticated user who no longer has a usable session.
+      expect(screen.queryByTestId('user')).toBeNull();
+    });
+
+    it('surfaces a failed account deletion', async () => {
+      const auth = await renderAndCaptureAuth();
+
+      mockFetchWithAuthImpl.mockResolvedValueOnce(
+        failure(403, { error: 'Deletion is disabled' })
+      );
+
+      await expect(auth.deleteUser()).rejects.toMatchObject({
+        message: 'Deletion is disabled',
+        status: 403,
+      });
+    });
+
+    it('surfaces a failed credential update', async () => {
+      const auth = await renderAndCaptureAuth([buildCredential()]);
+
+      mockFetchWithAuthImpl.mockResolvedValueOnce(
+        failure(409, { error: 'Name already used' })
+      );
+
+      await expect(
+        auth.updateCredential({ ...buildCredential(), friendlyName: 'x' })
+      ).rejects.toMatchObject({ message: 'Name already used', status: 409 });
+    });
+
+    it('surfaces a failed credential deletion', async () => {
+      const auth = await renderAndCaptureAuth([buildCredential()]);
+
+      mockFetchWithAuthImpl.mockResolvedValueOnce(failure(404));
+
+      await expect(auth.deleteCredential('cred-1')).rejects.toMatchObject({
+        status: 404,
+      });
+    });
+
+    it('surfaces a failed organization switch', async () => {
+      const auth = await renderAndCaptureAuth();
+
+      mockFetchWithAuthImpl.mockResolvedValueOnce(
+        failure(403, { error: 'Not a member' })
+      );
+
+      await expect(auth.switchOrganization('org-1')).rejects.toMatchObject({
+        message: 'Not a member',
+      });
+    });
+
+    it('throws from the OAuth helpers rather than returning a result', async () => {
+      const auth = await renderAndCaptureAuth();
+
+      mockFetchWithAuthImpl
+        .mockResolvedValueOnce(failure(500))
+        .mockResolvedValueOnce(failure(400, { error: 'Unknown provider' }));
+
+      await expect(auth.listOAuthProviders()).rejects.toMatchObject({ status: 500 });
+      await expect(auth.startOAuthLogin({ providerId: 'nope' })).rejects.toMatchObject({
+        message: 'Unknown provider',
+      });
+    });
+
+    it('clears step-up status when it cannot be loaded', async () => {
+      const auth = await renderAndCaptureAuth();
+
+      mockFetchWithAuthImpl.mockResolvedValueOnce(failure(401));
+
+      await expect(auth.refreshStepUpStatus()).resolves.toBeNull();
+    });
+
+    it('leaves step-up status untouched when verification fails', async () => {
+      mockFetchWithAuthImpl
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({
+            user: { id: '1', email: 'test@example.com', phone: '', roles: [] },
+            credentials: [],
+          }),
+        } as any)
+        // A 200 that does not report a fresh verification is still a failure,
+        // so provider state must not record a step-up that did not happen.
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({ message: 'Rejected', fresh: false, method: null }),
+        } as any);
 
       await act(async () => {
         render(
           <AuthProvider apiHost={apiHost}>
-            <Capture />
+            <Consumer />
           </AuthProvider>
         );
       });
 
-      return auth as unknown as ReturnType<typeof useAuth>;
-    };
+      await waitFor(() => {
+        expect(screen.getByTestId('user')).toHaveTextContent('test@example.com');
+      });
 
+      fireEvent.click(screen.getByRole('button', { name: /verify totp step-up/i }));
+
+      await waitFor(() => {
+        expect(mockFetchWithAuthImpl).toHaveBeenCalledWith(
+          '/totp/verify-mfa',
+          expect.anything()
+        );
+      });
+
+      expect(screen.getByTestId('stepUpFresh')).toHaveTextContent('false');
+    });
+  });
+
+  describe('finishOAuthLogin failures', () => {
     const input = { providerId: 'github', code: 'code', state: 'state' };
 
     it('surfaces the auth server error detail instead of a generic message', async () => {
