@@ -41,6 +41,8 @@ const PhoneRegistration: React.FC = () => {
     try {
       await verifyPhoneOTP();
     } catch {
+      // Backstop for unexpected errors only. The client reports request
+      // failures through `error`, not by throwing.
       setError('Unexpected error occurred.');
     } finally {
       setLoading(false);
@@ -49,27 +51,23 @@ const PhoneRegistration: React.FC = () => {
 
   const verifyPhoneOTP = async () => {
     setLoading(true);
-    try {
-      if (!phoneVerified) {
-        const { error } = isLoginFlow
-          ? await authClient.verifyLoginPhoneOtp(phoneOtp)
-          : await authClient.verifyPhoneOtp(phoneOtp);
 
-        if (error) {
-          setError('Verification failed.');
-        } else {
-          if (isLoginFlow) {
-            await refreshSession();
-            navigate('/');
-            return;
-          }
+    if (!phoneVerified) {
+      const { error } = isLoginFlow
+        ? await authClient.verifyLoginPhoneOtp(phoneOtp)
+        : await authClient.verifyPhoneOtp(phoneOtp);
 
-          setPhoneVerified(true);
+      if (error) {
+        setError('Verification failed.');
+      } else {
+        if (isLoginFlow) {
+          await refreshSession();
+          navigate('/');
+          return;
         }
+
+        setPhoneVerified(true);
       }
-    } catch {
-      console.error('Phone OTP verification failed.');
-      setError('Verification failed.');
     }
 
     setLoading(false);

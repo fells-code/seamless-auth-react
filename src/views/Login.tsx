@@ -72,79 +72,58 @@ const Login: React.FC = () => {
   const register = async () => {
     setFormErrors('');
 
-    try {
-      const { data, error } = await authClient.register({
-        email,
-        phone,
-        bootstrapToken,
-      });
+    const { data, error } = await authClient.register({
+      email,
+      phone,
+      bootstrapToken,
+    });
 
-      if (error) {
-        setFormErrors('Failed to register. Please try again.');
-        return;
-      }
-
-      if (data.message === 'Success') {
-        navigate(authRoutePaths.verifyEmailOtp);
-        return;
-      }
-      setFormErrors(
-        'An unexpected error occurred. Try again. If the problem persists, contact support.'
-      );
-    } catch {
-      console.error('Unexpected login error.');
-      setFormErrors(
-        'An unexpected error occurred. Try again. If the problem persists, contact support.'
-      );
+    if (error) {
+      setFormErrors('Failed to register. Please try again.');
+      return;
     }
+
+    if (data.message !== 'Success') {
+      setFormErrors(
+        'An unexpected error occurred. Try again. If the problem persists, contact support.'
+      );
+      return;
+    }
+
+    navigate(authRoutePaths.verifyEmailOtp);
   };
 
   const sendMagicLink = async () => {
-    try {
-      const { error } = await authClient.requestMagicLink();
+    const { error } = await authClient.requestMagicLink();
 
-      if (error) {
-        setFormErrors('Failed to send magic link.');
-        return;
-      }
-
-      navigate(authRoutePaths.magicLinkSent, { state: { identifier } });
-    } catch {
-      console.error('Failed to send magic link.');
+    if (error) {
       setFormErrors('Failed to send magic link.');
+      return;
     }
+
+    navigate(authRoutePaths.magicLinkSent, { state: { identifier } });
   };
 
   const sendPhoneOtp = async () => {
-    try {
-      const { error } = await authClient.requestLoginPhoneOtp();
+    const { error } = await authClient.requestLoginPhoneOtp();
 
-      if (error) {
-        setFormErrors('Failed to send OTP.');
-        return;
-      }
-
-      navigate(authRoutePaths.verifyPhoneOtp, { state: { flow: 'login' } });
-    } catch {
-      console.error('Failed to send phone OTP.');
+    if (error) {
       setFormErrors('Failed to send OTP.');
+      return;
     }
+
+    navigate(authRoutePaths.verifyPhoneOtp, { state: { flow: 'login' } });
   };
 
   const sendEmailOtp = async () => {
-    try {
-      const { error } = await authClient.requestLoginEmailOtp();
+    const { error } = await authClient.requestLoginEmailOtp();
 
-      if (error) {
-        setFormErrors('Failed to send email code.');
-        return;
-      }
-
-      navigate(authRoutePaths.verifyEmailOtp, { state: { flow: 'login' } });
-    } catch {
-      console.error('Failed to send email OTP.');
+    if (error) {
       setFormErrors('Failed to send email code.');
+      return;
     }
+
+    navigate(authRoutePaths.verifyEmailOtp, { state: { flow: 'login' } });
   };
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -188,6 +167,8 @@ const Login: React.FC = () => {
         await register();
       }
     } catch {
+      // Backstop for unexpected errors only. The client reports request
+      // failures through `error`, not by throwing.
       console.error('Failed to continue sign-in.');
       setFormErrors('Failed to continue sign-in. Please try again.');
     }

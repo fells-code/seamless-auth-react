@@ -171,7 +171,11 @@ describe('AuthProvider', () => {
   });
 
   it('logs out if token validation fails (bad response)', async () => {
-    mockFetchWithAuthImpl.mockResolvedValueOnce({ ok: false } as any);
+    // Both calls need a response: the failed /users/me, and the logout that
+    // follows it.
+    mockFetchWithAuthImpl
+      .mockResolvedValueOnce({ ok: false, status: 401, json: async () => ({}) } as any)
+      .mockResolvedValueOnce({ ok: true, json: async () => ({}) } as any);
 
     await act(async () => {
       render(
@@ -187,7 +191,9 @@ describe('AuthProvider', () => {
   });
 
   it('logs out if token validation throws', async () => {
-    mockFetchWithAuthImpl.mockRejectedValueOnce(new Error('network down'));
+    mockFetchWithAuthImpl
+      .mockRejectedValueOnce(new Error('network down'))
+      .mockResolvedValueOnce({ ok: true, json: async () => ({}) } as any);
 
     await act(async () => {
       render(

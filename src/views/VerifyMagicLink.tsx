@@ -36,24 +36,20 @@ const VerifyMagicLink: React.FC = () => {
         return;
       }
 
-      try {
-        const { error } = await authClient.verifyMagicLink(token);
+      const { error } = await authClient.verifyMagicLink(token);
 
-        if (error) {
-          console.error('Failed to verify token');
-          if (mounted) {
-            setError('Failed to verify token');
-          }
-          return;
+      if (error) {
+        console.error('Failed to verify token');
+        if (mounted) {
+          setError('Failed to verify token');
         }
-
-        // The verify call sets the session cookie for this browser. Sync
-        // provider state here so the tab that completed verification lands
-        // authenticated instead of relying on another tab or a manual reload.
-        await refreshSession();
-      } catch {
-        console.error('Failed to verify magic-link token.');
+        return;
       }
+
+      // The verify call sets the session cookie for this browser. Sync
+      // provider state here so the tab that completed verification lands
+      // authenticated instead of relying on another tab or a manual reload.
+      await refreshSession();
 
       if (!mounted) {
         return;

@@ -71,7 +71,8 @@ const MagicLinkSent: React.FC = () => {
           navigate('/');
         }
       } catch {
-        /* ignore */
+        // A rejection inside a timer has no caller to surface it, so the poll
+        // swallows unexpected errors and simply tries again on the next tick.
       }
     }, 5000);
 
