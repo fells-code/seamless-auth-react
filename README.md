@@ -160,12 +160,12 @@ If you are building a fully custom flow, call `markSignedIn()` after a successfu
 const { markSignedIn, refreshSession } = useAuth();
 
 async function completeLogin() {
-  const response = await authClient.login({
+  const { error } = await authClient.login({
     identifier: 'user@example.com',
     passkeyAvailable: true,
   });
 
-  if (response.ok) {
+  if (!error) {
     markSignedIn();
     await refreshSession();
   }
@@ -237,16 +237,14 @@ import type { TotpStatus, TotpEnrollmentStartResult } from '@seamless-auth/react
 const authClient = createSeamlessAuthClient({ apiHost: 'https://your.api' });
 
 // 1. Check whether TOTP is already enabled
-const status: TotpStatus = await (await authClient.getTotpStatus()).json();
+const { data: status } = await authClient.getTotpStatus();
 
 // 2. Start enrollment: render `otpauthUrl` as a QR code (or show `secret` for manual entry)
-const enrollment: TotpEnrollmentStartResult = await (
-  await authClient.startTotpEnrollment()
-).json();
+const { data: enrollment } = await authClient.startTotpEnrollment();
 
 // 3. Confirm the first code from the user's authenticator app
-const verifyResponse = await authClient.verifyTotpEnrollment('123456');
-if (verifyResponse.ok) {
+const { error } = await authClient.verifyTotpEnrollment('123456');
+if (!error) {
   // TOTP is now enabled
 }
 
@@ -254,7 +252,7 @@ if (verifyResponse.ok) {
 await authClient.disableTotp('123456');
 ```
 
-`getTotpStatus`, `startTotpEnrollment`, `verifyTotpEnrollment`, and `disableTotp` return raw `Response` objects, so check `response.ok` and parse the body yourself. Enrolling TOTP is a sensitive change; gate it behind a fresh step-up when appropriate.
+These methods follow the standard result convention: check `error`, then read `data`. Enrolling TOTP is a sensitive change; gate it behind a fresh step-up when appropriate.
 
 > TOTP is not currently a login second factor. The Seamless Auth API issues a full session on the first factor and does not gate login on TOTP, so TOTP applies to step-up verification, not to the login flow.
 
@@ -419,14 +417,18 @@ const authClient = createSeamlessAuthClient({
   apiHost: 'https://your.api',
 });
 
-const response = await authClient.login({
+const { data, error } = await authClient.login({
   identifier: 'user@example.com',
   passkeyAvailable: true,
 });
 
-if (response.ok) {
-  // Continue your custom flow
+if (error) {
+  // error.message, error.status, and error.body carry the server detail
+  return;
 }
+
+// data is typed as LoginStartResult
+console.log(data.loginMethods);
 ```
 
 The headless client exposes helpers for:
@@ -443,17 +445,40 @@ The headless client exposes helpers for:
 - logout and delete-user
 - credential update and deletion
 
-Client methods return raw `Response` objects except for the passkey and step-up convenience helpers:
+### Result convention
 
-- `loginWithPasskey(options?: PasskeyLoginOptions): Promise<PasskeyLoginWithPrfResult>`
-- `registerPasskey(metadata | { metadata, requestPrf?, requirePrf? }): Promise<PasskeyRegistrationResult>`
-- `isPasskeyPrfSupported(): Promise<boolean>`
-- `verifyStepUpWithPasskey(): Promise<StepUpVerificationResult>`
-- `verifyStepUpWithTotp(code): Promise<StepUpVerificationResult>`
-- `verifyStepUpWithPasskeyPrf(input): Promise<StepUpWithPasskeyPrfResult>`
-- `listOAuthProviders(): Promise<OAuthProvidersResult>`
-- `startOAuthLogin(input): Promise<StartOAuthLoginResult>`
-- `finishOAuthLogin(input): Promise<Response>`
+Every request method resolves to a `SeamlessAuthResult<T>`:
+
+```ts
+type SeamlessAuthResult<T> =
+  | { data: T; error: null }
+  | { data: null; error: SeamlessAuthError };
+```
+
+Check `error` first, then read `data`. TypeScript enforces this: `data` is not readable until the
+error has been ruled out.
+
+```ts
+const { data, error } = await authClient.getCurrentUser();
+
+if (error) {
+  console.log(error.message, error.status, error.body);
+  return;
+}
+
+setUser(data.user); // typed as CurrentUserResult
+```
+
+Nothing throws for an HTTP failure, and transport failures are absorbed too, reported as an error
+with `status` `0`. That means an expected auth outcome such as a wrong OTP, an expired magic link, or
+a disabled provider is a value you can map straight to UI state rather than an exception to catch.
+
+`SeamlessAuthError` carries the server's `message`, the HTTP `status`, and the parsed response
+`body`, so you can branch on a specific failure.
+
+The single exception is `isPasskeySupported`-style capability checks:
+`isPasskeyPrfSupported(): Promise<boolean>` is a local check rather than a request, so it returns a
+plain boolean.
 
 ## React Hooks For Custom UI
 
@@ -468,12 +493,12 @@ function CustomLogin() {
   const { passkeySupported, loading } = usePasskeySupport();
 
   async function handleEmailLogin() {
-    const response = await authClient.login({
+    const { error } = await authClient.login({
       identifier: 'user@example.com',
       passkeyAvailable: passkeySupported,
     });
 
-    if (response.ok) {
+    if (!error) {
       await refreshSession();
     }
   }
