@@ -4,8 +4,15 @@
     "declaration": true,
     "declarationDir": "./dist",
     "outDir": "./dist",
-    "sourceMap": true
+    "sourceMap": true,
+    "rootDir": "./src"
   },
-  "include": ["src"],
-  "exclude": ["tests", "**/*.test.ts", "**/*.spec.ts"]
+  "include": [
+    "src"
+  ],
+  "exclude": [
+    "tests",
+    "**/*.test.ts",
+    "**/*.spec.ts"
+  ]
 }
