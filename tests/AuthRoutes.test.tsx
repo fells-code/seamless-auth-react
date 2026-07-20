@@ -7,7 +7,7 @@
 import { MemoryRouter, useLocation } from 'react-router-dom';
 import { render, screen } from '@testing-library/react';
 import { AuthRoutes } from '../src/AuthRoutes';
-import { authRoutePaths, legacyAuthRouteAliases } from '../src/routes';
+import { authRoutePaths } from '../src/routes';
 
 jest.mock('@/views/Login', () => () => <div>Login Page</div>);
 jest.mock('@/views/PassKeyLogin', () => () => <div>Passkey Login Page</div>);
@@ -84,31 +84,36 @@ describe('AuthRoutes canonical paths', () => {
   });
 });
 
-describe('AuthRoutes legacy aliases', () => {
-  it.each(legacyAuthRouteAliases.map(alias => [alias.from, alias.to]))(
-    'forwards %s to %s',
-    (from, to) => {
-      renderAt(from);
-      expect(screen.getByTestId('pathname')).toHaveTextContent(to);
-    }
-  );
-
-  it('preserves the magic-link token across the legacy redirect', () => {
-    // The auth API emails this URL, so dropping the query would break sign-in.
+describe('externally owned paths', () => {
+  // The auth API builds this URL when it emails a magic link
+  // (seamless-auth-api/src/controllers/magicLinks.ts). If this path is renamed
+  // here without changing the API, every emailed link falls through to the
+  // catch-all and lands on /login with the token discarded, which silently
+  // breaks magic-link sign-in.
+  it('serves the magic-link URL the auth API emails, with its token intact', () => {
     renderAt('/verify-magiclink?token=abc123');
 
-    expect(screen.getByTestId('pathname')).toHaveTextContent(
-      authRoutePaths.verifyMagicLink
-    );
+    expect(screen.getByText('Verify Magic Link Page')).toBeInTheDocument();
     expect(screen.getByTestId('search')).toHaveTextContent('?token=abc123');
   });
 
-  it('preserves router state across the legacy redirect', () => {
-    renderAt('/magiclinks-sent', { identifier: 'user@example.com' });
+  // Registered with OAuth providers as an allowed redirect URI.
+  it('serves the OAuth callback path registered with providers', () => {
+    renderAt('/oauth/callback?code=abc&state=xyz');
 
-    expect(screen.getByTestId('pathname')).toHaveTextContent(
-      authRoutePaths.magicLinkSent
-    );
-    expect(screen.getByTestId('state')).toHaveTextContent('user@example.com');
+    expect(screen.getByText('OAuth Callback Page')).toBeInTheDocument();
+  });
+});
+
+describe('superseded paths are gone', () => {
+  it.each([
+    '/passKeyLogin',
+    '/verifyPhoneOTP',
+    '/verifyEmailOTP',
+    '/registerPasskey',
+    '/magiclinks-sent',
+  ])('%s no longer resolves and falls back to login', path => {
+    renderAt(path);
+    expect(screen.getByTestId('pathname')).toHaveTextContent(authRoutePaths.login);
   });
 });

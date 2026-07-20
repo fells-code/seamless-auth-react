@@ -501,25 +501,26 @@ function CustomLogin() {
 
 These are optional UI wrappers over the same SDK primitives the package now exports for custom flows.
 
-### Legacy route names
+### Renamed routes
 
-The earlier mixed-case paths still resolve. Each one redirects to its canonical path, preserving
-query string, hash, and router state, so existing bookmarks and in-flight links keep working:
+The earlier mixed-case paths were renamed and are no longer served. Anything linking directly to
+them now falls through to `/login`, so update those links:
 
-| Legacy path         | Canonical path       |
-| ------------------- | -------------------- |
-| `/passKeyLogin`     | `/passkey-login`     |
-| `/verifyPhoneOTP`   | `/verify-phone-otp`  |
-| `/verifyEmailOTP`   | `/verify-email-otp`  |
-| `/verify-magiclink` | `/verify-magic-link` |
-| `/registerPasskey`  | `/register-passkey`  |
-| `/magiclinks-sent`  | `/magic-link-sent`   |
+| Old path           | New path            |
+| ------------------ | ------------------- |
+| `/passKeyLogin`    | `/passkey-login`    |
+| `/verifyPhoneOTP`  | `/verify-phone-otp` |
+| `/verifyEmailOTP`  | `/verify-email-otp` |
+| `/registerPasskey` | `/register-passkey` |
+| `/magiclinks-sent` | `/magic-link-sent`  |
 
-`/verify-magiclink` is a standing contract rather than a temporary alias. The auth API builds that
-URL when it sends a magic-link email, so it keeps resolving regardless of migration state.
+Two paths are unchanged because they are owned by contracts outside this package:
 
-`/oauth/callback` is unchanged. It is registered with OAuth providers as an allowed redirect URI, so
-renaming it would break configured integrations.
+- `/verify-magiclink` is the URL the auth API builds when it emails a magic link, so it has to match
+  that value exactly. Renaming it here would send every emailed link to `/login` with the token
+  discarded.
+- `/oauth/callback` is registered with OAuth providers as an allowed redirect URI, so renaming it
+  would break configured integrations.
 
 ## Backend Expectations
 

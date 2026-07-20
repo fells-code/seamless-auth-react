@@ -2,8 +2,16 @@
 '@seamless-auth/react': minor
 ---
 
-Normalize the bundled `AuthRoutes` paths to a consistent kebab-case set: `/passkey-login`, `/verify-phone-otp`, `/verify-email-otp`, `/verify-magic-link`, `/register-passkey`, and `/magic-link-sent`. `/login` and `/oauth/callback` are unchanged.
+Rename the bundled `AuthRoutes` paths to a consistent kebab-case set. The previous mixed-case paths are no longer served.
 
-Every previous path still resolves. Each redirects to its canonical path and preserves query string, hash, and router state, so existing bookmarks and in-flight magic-link emails keep working. `/verify-magiclink` in particular is kept as a standing alias because the auth API builds that URL when sending magic-link emails.
+| Old path           | New path            |
+| ------------------ | ------------------- |
+| `/passKeyLogin`    | `/passkey-login`    |
+| `/verifyPhoneOTP`  | `/verify-phone-otp` |
+| `/verifyEmailOTP`  | `/verify-email-otp` |
+| `/registerPasskey` | `/register-passkey` |
+| `/magiclinks-sent` | `/magic-link-sent`  |
 
-Apps that link directly to the built-in screens should move to the canonical paths. Apps that only render `AuthRoutes` need no change.
+BREAKING: anything linking directly to an old path now falls through to `/login`. Apps that only render `AuthRoutes` and rely on its internal navigation need no change.
+
+`/login`, `/verify-magiclink`, and `/oauth/callback` are unchanged. The latter two are fixed by contracts outside this package: the auth API builds the magic-link URL when it sends the email, and the OAuth callback is registered with providers as an allowed redirect URI.

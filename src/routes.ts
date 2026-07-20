@@ -5,33 +5,23 @@
  */
 
 /**
- * Canonical paths for the bundled auth screens. Kebab-case throughout so the
- * built-in route surface is predictable to type, document, and link to.
+ * Paths for the bundled auth screens.
+ *
+ * Kebab-case throughout, except for two paths that are dictated by contracts
+ * outside this package rather than by the naming convention:
+ *
+ * - `verifyMagicLink` is the URL the auth API builds when it emails a magic
+ *   link, so it has to match that value exactly.
+ * - `oauthCallback` is registered with OAuth providers as an allowed redirect
+ *   URI, so renaming it would break configured integrations.
  */
 export const authRoutePaths = {
   login: '/login',
   passkeyLogin: '/passkey-login',
   verifyPhoneOtp: '/verify-phone-otp',
   verifyEmailOtp: '/verify-email-otp',
-  verifyMagicLink: '/verify-magic-link',
+  verifyMagicLink: '/verify-magiclink',
   oauthCallback: '/oauth/callback',
   registerPasskey: '/register-passkey',
   magicLinkSent: '/magic-link-sent',
 } as const;
-
-/**
- * Superseded paths, kept working so existing bookmarks and in-flight links do
- * not break.
- *
- * `/verify-magiclink` is a standing contract rather than a migration aid: the
- * auth API builds that URL when it sends a magic-link email, so it has to keep
- * resolving even after adopters move to the canonical paths.
- */
-export const legacyAuthRouteAliases: ReadonlyArray<{ from: string; to: string }> = [
-  { from: '/passKeyLogin', to: authRoutePaths.passkeyLogin },
-  { from: '/verifyPhoneOTP', to: authRoutePaths.verifyPhoneOtp },
-  { from: '/verifyEmailOTP', to: authRoutePaths.verifyEmailOtp },
-  { from: '/verify-magiclink', to: authRoutePaths.verifyMagicLink },
-  { from: '/registerPasskey', to: authRoutePaths.registerPasskey },
-  { from: '/magiclinks-sent', to: authRoutePaths.magicLinkSent },
-];
