@@ -15,7 +15,7 @@ import styles from '@/styles/login.module.css';
 import { isValidEmail, isValidPhoneNumber } from '../utils';
 import AuthFallbackOptions from '@/components/AuthFallbackOptions';
 import OAuthProviderButtons from '@/components/OAuthProviderButtons';
-import type { LoginMethod, LoginStartResult } from '@/client/createSeamlessAuthClient';
+import type { LoginMethod } from '@/client/createSeamlessAuthClient';
 
 const DEFAULT_LOGIN_METHODS: LoginMethod[] = ['passkey', 'magic_link', 'phone_otp'];
 

@@ -96,6 +96,7 @@ export type {
   RegisterPasskeyOptions,
   SeamlessAuthClient,
   SeamlessAuthClientOptions,
+  SeamlessAuthResult,
   StartOAuthLoginInput,
   StartOAuthLoginResult,
   StepUpMethod,
