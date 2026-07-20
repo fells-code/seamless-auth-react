@@ -363,4 +363,70 @@ describe('AuthProvider', () => {
       mockFetchWithAuthImpl.mock.calls.filter(([path]) => path === 'users/me')
     ).toHaveLength(1);
   });
+
+  describe('finishOAuthLogin failures', () => {
+    const renderAndCaptureAuth = async () => {
+      let auth: ReturnType<typeof useAuth> | null = null;
+
+      const Capture = () => {
+        auth = useAuth();
+        return null;
+      };
+
+      mockFetchWithAuthImpl.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          user: { id: '1', email: 'test@example.com', phone: '', roles: [] },
+          credentials: [],
+        }),
+      } as any);
+
+      await act(async () => {
+        render(
+          <AuthProvider apiHost={apiHost}>
+            <Capture />
+          </AuthProvider>
+        );
+      });
+
+      return auth as unknown as ReturnType<typeof useAuth>;
+    };
+
+    const input = { providerId: 'github', code: 'code', state: 'state' };
+
+    it('surfaces the auth server error detail instead of a generic message', async () => {
+      const auth = await renderAndCaptureAuth();
+
+      mockFetchWithAuthImpl.mockResolvedValueOnce({
+        ok: false,
+        status: 403,
+        json: async () => ({ error: 'OAuth signup is disabled' }),
+      } as any);
+
+      await expect(auth.finishOAuthLogin(input)).rejects.toMatchObject({
+        name: 'SeamlessAuthError',
+        message: 'OAuth signup is disabled',
+        status: 403,
+        body: { error: 'OAuth signup is disabled' },
+      });
+    });
+
+    it('falls back to a generic message when the body is not JSON', async () => {
+      const auth = await renderAndCaptureAuth();
+
+      mockFetchWithAuthImpl.mockResolvedValueOnce({
+        ok: false,
+        status: 502,
+        json: async () => {
+          throw new SyntaxError('Unexpected token');
+        },
+      } as any);
+
+      await expect(auth.finishOAuthLogin(input)).rejects.toMatchObject({
+        name: 'SeamlessAuthError',
+        message: 'Failed to finish OAuth login',
+        status: 502,
+      });
+    });
+  });
 });

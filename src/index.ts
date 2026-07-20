@@ -39,6 +39,7 @@ import {
   TotpStatus,
   UpdateOrganizationInput,
 } from '@/client/createSeamlessAuthClient';
+import { SeamlessAuthError } from '@/client/errors';
 import {
   encodePrfSalt,
   extractPasskeyPrfResult,
@@ -60,6 +61,7 @@ export {
   hasScopedRole,
   isPasskeyPrfSupported,
   roleGrantsAccess,
+  SeamlessAuthError,
   useAuth,
   useAuthClient,
   usePasskeySupport,

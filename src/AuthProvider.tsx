@@ -14,6 +14,7 @@ import {
   StepUpStatus,
   StepUpVerificationResult,
 } from '@/client/createSeamlessAuthClient';
+import { toSeamlessAuthError } from '@/client/errors';
 import { PasskeyPrfInput } from '@/client/webauthnPrf';
 import { Credential, Organization, User } from '@/types';
 import React, {
@@ -258,7 +259,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({
     const response = await authClient.finishOAuthLogin(input);
 
     if (!response.ok) {
-      throw new Error('Failed to finish OAuth login');
+      throw await toSeamlessAuthError(response, 'Failed to finish OAuth login');
     }
 
     await validateToken();
