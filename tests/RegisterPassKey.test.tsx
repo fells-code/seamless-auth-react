@@ -74,8 +74,8 @@ describe('RegisterPasskey', () => {
 
   it('handles successful registration flow', async () => {
     mockRegisterPasskey.mockResolvedValueOnce({
-      success: true,
-      message: 'Passkey registered successfully.',
+      data: { credentialId: 'cred', prfCapable: false },
+      error: null,
     });
 
     render(<RegisterPasskey />);
@@ -98,8 +98,8 @@ describe('RegisterPasskey', () => {
 
   it('handles challenge failure', async () => {
     mockRegisterPasskey.mockResolvedValueOnce({
-      success: false,
-      message: 'Failed to fetch passkey registration challenge.',
+      data: null,
+      error: new Error('Failed to fetch passkey registration challenge.'),
     });
 
     render(<RegisterPasskey />);
@@ -114,8 +114,8 @@ describe('RegisterPasskey', () => {
 
   it('handles WebAuthnError', async () => {
     mockRegisterPasskey.mockResolvedValueOnce({
-      success: false,
-      message: 'WebAuthnError',
+      data: null,
+      error: new Error('WebAuthnError'),
     });
 
     render(<RegisterPasskey />);
@@ -130,8 +130,8 @@ describe('RegisterPasskey', () => {
 
   it('handles verification failure', async () => {
     mockRegisterPasskey.mockResolvedValueOnce({
-      success: false,
-      message: 'Verification failed.',
+      data: null,
+      error: new Error('Verification failed.'),
     });
 
     render(<RegisterPasskey />);

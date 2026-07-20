@@ -424,7 +424,7 @@ describe('AuthProvider', () => {
 
       await expect(auth.finishOAuthLogin(input)).rejects.toMatchObject({
         name: 'SeamlessAuthError',
-        message: 'Failed to finish OAuth login',
+        message: 'Failed to finish OAuth login.',
         status: 502,
       });
     });

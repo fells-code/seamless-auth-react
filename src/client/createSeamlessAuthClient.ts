@@ -8,12 +8,15 @@ import {
   startAuthentication,
   startRegistration,
   type AuthenticationResponseJSON,
+  type PublicKeyCredentialCreationOptionsJSON,
+  type PublicKeyCredentialRequestOptionsJSON,
   type RegistrationResponseJSON,
   WebAuthnError,
 } from '@simplewebauthn/browser';
 
 import { createFetchWithAuth } from '../fetchWithAuth';
 import { Credential, Organization, OrganizationMembership, User } from '../types';
+import { requestResult, resultError, resultOf, type SeamlessAuthResult } from './result';
 import {
   createPrfRequestBody,
   extractPasskeyPrfResult,
@@ -128,16 +131,26 @@ export interface FinishOAuthLoginInput {
   state: string;
 }
 
-export interface PasskeyLoginResult {
-  success: boolean;
+/** Response body for endpoints that only acknowledge the request. */
+export interface MessageResult {
   message: string;
 }
 
-export interface PasskeyRegistrationResult {
-  success: boolean;
-  message: string;
-  credentialId?: string;
-  prfCapable?: boolean;
+/** Payload returned by a completed passkey login. */
+export interface PasskeyLoginData {
+  prf?: PasskeyPrfResult;
+}
+
+/** Payload returned by a completed passkey registration. */
+export interface PasskeyRegistrationData {
+  credentialId: string;
+  prfCapable: boolean;
+}
+
+/** Response body for credential mutations. */
+export interface CredentialMutationResult {
+  credential?: Credential;
+  message?: string;
 }
 
 export interface RegisterPasskeyOptions {
@@ -173,22 +186,14 @@ export interface StepUpStatus {
   maxAgeSeconds: number;
 }
 
-export interface StepUpVerificationResult extends StepUpStatus {
-  success: boolean;
-  message: string;
-}
-
 export interface PasskeyLoginOptions {
   prf?: PasskeyPrfInput;
 }
 
-export interface PasskeyLoginWithPrfResult extends PasskeyLoginResult {
-  prf?: PasskeyPrfResult;
-}
-
-export interface StepUpWithPasskeyPrfResult extends StepUpVerificationResult {
-  credentialId: string | null;
-  prf: PasskeyPrfResult | null;
+/** Step-up payload that also carries the PRF output for the caller. */
+export interface StepUpPrfData extends StepUpStatus {
+  credentialId: string;
+  prf: PasskeyPrfResult;
 }
 
 export type LogoutScope = 'current_session' | 'all_sessions';
@@ -197,83 +202,128 @@ export interface LogoutOptions {
   scope?: LogoutScope;
 }
 
+/**
+ * Headless auth client.
+ *
+ * Every request resolves to a `SeamlessAuthResult`: check `error` first, then
+ * read `data`. Nothing here throws for an HTTP or transport failure.
+ * `isPasskeyPrfSupported` is the one exception, since it is a local capability
+ * check rather than a request.
+ */
 export interface SeamlessAuthClient {
-  getCurrentUser: () => Promise<Response>;
-  login: (input: LoginInput) => Promise<Response>;
-  loginWithPasskey: (options?: PasskeyLoginOptions) => Promise<PasskeyLoginWithPrfResult>;
-  logout: (options?: LogoutOptions) => Promise<Response>;
-  logoutAllSessions: () => Promise<Response>;
-  deleteUser: () => Promise<Response>;
-  register: (input: RegisterInput) => Promise<Response>;
-  requestPhoneOtp: () => Promise<Response>;
-  verifyPhoneOtp: (verificationToken: string) => Promise<Response>;
-  requestLoginPhoneOtp: () => Promise<Response>;
-  verifyLoginPhoneOtp: (verificationToken: string) => Promise<Response>;
-  requestEmailOtp: () => Promise<Response>;
-  verifyEmailOtp: (verificationToken: string) => Promise<Response>;
-  requestLoginEmailOtp: () => Promise<Response>;
-  verifyLoginEmailOtp: (verificationToken: string) => Promise<Response>;
-  requestMagicLink: () => Promise<Response>;
-  checkMagicLink: () => Promise<Response>;
-  verifyMagicLink: (token: string) => Promise<Response>;
-  listOAuthProviders: () => Promise<OAuthProvidersResult>;
-  startOAuthLogin: (input: StartOAuthLoginInput) => Promise<StartOAuthLoginResult>;
-  finishOAuthLogin: (input: FinishOAuthLoginInput) => Promise<Response>;
+  getCurrentUser: () => Promise<SeamlessAuthResult<CurrentUserResult>>;
+  login: (input: LoginInput) => Promise<SeamlessAuthResult<LoginStartResult>>;
+  loginWithPasskey: (
+    options?: PasskeyLoginOptions
+  ) => Promise<SeamlessAuthResult<PasskeyLoginData>>;
+  logout: (options?: LogoutOptions) => Promise<SeamlessAuthResult<void>>;
+  logoutAllSessions: () => Promise<SeamlessAuthResult<void>>;
+  deleteUser: () => Promise<SeamlessAuthResult<void>>;
+  register: (input: RegisterInput) => Promise<SeamlessAuthResult<MessageResult>>;
+  requestPhoneOtp: () => Promise<SeamlessAuthResult<MessageResult>>;
+  verifyPhoneOtp: (
+    verificationToken: string
+  ) => Promise<SeamlessAuthResult<MessageResult>>;
+  requestLoginPhoneOtp: () => Promise<SeamlessAuthResult<MessageResult>>;
+  verifyLoginPhoneOtp: (
+    verificationToken: string
+  ) => Promise<SeamlessAuthResult<MessageResult>>;
+  requestEmailOtp: () => Promise<SeamlessAuthResult<MessageResult>>;
+  verifyEmailOtp: (
+    verificationToken: string
+  ) => Promise<SeamlessAuthResult<MessageResult>>;
+  requestLoginEmailOtp: () => Promise<SeamlessAuthResult<MessageResult>>;
+  verifyLoginEmailOtp: (
+    verificationToken: string
+  ) => Promise<SeamlessAuthResult<MessageResult>>;
+  requestMagicLink: () => Promise<SeamlessAuthResult<MessageResult>>;
+  checkMagicLink: () => Promise<SeamlessAuthResult<MessageResult>>;
+  verifyMagicLink: (token: string) => Promise<SeamlessAuthResult<MessageResult>>;
+  listOAuthProviders: () => Promise<SeamlessAuthResult<OAuthProvidersResult>>;
+  startOAuthLogin: (
+    input: StartOAuthLoginInput
+  ) => Promise<SeamlessAuthResult<StartOAuthLoginResult>>;
+  finishOAuthLogin: (
+    input: FinishOAuthLoginInput
+  ) => Promise<SeamlessAuthResult<MessageResult>>;
   registerPasskey: (
     input: PasskeyMetadata | RegisterPasskeyOptions
-  ) => Promise<PasskeyRegistrationResult>;
+  ) => Promise<SeamlessAuthResult<PasskeyRegistrationData>>;
   isPasskeyPrfSupported: () => Promise<boolean>;
-  getStepUpStatus: () => Promise<Response>;
-  verifyStepUpWithPasskey: () => Promise<StepUpVerificationResult>;
+  getStepUpStatus: () => Promise<SeamlessAuthResult<StepUpStatus>>;
+  verifyStepUpWithPasskey: () => Promise<SeamlessAuthResult<StepUpStatus>>;
   verifyStepUpWithPasskeyPrf: (
     input: PasskeyPrfInput
-  ) => Promise<StepUpWithPasskeyPrfResult>;
-  getTotpStatus: () => Promise<Response>;
-  startTotpEnrollment: () => Promise<Response>;
-  verifyTotpEnrollment: (code: string) => Promise<Response>;
-  disableTotp: (code: string) => Promise<Response>;
-  verifyStepUpWithTotp: (code: string) => Promise<StepUpVerificationResult>;
+  ) => Promise<SeamlessAuthResult<StepUpPrfData>>;
+  getTotpStatus: () => Promise<SeamlessAuthResult<TotpStatus>>;
+  startTotpEnrollment: () => Promise<SeamlessAuthResult<TotpEnrollmentStartResult>>;
+  verifyTotpEnrollment: (code: string) => Promise<SeamlessAuthResult<MessageResult>>;
+  disableTotp: (code: string) => Promise<SeamlessAuthResult<MessageResult>>;
+  verifyStepUpWithTotp: (code: string) => Promise<SeamlessAuthResult<StepUpStatus>>;
   updateCredential: (input: {
     id: string;
     friendlyName: string | null;
-  }) => Promise<Response>;
-  deleteCredential: (id: string) => Promise<Response>;
-  listOrganizations: () => Promise<Response>;
-  createOrganization: (input: CreateOrganizationInput) => Promise<Response>;
-  getOrganization: (organizationId: string) => Promise<Response>;
+  }) => Promise<SeamlessAuthResult<CredentialMutationResult>>;
+  deleteCredential: (id: string) => Promise<SeamlessAuthResult<CredentialMutationResult>>;
+  listOrganizations: () => Promise<SeamlessAuthResult<OrganizationsResult>>;
+  createOrganization: (
+    input: CreateOrganizationInput
+  ) => Promise<SeamlessAuthResult<OrganizationResult>>;
+  getOrganization: (
+    organizationId: string
+  ) => Promise<SeamlessAuthResult<OrganizationResult>>;
   updateOrganization: (
     organizationId: string,
     input: UpdateOrganizationInput
-  ) => Promise<Response>;
-  switchOrganization: (organizationId: string) => Promise<Response>;
-  listOrganizationMembers: (organizationId: string) => Promise<Response>;
+  ) => Promise<SeamlessAuthResult<OrganizationResult>>;
+  switchOrganization: (
+    organizationId: string
+  ) => Promise<SeamlessAuthResult<OrganizationResult>>;
+  listOrganizationMembers: (
+    organizationId: string
+  ) => Promise<SeamlessAuthResult<OrganizationMembersResult>>;
   addOrganizationMember: (
     organizationId: string,
     input: OrganizationMemberInput
-  ) => Promise<Response>;
+  ) => Promise<SeamlessAuthResult<OrganizationMembersResult>>;
   updateOrganizationMember: (
     organizationId: string,
     userId: string,
     input: OrganizationMemberUpdateInput
-  ) => Promise<Response>;
-  removeOrganizationMember: (organizationId: string, userId: string) => Promise<Response>;
+  ) => Promise<SeamlessAuthResult<OrganizationMembersResult>>;
+  removeOrganizationMember: (
+    organizationId: string,
+    userId: string
+  ) => Promise<SeamlessAuthResult<OrganizationMembersResult>>;
 }
 
-const staleStepUpResult = (message: string): StepUpVerificationResult => ({
-  success: false,
-  fresh: false,
-  method: null,
-  verifiedAt: null,
-  expiresAt: null,
-  maxAgeSeconds: 0,
-  message,
-});
+type StepUpPayload = Partial<StepUpStatus> & { message?: string };
 
-const staleStepUpPrfResult = (message: string): StepUpWithPasskeyPrfResult => ({
-  ...staleStepUpResult(message),
-  credentialId: null,
-  prf: null,
-});
+/**
+ * A 200 from the step-up endpoints does not by itself mean the user verified.
+ * The payload still has to report a fresh verification by the expected method,
+ * so anything else is surfaced as a failure result.
+ */
+function toStepUpStatus(
+  payload: StepUpPayload,
+  expectedMethod: StepUpMethod
+): SeamlessAuthResult<StepUpStatus> {
+  const method = payload.method === expectedMethod ? payload.method : null;
+  const verified =
+    payload.message === 'Success' && payload.fresh === true && method !== null;
+
+  if (!verified) {
+    return resultError(payload.message ?? 'Step-up authentication failed.');
+  }
+
+  return resultOf({
+    fresh: true,
+    method,
+    verifiedAt: payload.verifiedAt ?? null,
+    expiresAt: payload.expiresAt ?? null,
+    maxAgeSeconds: payload.maxAgeSeconds ?? 0,
+  });
+}
 
 function normalizeRegisterPasskeyInput(
   input: PasskeyMetadata | RegisterPasskeyOptions
@@ -319,528 +369,491 @@ export const createSeamlessAuthClient = (
 
   return {
     getCurrentUser: () =>
-      fetchWithAuth(`users/me`, {
-        method: 'GET',
-      }),
+      requestResult<CurrentUserResult>(
+        fetchWithAuth(`users/me`, { method: 'GET' }),
+        'Failed to load the current user.'
+      ),
 
     login: input =>
-      fetchWithAuth(`/login`, {
-        method: 'POST',
-        body: JSON.stringify(input),
-      }),
+      requestResult<LoginStartResult>(
+        fetchWithAuth(`/login`, {
+          method: 'POST',
+          body: JSON.stringify(input),
+        }),
+        'Failed to start sign-in.'
+      ),
 
     loginWithPasskey: async optionsInput => {
-      const response = await fetchWithAuth(`/webAuthn/login/start`, {
-        ...buildAssertionStartInit(optionsInput?.prf),
-      });
+      const started = await requestResult<PublicKeyCredentialRequestOptionsJSON>(
+        fetchWithAuth(`/webAuthn/login/start`, {
+          ...buildAssertionStartInit(optionsInput?.prf),
+        }),
+        'Failed to start passkey login.'
+      );
 
-      if (!response.ok) {
-        return {
-          success: false,
-          message: 'Failed to start passkey login.',
-        };
+      if (started.error) {
+        return started as SeamlessAuthResult<PasskeyLoginData>;
       }
+
+      let prf: PasskeyPrfResult | null;
+      let assertionResponse: AuthenticationResponseJSON;
 
       try {
-        const options = await response.json();
         const credential = (await startAuthentication({
-          optionsJSON: preparePrfRequestOptions(options),
+          optionsJSON: preparePrfRequestOptions(started.data),
         })) as AuthenticationResponseJSON;
-        const prf = extractPasskeyPrfResult(credential);
-        const assertionResponse = stripPrfResultsFromAssertion(credential);
+        prf = extractPasskeyPrfResult(credential);
+        assertionResponse = stripPrfResultsFromAssertion(credential);
+      } catch {
+        // Typically a cancelled or unsupported authenticator prompt.
+        console.error('Passkey login error.');
+        return resultError('Passkey login failed.');
+      }
 
-        const verificationResponse = await fetchWithAuth(`/webAuthn/login/finish`, {
+      const verified = await requestResult<MessageResult>(
+        fetchWithAuth(`/webAuthn/login/finish`, {
           method: 'POST',
           body: JSON.stringify({ assertionResponse }),
-        });
+        }),
+        'Failed to verify passkey.'
+      );
 
-        if (!verificationResponse.ok) {
-          return {
-            success: false,
-            message: 'Failed to verify passkey.',
-          };
-        }
-
-        const verificationResult = await verificationResponse.json();
-
-        if (verificationResult.message === 'Success') {
-          return {
-            success: true,
-            message: 'Passkey login succeeded.',
-            ...(prf ? { prf } : {}),
-          };
-        }
-
-        return {
-          success: false,
-          message: verificationResult.message ?? 'Passkey login failed.',
-        };
-      } catch {
-        console.error('Passkey login error.');
-        return {
-          success: false,
-          message: 'Passkey login failed.',
-        };
+      if (verified.error) {
+        return verified as SeamlessAuthResult<PasskeyLoginData>;
       }
+
+      if (verified.data?.message !== 'Success') {
+        return resultError(verified.data?.message ?? 'Passkey login failed.');
+      }
+
+      return resultOf(prf ? { prf } : {});
     },
 
     logout: (options = {}) =>
-      fetchWithAuth(options.scope === 'all_sessions' ? `/logout/all` : `/logout`, {
-        method: 'DELETE',
-      }),
+      requestResult<void>(
+        fetchWithAuth(options.scope === 'all_sessions' ? `/logout/all` : `/logout`, {
+          method: 'DELETE',
+        }),
+        'Failed to sign out.'
+      ),
 
     logoutAllSessions: () =>
-      fetchWithAuth(`/logout/all`, {
-        method: 'DELETE',
-      }),
+      requestResult<void>(
+        fetchWithAuth(`/logout/all`, { method: 'DELETE' }),
+        'Failed to sign out of all sessions.'
+      ),
 
     deleteUser: () =>
-      fetchWithAuth(`/users/delete`, {
-        method: 'DELETE',
-      }),
+      requestResult<void>(
+        fetchWithAuth(`/users/delete`, { method: 'DELETE' }),
+        'Failed to delete the account.'
+      ),
 
     register: input =>
-      fetchWithAuth(`/registration/register`, {
-        method: 'POST',
-        body: JSON.stringify({
-          email: input.email,
-          phone: input.phone,
-          ...(input.bootstrapToken ? { bootstrapToken: input.bootstrapToken } : {}),
+      requestResult<MessageResult>(
+        fetchWithAuth(`/registration/register`, {
+          method: 'POST',
+          body: JSON.stringify({
+            email: input.email,
+            phone: input.phone,
+            ...(input.bootstrapToken ? { bootstrapToken: input.bootstrapToken } : {}),
+          }),
         }),
-      }),
+        'Failed to register.'
+      ),
 
     requestPhoneOtp: () =>
-      fetchWithAuth(`/otp/generate-phone-otp`, {
-        method: 'GET',
-      }),
+      requestResult<MessageResult>(
+        fetchWithAuth(`/otp/generate-phone-otp`, { method: 'GET' }),
+        'Failed to send the SMS code.'
+      ),
 
     verifyPhoneOtp: verificationToken =>
-      fetchWithAuth(`/otp/verify-phone-otp`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          verificationToken,
+      requestResult<MessageResult>(
+        fetchWithAuth(`/otp/verify-phone-otp`, {
+          method: 'POST',
+          body: JSON.stringify({ verificationToken }),
         }),
-        credentials: 'include',
-      }),
+        'Failed to verify the SMS code.'
+      ),
 
     requestLoginPhoneOtp: () =>
-      fetchWithAuth(`/otp/generate-login-phone-otp`, {
-        method: 'GET',
-      }),
+      requestResult<MessageResult>(
+        fetchWithAuth(`/otp/generate-login-phone-otp`, { method: 'GET' }),
+        'Failed to send the SMS code.'
+      ),
 
     verifyLoginPhoneOtp: verificationToken =>
-      fetchWithAuth(`/otp/verify-login-phone-otp`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          verificationToken,
+      requestResult<MessageResult>(
+        fetchWithAuth(`/otp/verify-login-phone-otp`, {
+          method: 'POST',
+          body: JSON.stringify({ verificationToken }),
         }),
-        credentials: 'include',
-      }),
+        'Failed to verify the SMS code.'
+      ),
 
     requestEmailOtp: () =>
-      fetchWithAuth(`/otp/generate-email-otp`, {
-        method: 'GET',
-        headers: { 'Content-Type': 'application/json' },
-      }),
+      requestResult<MessageResult>(
+        fetchWithAuth(`/otp/generate-email-otp`, { method: 'GET' }),
+        'Failed to send the email code.'
+      ),
 
     verifyEmailOtp: verificationToken =>
-      fetchWithAuth(`/otp/verify-email-otp`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          verificationToken,
+      requestResult<MessageResult>(
+        fetchWithAuth(`/otp/verify-email-otp`, {
+          method: 'POST',
+          body: JSON.stringify({ verificationToken }),
         }),
-        credentials: 'include',
-      }),
+        'Failed to verify the email code.'
+      ),
 
     requestLoginEmailOtp: () =>
-      fetchWithAuth(`/otp/generate-login-email-otp`, {
-        method: 'GET',
-        headers: { 'Content-Type': 'application/json' },
-      }),
+      requestResult<MessageResult>(
+        fetchWithAuth(`/otp/generate-login-email-otp`, { method: 'GET' }),
+        'Failed to send the email code.'
+      ),
 
     verifyLoginEmailOtp: verificationToken =>
-      fetchWithAuth(`/otp/verify-login-email-otp`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          verificationToken,
+      requestResult<MessageResult>(
+        fetchWithAuth(`/otp/verify-login-email-otp`, {
+          method: 'POST',
+          body: JSON.stringify({ verificationToken }),
         }),
-        credentials: 'include',
-      }),
+        'Failed to verify the email code.'
+      ),
 
     requestMagicLink: () =>
-      fetchWithAuth(`/magic-link`, {
-        method: 'GET',
-      }),
+      requestResult<MessageResult>(
+        fetchWithAuth(`/magic-link`, { method: 'GET' }),
+        'Failed to send the magic link.'
+      ),
 
     checkMagicLink: () =>
-      fetchWithAuth(`/magic-link/check`, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      }),
+      requestResult<MessageResult>(
+        fetchWithAuth(`/magic-link/check`, { method: 'GET' }),
+        'Failed to check the magic link.'
+      ),
 
     verifyMagicLink: token =>
-      fetchWithAuth(`/magic-link/verify/${token}`, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      }),
+      requestResult<MessageResult>(
+        fetchWithAuth(`/magic-link/verify/${token}`, { method: 'GET' }),
+        'Failed to verify the magic link.'
+      ),
 
-    listOAuthProviders: async () => {
-      const response = await fetchWithAuth(`/oauth/providers`, {
-        method: 'GET',
-      });
+    listOAuthProviders: () =>
+      requestResult<OAuthProvidersResult>(
+        fetchWithAuth(`/oauth/providers`, { method: 'GET' }),
+        'Failed to list OAuth providers.'
+      ),
 
-      if (!response.ok) {
-        throw new Error('Failed to list OAuth providers.');
-      }
-
-      return response.json();
-    },
-
-    startOAuthLogin: async input => {
-      const response = await fetchWithAuth(
-        `/oauth/${encodeURIComponent(input.providerId)}/start`,
-        {
+    startOAuthLogin: input =>
+      requestResult<StartOAuthLoginResult>(
+        fetchWithAuth(`/oauth/${encodeURIComponent(input.providerId)}/start`, {
           method: 'POST',
           body: JSON.stringify({
             ...(input.redirectUri ? { redirectUri: input.redirectUri } : {}),
             ...(input.returnTo ? { returnTo: input.returnTo } : {}),
           }),
-        }
-      );
-
-      if (!response.ok) {
-        throw new Error('Failed to start OAuth login.');
-      }
-
-      return response.json();
-    },
+        }),
+        'Failed to start OAuth login.'
+      ),
 
     finishOAuthLogin: input =>
-      fetchWithAuth(`/oauth/${encodeURIComponent(input.providerId)}/callback`, {
-        method: 'POST',
-        body: JSON.stringify({
-          code: input.code,
-          state: input.state,
+      requestResult<MessageResult>(
+        fetchWithAuth(`/oauth/${encodeURIComponent(input.providerId)}/callback`, {
+          method: 'POST',
+          body: JSON.stringify({
+            code: input.code,
+            state: input.state,
+          }),
         }),
-      }),
+        'Failed to finish OAuth login.'
+      ),
 
     registerPasskey: async input => {
       const registerInput = normalizeRegisterPasskeyInput(input);
-      const challengeRes = await fetchWithAuth(buildRegisterStartPath(registerInput), {
-        method: 'GET',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-      });
+      const challenge = await requestResult<PublicKeyCredentialCreationOptionsJSON>(
+        fetchWithAuth(buildRegisterStartPath(registerInput), { method: 'GET' }),
+        'Failed to fetch passkey registration challenge.'
+      );
 
-      if (!challengeRes.ok) {
-        return {
-          success: false,
-          message: 'Failed to fetch passkey registration challenge.',
-        };
+      if (challenge.error) {
+        return challenge as SeamlessAuthResult<PasskeyRegistrationData>;
       }
-
-      const options = await challengeRes.json();
 
       let attestationResponse: RegistrationResponseJSON;
 
       try {
-        attestationResponse = await startRegistration({ optionsJSON: options });
+        attestationResponse = await startRegistration({ optionsJSON: challenge.data });
       } catch (error) {
         if (error instanceof WebAuthnError) {
-          return {
-            success: false,
-            message: error.name,
-          };
+          // The authenticator name is the useful detail here, for example
+          // InvalidStateError when the passkey already exists.
+          return resultError(error.name);
         }
 
         console.error('Passkey registration error.');
-        return {
-          success: false,
-          message: 'Passkey registration failed.',
-        };
+        return resultError('Passkey registration failed.');
       }
 
-      const verificationResp = await fetchWithAuth(`/webAuthn/register/finish`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          attestationResponse,
-          metadata: {
-            ...registerInput.metadata,
-            prfCapable: getRegistrationPrfCapable(attestationResponse),
-          },
+      const prfCapable = getRegistrationPrfCapable(attestationResponse);
+
+      const verified = await requestResult<MessageResult>(
+        fetchWithAuth(`/webAuthn/register/finish`, {
+          method: 'POST',
+          body: JSON.stringify({
+            attestationResponse,
+            metadata: { ...registerInput.metadata, prfCapable },
+          }),
         }),
-        credentials: 'include',
-      });
+        'Verification failed.'
+      );
 
-      if (!verificationResp.ok) {
-        return {
-          success: false,
-          message: 'Verification failed.',
-        };
+      if (verified.error) {
+        return verified as SeamlessAuthResult<PasskeyRegistrationData>;
       }
 
-      return {
-        success: true,
-        message: 'Passkey registered successfully.',
-        credentialId: attestationResponse.id,
-        prfCapable: getRegistrationPrfCapable(attestationResponse),
-      };
+      return resultOf({ credentialId: attestationResponse.id, prfCapable });
     },
 
     isPasskeyPrfSupported,
 
     getStepUpStatus: () =>
-      fetchWithAuth(`/step-up/status`, {
-        method: 'GET',
-      }),
+      requestResult<StepUpStatus>(
+        fetchWithAuth(`/step-up/status`, { method: 'GET' }),
+        'Failed to load step-up status.'
+      ),
 
     verifyStepUpWithPasskey: async () => {
-      const response = await fetchWithAuth(`/step-up/webauthn/start`, {
-        method: 'POST',
-      });
+      const started = await requestResult<PublicKeyCredentialRequestOptionsJSON>(
+        fetchWithAuth(`/step-up/webauthn/start`, { method: 'POST' }),
+        'Failed to start step-up authentication.'
+      );
 
-      if (!response.ok) {
-        return staleStepUpResult('Failed to start step-up authentication.');
+      if (started.error) {
+        return started as SeamlessAuthResult<StepUpStatus>;
       }
+
+      let assertionResponse: AuthenticationResponseJSON;
 
       try {
-        const options = await response.json();
         const credential = (await startAuthentication({
-          optionsJSON: preparePrfRequestOptions(options),
+          optionsJSON: preparePrfRequestOptions(started.data),
         })) as AuthenticationResponseJSON;
-        const assertionResponse = stripPrfResultsFromAssertion(credential);
-
-        const verificationResponse = await fetchWithAuth(`/step-up/webauthn/finish`, {
-          method: 'POST',
-          body: JSON.stringify({ assertionResponse }),
-        });
-
-        if (!verificationResponse.ok) {
-          return staleStepUpResult('Failed to verify step-up authentication.');
-        }
-
-        const verificationResult = await verificationResponse.json();
-        const method =
-          verificationResult.method === 'webauthn' ? verificationResult.method : null;
-        const success =
-          verificationResult.message === 'Success' &&
-          verificationResult.fresh === true &&
-          method === 'webauthn';
-
-        return {
-          success,
-          fresh: Boolean(verificationResult.fresh),
-          method,
-          verifiedAt: verificationResult.verifiedAt ?? null,
-          expiresAt: verificationResult.expiresAt ?? null,
-          maxAgeSeconds: verificationResult.maxAgeSeconds ?? 0,
-          message: success
-            ? 'Step-up authentication succeeded.'
-            : (verificationResult.message ?? 'Step-up authentication failed.'),
-        };
+        assertionResponse = stripPrfResultsFromAssertion(credential);
       } catch {
         console.error('Step-up authentication error.');
-        return staleStepUpResult('Step-up authentication failed.');
+        return resultError('Step-up authentication failed.');
       }
+
+      const verified = await requestResult<StepUpPayload>(
+        fetchWithAuth(`/step-up/webauthn/finish`, {
+          method: 'POST',
+          body: JSON.stringify({ assertionResponse }),
+        }),
+        'Failed to verify step-up authentication.'
+      );
+
+      if (verified.error) {
+        return verified as SeamlessAuthResult<StepUpStatus>;
+      }
+
+      return toStepUpStatus(verified.data ?? {}, 'webauthn');
     },
 
     verifyStepUpWithPasskeyPrf: async input => {
-      const response = await fetchWithAuth(`/step-up/webauthn/start`, {
-        ...buildAssertionStartInit(input),
-      });
+      const started = await requestResult<PublicKeyCredentialRequestOptionsJSON>(
+        fetchWithAuth(`/step-up/webauthn/start`, {
+          ...buildAssertionStartInit(input),
+        }),
+        'Failed to start step-up authentication.'
+      );
 
-      if (!response.ok) {
-        return staleStepUpPrfResult('Failed to start step-up authentication.');
+      if (started.error) {
+        return started as SeamlessAuthResult<StepUpPrfData>;
       }
+
+      let prf: PasskeyPrfResult | null;
+      let assertionResponse: AuthenticationResponseJSON;
 
       try {
-        const options = await response.json();
         const credential = (await startAuthentication({
-          optionsJSON: preparePrfRequestOptions(options),
+          optionsJSON: preparePrfRequestOptions(started.data),
         })) as AuthenticationResponseJSON;
-        const prf = extractPasskeyPrfResult(credential);
-        const assertionResponse = stripPrfResultsFromAssertion(credential);
-
-        if (!prf) {
-          return staleStepUpPrfResult('Passkey did not return PRF output.');
-        }
-
-        const verificationResponse = await fetchWithAuth(`/step-up/webauthn/finish`, {
-          method: 'POST',
-          body: JSON.stringify({ assertionResponse }),
-        });
-
-        if (!verificationResponse.ok) {
-          return staleStepUpPrfResult('Failed to verify step-up authentication.');
-        }
-
-        const verificationResult = await verificationResponse.json();
-        const method =
-          verificationResult.method === 'webauthn' ? verificationResult.method : null;
-        const success =
-          verificationResult.message === 'Success' &&
-          verificationResult.fresh === true &&
-          method === 'webauthn';
-
-        return {
-          success,
-          fresh: Boolean(verificationResult.fresh),
-          method,
-          verifiedAt: verificationResult.verifiedAt ?? null,
-          expiresAt: verificationResult.expiresAt ?? null,
-          maxAgeSeconds: verificationResult.maxAgeSeconds ?? 0,
-          message: success
-            ? 'Step-up authentication succeeded.'
-            : (verificationResult.message ?? 'Step-up authentication failed.'),
-          credentialId: prf.credentialId,
-          prf,
-        };
+        prf = extractPasskeyPrfResult(credential);
+        assertionResponse = stripPrfResultsFromAssertion(credential);
       } catch {
         console.error('Step-up authentication error.');
-        return staleStepUpPrfResult('Step-up authentication failed.');
+        return resultError('Step-up authentication failed.');
       }
+
+      if (!prf) {
+        return resultError('Passkey did not return PRF output.');
+      }
+
+      const verified = await requestResult<StepUpPayload>(
+        fetchWithAuth(`/step-up/webauthn/finish`, {
+          method: 'POST',
+          body: JSON.stringify({ assertionResponse }),
+        }),
+        'Failed to verify step-up authentication.'
+      );
+
+      if (verified.error) {
+        return verified as SeamlessAuthResult<StepUpPrfData>;
+      }
+
+      const status = toStepUpStatus(verified.data ?? {}, 'webauthn');
+
+      if (status.error) {
+        return status as SeamlessAuthResult<StepUpPrfData>;
+      }
+
+      return resultOf({ ...status.data, credentialId: prf.credentialId, prf });
     },
 
     getTotpStatus: () =>
-      fetchWithAuth(`/totp/status`, {
-        method: 'GET',
-      }),
+      requestResult<TotpStatus>(
+        fetchWithAuth(`/totp/status`, { method: 'GET' }),
+        'Failed to load authenticator status.'
+      ),
 
     startTotpEnrollment: () =>
-      fetchWithAuth(`/totp/enroll/start`, {
-        method: 'POST',
-      }),
+      requestResult<TotpEnrollmentStartResult>(
+        fetchWithAuth(`/totp/enroll/start`, { method: 'POST' }),
+        'Failed to start authenticator enrollment.'
+      ),
 
     verifyTotpEnrollment: code =>
-      fetchWithAuth(`/totp/enroll/verify`, {
-        method: 'POST',
-        body: JSON.stringify({ code }),
-      }),
+      requestResult<MessageResult>(
+        fetchWithAuth(`/totp/enroll/verify`, {
+          method: 'POST',
+          body: JSON.stringify({ code }),
+        }),
+        'Failed to verify the authenticator code.'
+      ),
 
     disableTotp: code =>
-      fetchWithAuth(`/totp/disable`, {
-        method: 'POST',
-        body: JSON.stringify({ code }),
-      }),
+      requestResult<MessageResult>(
+        fetchWithAuth(`/totp/disable`, {
+          method: 'POST',
+          body: JSON.stringify({ code }),
+        }),
+        'Failed to disable the authenticator.'
+      ),
 
     verifyStepUpWithTotp: async code => {
-      const response = await fetchWithAuth(`/totp/verify-mfa`, {
-        method: 'POST',
-        body: JSON.stringify({ code }),
-      });
+      const verified = await requestResult<StepUpPayload>(
+        fetchWithAuth(`/totp/verify-mfa`, {
+          method: 'POST',
+          body: JSON.stringify({ code }),
+        }),
+        'Failed to verify step-up authentication.'
+      );
 
-      if (!response.ok) {
-        return staleStepUpResult('Failed to verify step-up authentication.');
+      if (verified.error) {
+        return verified as SeamlessAuthResult<StepUpStatus>;
       }
 
-      try {
-        const verificationResult = await response.json();
-        const method =
-          verificationResult.method === 'totp' ? verificationResult.method : null;
-        const success =
-          verificationResult.message === 'Success' &&
-          verificationResult.fresh === true &&
-          method === 'totp';
-
-        return {
-          success,
-          fresh: Boolean(verificationResult.fresh),
-          method,
-          verifiedAt: verificationResult.verifiedAt ?? null,
-          expiresAt: verificationResult.expiresAt ?? null,
-          maxAgeSeconds: verificationResult.maxAgeSeconds ?? 0,
-          message: success
-            ? 'Step-up authentication succeeded.'
-            : (verificationResult.message ?? 'Step-up authentication failed.'),
-        };
-      } catch {
-        console.error('Step-up authentication error.');
-        return staleStepUpResult('Step-up authentication failed.');
-      }
+      return toStepUpStatus(verified.data ?? {}, 'totp');
     },
 
     updateCredential: input =>
-      fetchWithAuth(`users/credentials`, {
-        method: 'POST',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(input),
-      }),
+      requestResult<CredentialMutationResult>(
+        fetchWithAuth(`users/credentials`, {
+          method: 'POST',
+          body: JSON.stringify(input),
+        }),
+        'Failed to update credential.'
+      ),
 
     deleteCredential: id =>
-      fetchWithAuth(`users/credentials`, {
-        method: 'DELETE',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id }),
-      }),
+      requestResult<CredentialMutationResult>(
+        fetchWithAuth(`users/credentials`, {
+          method: 'DELETE',
+          body: JSON.stringify({ id }),
+        }),
+        'Failed to delete credential.'
+      ),
 
     listOrganizations: () =>
-      fetchWithAuth(`/organizations`, {
-        method: 'GET',
-      }),
+      requestResult<OrganizationsResult>(
+        fetchWithAuth(`/organizations`, { method: 'GET' }),
+        'Failed to list organizations.'
+      ),
 
     createOrganization: input =>
-      fetchWithAuth(`/organizations`, {
-        method: 'POST',
-        body: JSON.stringify(input),
-      }),
+      requestResult<OrganizationResult>(
+        fetchWithAuth(`/organizations`, {
+          method: 'POST',
+          body: JSON.stringify(input),
+        }),
+        'Failed to create organization.'
+      ),
 
     getOrganization: organizationId =>
-      fetchWithAuth(`/organizations/${encodeURIComponent(organizationId)}`, {
-        method: 'GET',
-      }),
+      requestResult<OrganizationResult>(
+        fetchWithAuth(`/organizations/${encodeURIComponent(organizationId)}`, {
+          method: 'GET',
+        }),
+        'Failed to load organization.'
+      ),
 
     updateOrganization: (organizationId, input) =>
-      fetchWithAuth(`/organizations/${encodeURIComponent(organizationId)}`, {
-        method: 'PATCH',
-        body: JSON.stringify(input),
-      }),
-
-    switchOrganization: organizationId =>
-      fetchWithAuth(`/organizations/${encodeURIComponent(organizationId)}/switch`, {
-        method: 'POST',
-      }),
-
-    listOrganizationMembers: organizationId =>
-      fetchWithAuth(`/organizations/${encodeURIComponent(organizationId)}/members`, {
-        method: 'GET',
-      }),
-
-    addOrganizationMember: (organizationId, input) =>
-      fetchWithAuth(`/organizations/${encodeURIComponent(organizationId)}/members`, {
-        method: 'POST',
-        body: JSON.stringify(input),
-      }),
-
-    updateOrganizationMember: (organizationId, userId, input) =>
-      fetchWithAuth(
-        `/organizations/${encodeURIComponent(organizationId)}/members/${encodeURIComponent(userId)}`,
-        {
+      requestResult<OrganizationResult>(
+        fetchWithAuth(`/organizations/${encodeURIComponent(organizationId)}`, {
           method: 'PATCH',
           body: JSON.stringify(input),
-        }
+        }),
+        'Failed to update organization.'
+      ),
+
+    switchOrganization: organizationId =>
+      requestResult<OrganizationResult>(
+        fetchWithAuth(`/organizations/${encodeURIComponent(organizationId)}/switch`, {
+          method: 'POST',
+        }),
+        'Failed to switch organization.'
+      ),
+
+    listOrganizationMembers: organizationId =>
+      requestResult<OrganizationMembersResult>(
+        fetchWithAuth(`/organizations/${encodeURIComponent(organizationId)}/members`, {
+          method: 'GET',
+        }),
+        'Failed to list organization members.'
+      ),
+
+    addOrganizationMember: (organizationId, input) =>
+      requestResult<OrganizationMembersResult>(
+        fetchWithAuth(`/organizations/${encodeURIComponent(organizationId)}/members`, {
+          method: 'POST',
+          body: JSON.stringify(input),
+        }),
+        'Failed to add organization member.'
+      ),
+
+    updateOrganizationMember: (organizationId, userId, input) =>
+      requestResult<OrganizationMembersResult>(
+        fetchWithAuth(
+          `/organizations/${encodeURIComponent(organizationId)}/members/${encodeURIComponent(userId)}`,
+          {
+            method: 'PATCH',
+            body: JSON.stringify(input),
+          }
+        ),
+        'Failed to update organization member.'
       ),
 
     removeOrganizationMember: (organizationId, userId) =>
-      fetchWithAuth(
-        `/organizations/${encodeURIComponent(organizationId)}/members/${encodeURIComponent(userId)}`,
-        {
-          method: 'DELETE',
-        }
+      requestResult<OrganizationMembersResult>(
+        fetchWithAuth(
+          `/organizations/${encodeURIComponent(organizationId)}/members/${encodeURIComponent(userId)}`,
+          {
+            method: 'DELETE',
+          }
+        ),
+        'Failed to remove organization member.'
       ),
   };
 };

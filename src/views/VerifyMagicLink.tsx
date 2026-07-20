@@ -37,9 +37,9 @@ const VerifyMagicLink: React.FC = () => {
       }
 
       try {
-        const response = await authClient.verifyMagicLink(token);
+        const { error } = await authClient.verifyMagicLink(token);
 
-        if (!response.ok) {
+        if (error) {
           console.error('Failed to verify token');
           if (mounted) {
             setError('Failed to verify token');

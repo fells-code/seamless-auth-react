@@ -32,11 +32,11 @@ const EmailRegistration: React.FC = () => {
     setError('');
     setResendMsg('');
 
-    const response = isLoginFlow
+    const { error } = isLoginFlow
       ? await authClient.requestLoginEmailOtp()
       : await authClient.requestEmailOtp();
 
-    if (!response.ok) {
+    if (error) {
       setError(
         'Failed to send Email code. If this persists, refresh the page and try again.'
       );
@@ -58,11 +58,11 @@ const EmailRegistration: React.FC = () => {
     setLoading(true);
 
     try {
-      const response = isLoginFlow
+      const { error } = isLoginFlow
         ? await authClient.verifyLoginEmailOtp(emailOtp)
         : await authClient.verifyEmailOtp(emailOtp);
 
-      if (!response.ok) {
+      if (error) {
         setError('Verification failed.');
         return;
       }

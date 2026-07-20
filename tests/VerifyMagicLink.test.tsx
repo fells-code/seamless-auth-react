@@ -65,7 +65,8 @@ describe('VerifyMagicLink', () => {
     ]);
 
     mockAuthClient.verifyMagicLink.mockResolvedValue({
-      ok: false,
+      data: null,
+      error: new Error('nope'),
     });
 
     render(<VerifyMagicLink />);
@@ -79,7 +80,8 @@ describe('VerifyMagicLink', () => {
     ]);
 
     mockAuthClient.verifyMagicLink.mockResolvedValue({
-      ok: true,
+      data: { message: 'Success' },
+      error: null,
     });
 
     render(<VerifyMagicLink />);
@@ -93,7 +95,8 @@ describe('VerifyMagicLink', () => {
     ]);
 
     mockAuthClient.verifyMagicLink.mockResolvedValue({
-      ok: true,
+      data: { message: 'Success' },
+      error: null,
     });
 
     render(<VerifyMagicLink />);
@@ -111,7 +114,8 @@ describe('VerifyMagicLink', () => {
     ]);
 
     mockAuthClient.verifyMagicLink.mockResolvedValue({
-      ok: true,
+      data: { message: 'Success' },
+      error: null,
     });
 
     render(<VerifyMagicLink />);
@@ -131,7 +135,8 @@ describe('VerifyMagicLink', () => {
     ]);
 
     mockAuthClient.verifyMagicLink.mockResolvedValue({
-      ok: true,
+      data: { message: 'Success' },
+      error: null,
     });
 
     render(<VerifyMagicLink />);
@@ -147,7 +152,8 @@ describe('VerifyMagicLink', () => {
     ]);
 
     mockAuthClient.verifyMagicLink.mockResolvedValue({
-      ok: false,
+      data: null,
+      error: new Error('nope'),
     });
 
     render(<VerifyMagicLink />);
@@ -163,7 +169,8 @@ describe('VerifyMagicLink', () => {
     ]);
 
     mockAuthClient.verifyMagicLink.mockResolvedValue({
-      ok: true,
+      data: { message: 'Success' },
+      error: null,
     });
 
     const { unmount } = render(<VerifyMagicLink />);
@@ -188,7 +195,8 @@ describe('VerifyMagicLink', () => {
     ]);
 
     mockAuthClient.verifyMagicLink.mockResolvedValue({
-      ok: true,
+      data: { message: 'Success' },
+      error: null,
     });
 
     render(<VerifyMagicLink />);

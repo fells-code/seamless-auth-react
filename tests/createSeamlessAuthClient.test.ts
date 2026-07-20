@@ -52,9 +52,10 @@ describe('createSeamlessAuthClient', () => {
       apiHost: 'https://api.example.com',
     });
 
-    await expect(
-      client.login({ identifier: 'test@example.com', passkeyAvailable: true })
-    ).resolves.toBe(response);
+    expect(
+      (await client.login({ identifier: 'test@example.com', passkeyAvailable: true }))
+        .error
+    ).toBeNull();
 
     expect(mockFetchWithAuth).toHaveBeenCalledWith('/login', {
       method: 'POST',
@@ -73,9 +74,9 @@ describe('createSeamlessAuthClient', () => {
       apiHost: 'https://api.example.com',
     });
 
-    await expect(client.logout()).resolves.toBe(response);
-    await expect(client.logout({ scope: 'all_sessions' })).resolves.toBe(response);
-    await expect(client.logoutAllSessions()).resolves.toBe(response);
+    expect((await client.logout()).error).toBeNull();
+    expect((await client.logout({ scope: 'all_sessions' })).error).toBeNull();
+    expect((await client.logoutAllSessions()).error).toBeNull();
 
     expect(mockFetchWithAuth).toHaveBeenNthCalledWith(1, '/logout', {
       method: 'DELETE',
@@ -96,8 +97,8 @@ describe('createSeamlessAuthClient', () => {
       apiHost: 'https://api.example.com',
     });
 
-    await expect(client.requestLoginPhoneOtp()).resolves.toBe(response);
-    await expect(client.verifyLoginPhoneOtp('123456')).resolves.toBe(response);
+    expect((await client.requestLoginPhoneOtp()).error).toBeNull();
+    expect((await client.verifyLoginPhoneOtp('123456')).error).toBeNull();
 
     expect(mockFetchWithAuth).toHaveBeenNthCalledWith(
       1,
@@ -106,15 +107,10 @@ describe('createSeamlessAuthClient', () => {
         method: 'GET',
       }
     );
-    expect(mockFetchWithAuth).toHaveBeenNthCalledWith(
-      2,
-      '/otp/verify-login-phone-otp',
-      expect.objectContaining({
-        method: 'POST',
-        body: JSON.stringify({ verificationToken: '123456' }),
-        credentials: 'include',
-      })
-    );
+    expect(mockFetchWithAuth).toHaveBeenNthCalledWith(2, '/otp/verify-login-phone-otp', {
+      method: 'POST',
+      body: JSON.stringify({ verificationToken: '123456' }),
+    });
   });
 
   it('uses login-specific email OTP endpoints', async () => {
@@ -125,23 +121,18 @@ describe('createSeamlessAuthClient', () => {
       apiHost: 'https://api.example.com',
     });
 
-    await expect(client.requestLoginEmailOtp()).resolves.toBe(response);
-    await expect(client.verifyLoginEmailOtp('ABCDEF')).resolves.toBe(response);
+    expect((await client.requestLoginEmailOtp()).error).toBeNull();
+    expect((await client.verifyLoginEmailOtp('ABCDEF')).error).toBeNull();
 
     expect(mockFetchWithAuth).toHaveBeenNthCalledWith(
       1,
       '/otp/generate-login-email-otp',
       expect.objectContaining({ method: 'GET' })
     );
-    expect(mockFetchWithAuth).toHaveBeenNthCalledWith(
-      2,
-      '/otp/verify-login-email-otp',
-      expect.objectContaining({
-        method: 'POST',
-        body: JSON.stringify({ verificationToken: 'ABCDEF' }),
-        credentials: 'include',
-      })
-    );
+    expect(mockFetchWithAuth).toHaveBeenNthCalledWith(2, '/otp/verify-login-email-otp', {
+      method: 'POST',
+      body: JSON.stringify({ verificationToken: 'ABCDEF' }),
+    });
   });
 
   it('uses organization endpoints', async () => {
@@ -152,12 +143,12 @@ describe('createSeamlessAuthClient', () => {
       apiHost: 'https://api.example.com',
     });
 
-    await expect(client.listOrganizations()).resolves.toBe(response);
-    await expect(client.createOrganization({ name: 'Acme' })).resolves.toBe(response);
-    await expect(client.switchOrganization('org 1')).resolves.toBe(response);
-    await expect(
-      client.addOrganizationMember('org 1', { email: 'member@example.com' })
-    ).resolves.toBe(response);
+    expect((await client.listOrganizations()).error).toBeNull();
+    expect((await client.createOrganization({ name: 'Acme' })).error).toBeNull();
+    expect((await client.switchOrganization('org 1')).error).toBeNull();
+    expect(
+      (await client.addOrganizationMember('org 1', { email: 'member@example.com' })).error
+    ).toBeNull();
 
     expect(mockFetchWithAuth).toHaveBeenNthCalledWith(1, '/organizations', {
       method: 'GET',
@@ -201,21 +192,25 @@ describe('createSeamlessAuthClient', () => {
       apiHost: 'https://api.example.com',
     });
 
-    await expect(client.listOAuthProviders()).resolves.toEqual(providersResult);
-    await expect(
-      client.startOAuthLogin({
-        providerId: 'google',
-        redirectUri: 'https://app.example.com/oauth/callback',
-        returnTo: 'https://app.example.com/dashboard',
-      })
-    ).resolves.toEqual(startResult);
-    await expect(
-      client.finishOAuthLogin({
-        providerId: 'google',
-        code: 'code',
-        state: 'state',
-      })
-    ).resolves.toBe(finishResponse);
+    expect((await client.listOAuthProviders()).data).toEqual(providersResult);
+    expect(
+      (
+        await client.startOAuthLogin({
+          providerId: 'google',
+          redirectUri: 'https://app.example.com/oauth/callback',
+          returnTo: 'https://app.example.com/dashboard',
+        })
+      ).data
+    ).toEqual(startResult);
+    expect(
+      (
+        await client.finishOAuthLogin({
+          providerId: 'google',
+          code: 'code',
+          state: 'state',
+        })
+      ).error
+    ).toBeNull();
 
     expect(mockFetchWithAuth).toHaveBeenNthCalledWith(1, '/oauth/providers', {
       method: 'GET',
@@ -250,8 +245,8 @@ describe('createSeamlessAuthClient', () => {
     });
 
     await expect(client.loginWithPasskey()).resolves.toEqual({
-      success: true,
-      message: 'Passkey login succeeded.',
+      data: {},
+      error: null,
     });
   });
 
@@ -300,9 +295,9 @@ describe('createSeamlessAuthClient', () => {
       prf: { salt: Uint8Array.from([1, 2, 3, 4]) },
     });
 
-    expect(result.success).toBe(true);
-    expect(result.prf?.credentialId).toBe('cred-prf');
-    expect(result.prf?.outputBase64url).toBe('AQIDBA');
+    expect(result.error).toBeNull();
+    expect(result.data?.prf?.credentialId).toBe('cred-prf');
+    expect(result.data?.prf?.outputBase64url).toBe('AQIDBA');
 
     const finishBody = (mockFetchWithAuth.mock.calls[1][1] as RequestInit).body as string;
     expect(finishBody).not.toContain('AQIDBA');
@@ -334,10 +329,8 @@ describe('createSeamlessAuthClient', () => {
         deviceInfo: 'mac • chrome',
       })
     ).resolves.toEqual({
-      success: true,
-      message: 'Passkey registered successfully.',
-      credentialId: 'cred',
-      prfCapable: false,
+      data: { credentialId: 'cred', prfCapable: false },
+      error: null,
     });
   });
 
@@ -370,10 +363,8 @@ describe('createSeamlessAuthClient', () => {
         requirePrf: true,
       })
     ).resolves.toEqual({
-      success: true,
-      message: 'Passkey registered successfully.',
-      credentialId: 'cred-prf',
-      prfCapable: true,
+      data: { credentialId: 'cred-prf', prfCapable: true },
+      error: null,
     });
 
     expect(mockFetchWithAuth).toHaveBeenNthCalledWith(
@@ -410,7 +401,7 @@ describe('createSeamlessAuthClient', () => {
       apiHost: 'https://api.example.com',
     });
 
-    await expect(client.getStepUpStatus()).resolves.toBe(response);
+    expect((await client.getStepUpStatus()).error).toBeNull();
 
     expect(mockFetchWithAuth).toHaveBeenCalledWith('/step-up/status', {
       method: 'GET',
@@ -441,13 +432,14 @@ describe('createSeamlessAuthClient', () => {
     });
 
     await expect(client.verifyStepUpWithPasskey()).resolves.toEqual({
-      success: true,
-      fresh: true,
-      method: 'webauthn',
-      verifiedAt: '2026-05-15T12:00:00.000Z',
-      expiresAt: '2026-05-15T12:05:00.000Z',
-      maxAgeSeconds: 300,
-      message: 'Step-up authentication succeeded.',
+      data: {
+        fresh: true,
+        method: 'webauthn',
+        verifiedAt: '2026-05-15T12:00:00.000Z',
+        expiresAt: '2026-05-15T12:05:00.000Z',
+        maxAgeSeconds: 300,
+      },
+      error: null,
     });
 
     expect(mockFetchWithAuth).toHaveBeenNthCalledWith(1, '/step-up/webauthn/start', {
@@ -466,14 +458,11 @@ describe('createSeamlessAuthClient', () => {
       apiHost: 'https://api.example.com',
     });
 
-    await expect(client.verifyStepUpWithPasskey()).resolves.toEqual({
-      success: false,
-      fresh: false,
-      method: null,
-      verifiedAt: null,
-      expiresAt: null,
-      maxAgeSeconds: 0,
-      message: 'Failed to start step-up authentication.',
+    await expect(client.verifyStepUpWithPasskey()).resolves.toMatchObject({
+      data: null,
+      error: expect.objectContaining({
+        message: 'Failed to start step-up authentication.',
+      }),
     });
   });
 
@@ -529,10 +518,10 @@ describe('createSeamlessAuthClient', () => {
 
     const result = await client.verifyStepUpWithPasskeyPrf({ salt });
 
-    expect(result.success).toBe(true);
-    expect(result.credentialId).toBe('cred-prf');
-    expect(result.prf?.outputBase64url).toBe('AQIDBA');
-    expect(Array.from(result.prf?.output ?? [])).toEqual([1, 2, 3, 4]);
+    expect(result.error).toBeNull();
+    expect(result.data?.credentialId).toBe('cred-prf');
+    expect(result.data?.prf.outputBase64url).toBe('AQIDBA');
+    expect(Array.from(result.data?.prf.output ?? [])).toEqual([1, 2, 3, 4]);
 
     expect(mockFetchWithAuth).toHaveBeenNthCalledWith(1, '/step-up/webauthn/start', {
       method: 'POST',
@@ -556,7 +545,7 @@ describe('createSeamlessAuthClient', () => {
 
     const client = createSeamlessAuthClient({ apiHost: 'https://api.example.com' });
 
-    await expect(client.getTotpStatus()).resolves.toBe(response);
+    expect((await client.getTotpStatus()).error).toBeNull();
     expect(mockFetchWithAuth).toHaveBeenCalledWith('/totp/status', { method: 'GET' });
   });
 
@@ -566,7 +555,7 @@ describe('createSeamlessAuthClient', () => {
 
     const client = createSeamlessAuthClient({ apiHost: 'https://api.example.com' });
 
-    await expect(client.startTotpEnrollment()).resolves.toBe(response);
+    expect((await client.startTotpEnrollment()).error).toBeNull();
     expect(mockFetchWithAuth).toHaveBeenCalledWith('/totp/enroll/start', {
       method: 'POST',
     });
@@ -578,7 +567,7 @@ describe('createSeamlessAuthClient', () => {
 
     const client = createSeamlessAuthClient({ apiHost: 'https://api.example.com' });
 
-    await expect(client.verifyTotpEnrollment('123456')).resolves.toBe(response);
+    expect((await client.verifyTotpEnrollment('123456')).error).toBeNull();
     expect(mockFetchWithAuth).toHaveBeenCalledWith('/totp/enroll/verify', {
       method: 'POST',
       body: JSON.stringify({ code: '123456' }),
@@ -591,7 +580,7 @@ describe('createSeamlessAuthClient', () => {
 
     const client = createSeamlessAuthClient({ apiHost: 'https://api.example.com' });
 
-    await expect(client.disableTotp('123456')).resolves.toBe(response);
+    expect((await client.disableTotp('123456')).error).toBeNull();
     expect(mockFetchWithAuth).toHaveBeenCalledWith('/totp/disable', {
       method: 'POST',
       body: JSON.stringify({ code: '123456' }),
@@ -614,13 +603,14 @@ describe('createSeamlessAuthClient', () => {
     const client = createSeamlessAuthClient({ apiHost: 'https://api.example.com' });
 
     await expect(client.verifyStepUpWithTotp('123456')).resolves.toEqual({
-      success: true,
-      fresh: true,
-      method: 'totp',
-      verifiedAt: '2026-05-15T12:00:00.000Z',
-      expiresAt: '2026-05-15T12:05:00.000Z',
-      maxAgeSeconds: 300,
-      message: 'Step-up authentication succeeded.',
+      data: {
+        fresh: true,
+        method: 'totp',
+        verifiedAt: '2026-05-15T12:00:00.000Z',
+        expiresAt: '2026-05-15T12:05:00.000Z',
+        maxAgeSeconds: 300,
+      },
+      error: null,
     });
 
     expect(mockFetchWithAuth).toHaveBeenCalledWith('/totp/verify-mfa', {
@@ -634,14 +624,11 @@ describe('createSeamlessAuthClient', () => {
 
     const client = createSeamlessAuthClient({ apiHost: 'https://api.example.com' });
 
-    await expect(client.verifyStepUpWithTotp('000000')).resolves.toEqual({
-      success: false,
-      fresh: false,
-      method: null,
-      verifiedAt: null,
-      expiresAt: null,
-      maxAgeSeconds: 0,
-      message: 'Failed to verify step-up authentication.',
+    await expect(client.verifyStepUpWithTotp('000000')).resolves.toMatchObject({
+      data: null,
+      error: expect.objectContaining({
+        message: 'Failed to verify step-up authentication.',
+      }),
     });
   });
 });

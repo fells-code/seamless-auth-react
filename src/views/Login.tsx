@@ -19,20 +19,6 @@ import type { LoginMethod, LoginStartResult } from '@/client/createSeamlessAuthC
 
 const DEFAULT_LOGIN_METHODS: LoginMethod[] = ['passkey', 'magic_link', 'phone_otp'];
 
-const parseLoginStartResult = async (
-  response: Response | null
-): Promise<LoginStartResult | null> => {
-  if (!response || typeof response.json !== 'function') {
-    return null;
-  }
-
-  try {
-    return (await response.json()) as LoginStartResult;
-  } catch {
-    return null;
-  }
-};
-
 const Login: React.FC = () => {
   const navigate = useNavigate();
   const { hasSignedInBefore, login, handlePasskeyLogin } = useAuth();
@@ -87,18 +73,16 @@ const Login: React.FC = () => {
     setFormErrors('');
 
     try {
-      const response = await authClient.register({
+      const { data, error } = await authClient.register({
         email,
         phone,
         bootstrapToken,
       });
 
-      if (!response.ok) {
+      if (error) {
         setFormErrors('Failed to register. Please try again.');
         return;
       }
-
-      const data = await response.json();
 
       if (data.message === 'Success') {
         navigate(authRoutePaths.verifyEmailOtp);
@@ -117,9 +101,9 @@ const Login: React.FC = () => {
 
   const sendMagicLink = async () => {
     try {
-      const response = await authClient.requestMagicLink();
+      const { error } = await authClient.requestMagicLink();
 
-      if (!response.ok) {
+      if (error) {
         setFormErrors('Failed to send magic link.');
         return;
       }
@@ -133,9 +117,9 @@ const Login: React.FC = () => {
 
   const sendPhoneOtp = async () => {
     try {
-      const response = await authClient.requestLoginPhoneOtp();
+      const { error } = await authClient.requestLoginPhoneOtp();
 
-      if (!response.ok) {
+      if (error) {
         setFormErrors('Failed to send OTP.');
         return;
       }
@@ -149,9 +133,9 @@ const Login: React.FC = () => {
 
   const sendEmailOtp = async () => {
     try {
-      const response = await authClient.requestLoginEmailOtp();
+      const { error } = await authClient.requestLoginEmailOtp();
 
-      if (!response.ok) {
+      if (error) {
         setFormErrors('Failed to send email code.');
         return;
       }
@@ -170,14 +154,19 @@ const Login: React.FC = () => {
 
     try {
       if (mode === 'login') {
-        const loginRes = await login(identifier, passkeySupported);
-        const loginStart = await parseLoginStartResult(loginRes);
+        const { data: loginStart, error } = await login(identifier, passkeySupported);
+
+        if (error) {
+          setFormErrors('Failed to start sign-in. Please try again.');
+          return;
+        }
+
         const availableMethods = loginStart?.loginMethods?.length
           ? loginStart.loginMethods
           : DEFAULT_LOGIN_METHODS;
         setLoginMethods(availableMethods);
 
-        if (loginRes?.ok && passkeySupported && availableMethods.includes('passkey')) {
+        if (passkeySupported && availableMethods.includes('passkey')) {
           const passkeyResult = await handlePasskeyLogin();
           if (passkeyResult) {
             navigate('/');
@@ -191,12 +180,7 @@ const Login: React.FC = () => {
           return;
         }
 
-        if (loginRes?.ok) {
-          setShowFallbackOptions(true);
-          return;
-        }
-
-        setFormErrors('Failed to start sign-in. Please try again.');
+        setShowFallbackOptions(true);
         return;
       }
 
