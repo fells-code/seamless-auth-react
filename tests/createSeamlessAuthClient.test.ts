@@ -196,6 +196,31 @@ describe('createSeamlessAuthClient', () => {
     );
   });
 
+  it('surfaces the declared shapes for organization member mutations', async () => {
+    const membership = { userId: 'u1', roles: ['member'] };
+
+    mockFetchWithAuth
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ membership }) })
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ membership }) })
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ message: 'Success' }) });
+
+    const client = createSeamlessAuthClient({
+      apiHost: 'https://api.example.com',
+    });
+
+    // The API returns a single membership envelope for add and update, and a
+    // plain message for remove, not a members list.
+    const added = await client.addOrganizationMember('org-1', { userId: 'u1' });
+    const updated = await client.updateOrganizationMember('org-1', 'u1', {
+      roles: ['admin'],
+    });
+    const removed = await client.removeOrganizationMember('org-1', 'u1');
+
+    expect(added.data?.membership).toEqual(membership);
+    expect(updated.data?.membership).toEqual(membership);
+    expect(removed.data?.message).toBe('Success');
+  });
+
   it('uses OAuth login endpoints', async () => {
     const providersResult = {
       providers: [{ id: 'google', name: 'Google', scopes: ['openid', 'email'] }],

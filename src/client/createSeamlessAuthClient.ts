@@ -103,6 +103,22 @@ export interface OrganizationMembersResult {
   total: number;
 }
 
+/** Response body for a single membership mutation. */
+export interface OrganizationMembershipResult {
+  membership: OrganizationMembership;
+}
+
+/**
+ * Response body when the active organization changes. The server also returns
+ * session material here, which this SDK deliberately does not surface: sessions
+ * are carried by cookies, so adopters have no reason to handle raw tokens.
+ */
+export interface OrganizationSwitchResult {
+  message: string;
+  organizationId: string;
+  organization: Organization;
+}
+
 export interface OAuthProvider {
   id: string;
   name: string;
@@ -278,23 +294,23 @@ export interface SeamlessAuthClient {
   ) => Promise<SeamlessAuthResult<OrganizationResult>>;
   switchOrganization: (
     organizationId: string
-  ) => Promise<SeamlessAuthResult<OrganizationResult>>;
+  ) => Promise<SeamlessAuthResult<OrganizationSwitchResult>>;
   listOrganizationMembers: (
     organizationId: string
   ) => Promise<SeamlessAuthResult<OrganizationMembersResult>>;
   addOrganizationMember: (
     organizationId: string,
     input: OrganizationMemberInput
-  ) => Promise<SeamlessAuthResult<OrganizationMembersResult>>;
+  ) => Promise<SeamlessAuthResult<OrganizationMembershipResult>>;
   updateOrganizationMember: (
     organizationId: string,
     userId: string,
     input: OrganizationMemberUpdateInput
-  ) => Promise<SeamlessAuthResult<OrganizationMembersResult>>;
+  ) => Promise<SeamlessAuthResult<OrganizationMembershipResult>>;
   removeOrganizationMember: (
     organizationId: string,
     userId: string
-  ) => Promise<SeamlessAuthResult<OrganizationMembersResult>>;
+  ) => Promise<SeamlessAuthResult<MessageResult>>;
 }
 
 type StepUpPayload = Partial<StepUpStatus> & { message?: string };
@@ -814,7 +830,7 @@ export const createSeamlessAuthClient = (
       ),
 
     switchOrganization: organizationId =>
-      requestResult<OrganizationResult>(
+      requestResult<OrganizationSwitchResult>(
         fetchWithAuth(`/organizations/${encodeURIComponent(organizationId)}/switch`, {
           method: 'POST',
         }),
@@ -830,7 +846,7 @@ export const createSeamlessAuthClient = (
       ),
 
     addOrganizationMember: (organizationId, input) =>
-      requestResult<OrganizationMembersResult>(
+      requestResult<OrganizationMembershipResult>(
         fetchWithAuth(`/organizations/${encodeURIComponent(organizationId)}/members`, {
           method: 'POST',
           body: JSON.stringify(input),
@@ -839,7 +855,7 @@ export const createSeamlessAuthClient = (
       ),
 
     updateOrganizationMember: (organizationId, userId, input) =>
-      requestResult<OrganizationMembersResult>(
+      requestResult<OrganizationMembershipResult>(
         fetchWithAuth(
           `/organizations/${encodeURIComponent(organizationId)}/members/${encodeURIComponent(userId)}`,
           {
@@ -851,7 +867,7 @@ export const createSeamlessAuthClient = (
       ),
 
     removeOrganizationMember: (organizationId, userId) =>
-      requestResult<OrganizationMembersResult>(
+      requestResult<MessageResult>(
         fetchWithAuth(
           `/organizations/${encodeURIComponent(organizationId)}/members/${encodeURIComponent(userId)}`,
           {
