@@ -538,9 +538,12 @@ export const createSeamlessAuthClient = (
         'Failed to verify the email code.'
       ),
 
+    // Sends an empty JSON body on purpose. The adapter ignores it, but it makes
+    // fetchWithAuth declare a JSON content type, which forces a CORS preflight.
+    // A bodyless POST is still a simple request and stays reachable cross-site.
     requestMagicLink: () =>
       requestResult<MessageResult>(
-        fetchWithAuth(`/magic-link`, { method: 'GET' }),
+        fetchWithAuth(`/magic-link`, { method: 'POST', body: JSON.stringify({}) }),
         'Failed to send the magic link.'
       ),
 
