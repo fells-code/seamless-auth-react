@@ -289,8 +289,13 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({
       const result = await authClient.verifyStepUpWithPasskeyPrf(input);
 
       if (!result.error) {
-        const { credentialId: _credentialId, prf: _prf, ...status } = result.data;
-        setStepUpStatus(status);
+        setStepUpStatus({
+          fresh: result.data.fresh,
+          method: result.data.method,
+          verifiedAt: result.data.verifiedAt,
+          expiresAt: result.data.expiresAt,
+          maxAgeSeconds: result.data.maxAgeSeconds,
+        });
       }
 
       return result;
