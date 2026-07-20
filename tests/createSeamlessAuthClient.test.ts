@@ -135,6 +135,30 @@ describe('createSeamlessAuthClient', () => {
     });
   });
 
+  it('keeps an untrusted magic-link token inside its own path segment', async () => {
+    mockFetchWithAuth.mockResolvedValue({
+      ok: true,
+      json: async () => ({ message: 'Success' }),
+    });
+
+    const client = createSeamlessAuthClient({
+      apiHost: 'https://api.example.com',
+    });
+
+    // The token comes from a link's query string, so an attacker controls it.
+    // Left unencoded, path segments in it re-target the request.
+    await client.verifyMagicLink('../../users/delete');
+
+    const [path] = mockFetchWithAuth.mock.calls[0];
+
+    expect(path).not.toContain('../');
+
+    // What actually matters is where the request lands once the URL resolves.
+    expect(new URL(`https://api.example.com/auth${path}`).pathname).toBe(
+      '/auth/magic-link/verify/..%2F..%2Fusers%2Fdelete'
+    );
+  });
+
   it('uses organization endpoints', async () => {
     const response = { ok: true };
     mockFetchWithAuth.mockResolvedValue(response);

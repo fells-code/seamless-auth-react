@@ -536,7 +536,12 @@ export const createSeamlessAuthClient = (
 
     verifyMagicLink: token =>
       requestResult<MessageResult>(
-        fetchWithAuth(`/magic-link/verify/${token}`, { method: 'GET' }),
+        // The token arrives from a link's query string, so it is untrusted
+        // input. Encoding keeps it inside its own path segment instead of
+        // letting it redirect the request to another endpoint.
+        fetchWithAuth(`/magic-link/verify/${encodeURIComponent(token)}`, {
+          method: 'GET',
+        }),
         'Failed to verify the magic link.'
       ),
 
