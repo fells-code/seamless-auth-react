@@ -152,7 +152,7 @@ describe('PhoneRegistration', () => {
 
     expect(mockAuthClient.requestEmailOtp).toHaveBeenCalled();
 
-    expect(navigate).toHaveBeenCalledWith('/verifyEmailOTP');
+    expect(navigate).toHaveBeenCalledWith('/verify-email-otp');
   });
 
   test('login flow verifies phone OTP and refreshes the session', async () => {

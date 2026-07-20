@@ -488,18 +488,38 @@ function CustomLogin() {
 
 ## Built-In Routes
 
-`AuthRoutes` currently includes:
+`AuthRoutes` serves these canonical paths:
 
 - `/login`
-- `/passKeyLogin`
-- `/verifyPhoneOTP`
-- `/verifyEmailOTP`
-- `/verify-magiclink`
+- `/passkey-login`
+- `/verify-phone-otp`
+- `/verify-email-otp`
+- `/verify-magic-link`
 - `/oauth/callback`
-- `/registerPasskey`
-- `/magiclinks-sent`
+- `/register-passkey`
+- `/magic-link-sent`
 
 These are optional UI wrappers over the same SDK primitives the package now exports for custom flows.
+
+### Legacy route names
+
+The earlier mixed-case paths still resolve. Each one redirects to its canonical path, preserving
+query string, hash, and router state, so existing bookmarks and in-flight links keep working:
+
+| Legacy path         | Canonical path       |
+| ------------------- | -------------------- |
+| `/passKeyLogin`     | `/passkey-login`     |
+| `/verifyPhoneOTP`   | `/verify-phone-otp`  |
+| `/verifyEmailOTP`   | `/verify-email-otp`  |
+| `/verify-magiclink` | `/verify-magic-link` |
+| `/registerPasskey`  | `/register-passkey`  |
+| `/magiclinks-sent`  | `/magic-link-sent`   |
+
+`/verify-magiclink` is a standing contract rather than a temporary alias. The auth API builds that
+URL when it sends a magic-link email, so it keeps resolving regardless of migration state.
+
+`/oauth/callback` is unchanged. It is registered with OAuth providers as an allowed redirect URI, so
+renaming it would break configured integrations.
 
 ## Backend Expectations
 

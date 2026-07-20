@@ -10,6 +10,7 @@ import React, { useEffect, useState } from 'react';
 import { useAuthClient } from '@/hooks/useAuthClient';
 import { usePasskeySupport } from '@/hooks/usePasskeySupport';
 import { useNavigate } from 'react-router-dom';
+import { authRoutePaths } from '@/routes';
 import styles from '@/styles/login.module.css';
 import { isValidEmail, isValidPhoneNumber } from '../utils';
 import AuthFallbackOptions from '@/components/AuthFallbackOptions';
@@ -100,7 +101,7 @@ const Login: React.FC = () => {
       const data = await response.json();
 
       if (data.message === 'Success') {
-        navigate('/verifyEmailOTP');
+        navigate(authRoutePaths.verifyEmailOtp);
         return;
       }
       setFormErrors(
@@ -123,7 +124,7 @@ const Login: React.FC = () => {
         return;
       }
 
-      navigate('/magiclinks-sent', { state: { identifier } });
+      navigate(authRoutePaths.magicLinkSent, { state: { identifier } });
     } catch {
       console.error('Failed to send magic link.');
       setFormErrors('Failed to send magic link.');
@@ -139,7 +140,7 @@ const Login: React.FC = () => {
         return;
       }
 
-      navigate('/verifyPhoneOTP', { state: { flow: 'login' } });
+      navigate(authRoutePaths.verifyPhoneOtp, { state: { flow: 'login' } });
     } catch {
       console.error('Failed to send phone OTP.');
       setFormErrors('Failed to send OTP.');
@@ -155,7 +156,7 @@ const Login: React.FC = () => {
         return;
       }
 
-      navigate('/verifyEmailOTP', { state: { flow: 'login' } });
+      navigate(authRoutePaths.verifyEmailOtp, { state: { flow: 'login' } });
     } catch {
       console.error('Failed to send email OTP.');
       setFormErrors('Failed to send email code.');

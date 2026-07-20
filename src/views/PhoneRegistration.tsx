@@ -9,6 +9,7 @@ import { useAuth } from '@/AuthProvider';
 import { useAuthClient } from '@/hooks/useAuthClient';
 import { useLocation, useNavigate } from 'react-router-dom';
 
+import { authRoutePaths } from '@/routes';
 import styles from '@/styles/verifyOTP.module.css';
 import OtpInput from '@/components/OtpInput';
 
@@ -128,7 +129,7 @@ const PhoneRegistration: React.FC = () => {
         );
         return;
       } else {
-        navigate('/verifyEmailOTP');
+        navigate(authRoutePaths.verifyEmailOtp);
       }
     };
     if (phoneVerified && !isLoginFlow) {

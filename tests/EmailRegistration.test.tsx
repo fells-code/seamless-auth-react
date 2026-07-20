@@ -139,7 +139,7 @@ describe('EmailRegistration', () => {
       fireEvent.click(screen.getByRole('button', { name: /verify & continue/i }));
     });
 
-    expect(navigate).toHaveBeenCalledWith('/registerPasskey');
+    expect(navigate).toHaveBeenCalledWith('/register-passkey');
   });
 
   test('successful verification logs in if passkeys not supported', async () => {
@@ -182,7 +182,7 @@ describe('EmailRegistration', () => {
     expect(mockAuthClient.verifyLoginEmailOtp).toHaveBeenCalledWith('ABCDEF');
     expect(refreshSession).toHaveBeenCalled();
     expect(navigate).toHaveBeenCalledWith('/');
-    expect(navigate).not.toHaveBeenCalledWith('/registerPasskey');
+    expect(navigate).not.toHaveBeenCalledWith('/register-passkey');
   });
 
   test('login flow resend uses the login email OTP endpoint', async () => {
