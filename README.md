@@ -119,13 +119,13 @@ You are still responsible for your app’s route protection and redirects.
   finishOAuthLogin(input: FinishOAuthLoginInput): Promise<void>;
   refreshSession(): Promise<void>;
   refreshStepUpStatus(): Promise<StepUpStatus | null>;
-  verifyStepUpWithPasskey(): Promise<StepUpVerificationResult>;
-  verifyStepUpWithPasskeyPrf(input: PasskeyPrfInput): Promise<StepUpWithPasskeyPrfResult>;
-  verifyStepUpWithTotp(code: string): Promise<StepUpVerificationResult>;
+  verifyStepUpWithPasskey(): Promise<SeamlessAuthResult<StepUpStatus>>;
+  verifyStepUpWithPasskeyPrf(input: PasskeyPrfInput): Promise<SeamlessAuthResult<StepUpPrfData>>;
+  verifyStepUpWithTotp(code: string): Promise<SeamlessAuthResult<StepUpStatus>>;
   logout(): Promise<void>;
   logoutAllSessions(): Promise<void>;
   deleteUser(): Promise<void>;
-  login(identifier: string, passkeyAvailable: boolean): Promise<Response>;
+  login(identifier: string, passkeyAvailable: boolean): Promise<SeamlessAuthResult<LoginStartResult>>;
   handlePasskeyLogin(): Promise<boolean>;
   updateCredential(credential: Credential): Promise<Credential>;
   deleteCredential(credentialId: string): Promise<void>;
@@ -202,7 +202,7 @@ function DeleteAccountButton() {
 
   async function handleDeleteAccount() {
     const status = await refreshStepUpStatus();
-    const fresh = status?.fresh ? true : (await verifyStepUpWithPasskey()).success;
+    const fresh = status?.fresh ? true : !(await verifyStepUpWithPasskey()).error;
 
     if (!fresh) {
       return;
@@ -215,13 +215,13 @@ function DeleteAccountButton() {
 }
 ```
 
-Step-up supports WebAuthn/passkeys and TOTP (authenticator apps). `refreshStepUpStatus()` calls `/step-up/status`, `verifyStepUpWithPasskey()` performs the `/step-up/webauthn/start` and `/step-up/webauthn/finish` challenge flow, and `verifyStepUpWithTotp(code)` verifies a 6-digit authenticator code via `/totp/verify-mfa`. Both verification helpers return a `StepUpVerificationResult` and refresh the provider's `stepUpStatus` on success.
+Step-up supports WebAuthn/passkeys and TOTP (authenticator apps). `refreshStepUpStatus()` calls `/step-up/status`, `verifyStepUpWithPasskey()` performs the `/step-up/webauthn/start` and `/step-up/webauthn/finish` challenge flow, and `verifyStepUpWithTotp(code)` verifies a 6-digit authenticator code via `/totp/verify-mfa`. The verification helpers return a `SeamlessAuthResult<StepUpStatus>` and refresh the provider's `stepUpStatus` when they succeed.
 
 ```tsx
 const { verifyStepUpWithTotp } = useAuth();
 
-const result = await verifyStepUpWithTotp('123456'); // 6-digit code from the user's authenticator app
-if (result.success) {
+const { error } = await verifyStepUpWithTotp('123456'); // 6-digit code from the authenticator app
+if (!error) {
   // step-up is fresh; proceed with the sensitive action
 }
 ```
@@ -290,18 +290,18 @@ if (prfSupported) {
 For local key unwrap flows such as Seamless Secrets, use PRF during step-up and consume the returned bytes in browser memory:
 
 ```ts
-const result = await authClient.verifyStepUpWithPasskeyPrf({
+const { data, error } = await authClient.verifyStepUpWithPasskeyPrf({
   salt: vaultSaltBase64url,
   credentialId,
 });
 
-if (!result.success || !result.prf) {
-  throw new Error('PRF step-up failed');
+if (error) {
+  throw error;
 }
 
 const vaultUnlockMaterial: { credentialId: string; output: Uint8Array } = {
-  credentialId: result.credentialId!,
-  output: result.prf.output,
+  credentialId: data.credentialId,
+  output: data.prf.output,
 };
 ```
 
@@ -510,6 +510,218 @@ function CustomLogin() {
   );
 }
 ```
+
+### Two error styles, on purpose
+
+The headless client and the provider helpers report failure differently:
+
+- `useAuthClient()` and `createSeamlessAuthClient()` return `{ data, error }` and never throw.
+- `useAuth()` helpers such as `updateCredential`, `deleteCredential`, `switchOrganization`,
+  `finishOAuthLogin`, `listOAuthProviders`, and `startOAuthLogin` **throw** a `SeamlessAuthError`.
+
+The provider helpers throw because they also mutate provider state, so there is no partial success to
+hand back. Wrap those in `try`/`catch`, and check `error` on client calls.
+
+## Custom UI Recipes
+
+Worked examples for the flows the bundled screens cover, using only public primitives.
+
+### Custom registration
+
+Registration is two steps: create the account, then verify the emailed code. Call `markSignedIn()`
+once the account is live so returning visits can default to sign-in.
+
+```tsx
+import { useAuth, useAuthClient } from '@seamless-auth/react';
+import { useState } from 'react';
+
+function CustomRegistration() {
+  const { markSignedIn, refreshSession } = useAuth();
+  const authClient = useAuthClient();
+  const [step, setStep] = useState<'details' | 'verify'>('details');
+  const [message, setMessage] = useState('');
+
+  async function createAccount(email: string, phone: string) {
+    const { error } = await authClient.register({ email, phone });
+
+    if (error) {
+      setMessage(error.message);
+      return;
+    }
+
+    // The API emails a verification code as part of registering.
+    setStep('verify');
+  }
+
+  async function verifyCode(code: string) {
+    const { error } = await authClient.verifyEmailOtp(code);
+
+    if (error) {
+      setMessage(error.message);
+      return;
+    }
+
+    markSignedIn();
+    await refreshSession();
+  }
+
+  return step === 'details' ? (
+    <DetailsForm onSubmit={createAccount} error={message} />
+  ) : (
+    <CodeForm
+      onSubmit={verifyCode}
+      onResend={() => authClient.requestEmailOtp()}
+      error={message}
+    />
+  );
+}
+```
+
+To offer a passkey right after registering, call `registerPasskey()` before `refreshSession()`:
+
+```ts
+const { data, error } = await authClient.registerPasskey({
+  friendlyName: 'My laptop',
+  platform: 'macOS',
+  browser: 'Chrome',
+  deviceInfo: navigator.userAgent,
+});
+
+if (!error) {
+  console.log(data.credentialId, data.prfCapable);
+}
+```
+
+### OTP and magic-link continuation
+
+> **The request helpers take no identifier.** `requestMagicLink()`, `requestLoginEmailOtp()`, and
+> `requestLoginPhoneOtp()` send nothing but the session cookie. They rely on server-side state
+> established by a preceding `login()` call, so calling them without it fails or targets the wrong
+> account. This is not obvious from their signatures. Always call `login()` first, and use the same
+> browser session for the continuation step.
+
+```tsx
+function CustomLoginContinuation() {
+  const { login, refreshSession } = useAuth();
+  const authClient = useAuthClient();
+
+  async function start(identifier: string) {
+    // Required first: this is what the request helpers below depend on.
+    const { data, error } = await login(identifier, false);
+
+    if (error) {
+      return;
+    }
+
+    // Offer only what the server says this account supports.
+    return data.loginMethods ?? ['magic_link', 'email_otp'];
+  }
+
+  async function sendEmailCode() {
+    const { error } = await authClient.requestLoginEmailOtp();
+    if (error) {
+      // surface error.message
+    }
+  }
+
+  async function submitEmailCode(code: string) {
+    const { error } = await authClient.verifyLoginEmailOtp(code);
+
+    if (!error) {
+      await refreshSession();
+    }
+  }
+}
+```
+
+Magic links complete in whichever tab opens the emailed link, so a custom flow needs two pieces.
+
+The waiting screen polls until the link is used:
+
+```ts
+const interval = setInterval(async () => {
+  const { error } = await authClient.checkMagicLink();
+
+  if (!error) {
+    clearInterval(interval);
+    await refreshSession();
+  }
+}, 5000);
+```
+
+The landing route verifies the token from the query string, then refreshes its own session:
+
+```tsx
+function CustomMagicLinkLanding() {
+  const { refreshSession } = useAuth(); // plus: import { useEffect } from 'react'
+  const authClient = useAuthClient();
+
+  useEffect(() => {
+    const token = new URLSearchParams(window.location.search).get('token');
+    if (!token) return;
+
+    void authClient.verifyMagicLink(token).then(async ({ error }) => {
+      if (!error) {
+        // Refresh here too. This tab set the cookie, but its provider state
+        // was loaded before the cookie existed.
+        await refreshSession();
+      }
+    });
+  }, [authClient, refreshSession]);
+
+  return <p>Finishing sign-in...</p>;
+}
+```
+
+The auth API emails a link pointing at `/verify-magiclink?token=...`, so a custom app must serve that
+path.
+
+### Credential management
+
+`useAuth()` exposes the signed-in user's passkeys plus helpers to rename and remove them. These
+helpers update provider state and throw on failure.
+
+```tsx
+import { SeamlessAuthError, useAuth } from '@seamless-auth/react';
+import type { Credential } from '@seamless-auth/react';
+import { useState } from 'react';
+
+function PasskeyList() {
+  const { credentials, updateCredential, deleteCredential } = useAuth();
+  const [message, setMessage] = useState('');
+
+  async function rename(credential: Credential, friendlyName: string) {
+    try {
+      await updateCredential({ ...credential, friendlyName });
+    } catch (error) {
+      setMessage(error instanceof SeamlessAuthError ? error.message : 'Rename failed.');
+    }
+  }
+
+  async function remove(credentialId: string) {
+    try {
+      await deleteCredential(credentialId);
+    } catch (error) {
+      setMessage(error instanceof SeamlessAuthError ? error.message : 'Removal failed.');
+    }
+  }
+
+  return (
+    <ul>
+      {credentials.map(credential => (
+        <li key={credential.id}>
+          {credential.friendlyName ?? credential.deviceInfo}
+          <button onClick={() => void rename(credential, 'Work laptop')}>Rename</button>
+          <button onClick={() => void remove(credential.id)}>Remove</button>
+        </li>
+      ))}
+    </ul>
+  );
+}
+```
+
+Removing a passkey is a sensitive change. Gate it behind a fresh step-up when the account has other
+factors, using `refreshStepUpStatus()` and `verifyStepUpWithPasskey()` from the step-up section.
 
 ## Built-In Routes
 
