@@ -1,5 +1,5 @@
 ---
-"@seamless-auth/react": patch
+'@seamless-auth/react': patch
 ---
 
 Emit relative import paths in the published type declarations. The build kept the
