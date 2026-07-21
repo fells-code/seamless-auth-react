@@ -113,17 +113,25 @@ Runtime exports currently include:
 - `usePasskeySupport`
 - `hasScopedRole` and `roleGrantsAccess`
 - `encodePrfSalt`, `extractPasskeyPrfResult`, and `isPasskeyPrfSupported`
+- `SeamlessAuthError`
+
+Every request method on the client and the provider resolves to a
+`SeamlessAuthResult<T>` (`{ data, error }`) and does not throw for HTTP or
+transport failures. `isPasskeyPrfSupported` is the exception (a local capability
+check returning a boolean).
 
 Exported types currently include the provider/client input and result types plus
 domain models, for example:
 
 - `AuthContextType`, `Credential`, `User`, `Organization`, `OrganizationMembership`
+- `SeamlessAuthResult`, `MessageResult`
 - `LoginInput`, `LoginMethod`, `LoginStartResult`, `RegisterInput`, `CurrentUserResult`
-- `PasskeyMetadata`, `PasskeyLoginResult`, `PasskeyLoginWithPrfResult`, `PasskeyRegistrationResult`, `RegisterPasskeyOptions`
+- `PasskeyMetadata`, `PasskeyLoginData`, `PasskeyRegistrationData`, `RegisterPasskeyOptions`
 - `PasskeyPrfInput`, `PasskeyPrfResult`
+- Credential types: `CredentialUpdateResult`
 - OAuth types: `OAuthProvider`, `OAuthProvidersResult`, `StartOAuthLoginInput`, `StartOAuthLoginResult`, `FinishOAuthLoginInput`
-- Organization types: `CreateOrganizationInput`, `UpdateOrganizationInput`, `OrganizationMemberInput`, `OrganizationMemberUpdateInput`, `OrganizationsResult`, `OrganizationResult`, `OrganizationMembersResult`
-- Step-up types: `StepUpMethod`, `StepUpStatus`, `StepUpVerificationResult`, `StepUpWithPasskeyPrfResult`
+- Organization types: `CreateOrganizationInput`, `UpdateOrganizationInput`, `OrganizationMemberInput`, `OrganizationMemberUpdateInput`, `OrganizationsResult`, `OrganizationResult`, `OrganizationMembersResult`, `OrganizationMembershipResult`, `OrganizationSwitchResult`
+- Step-up types: `StepUpMethod`, `StepUpStatus`, `StepUpPrfData`
 - `SeamlessAuthClient` and `SeamlessAuthClientOptions`
 
 Public API changes should be treated deliberately:
@@ -178,9 +186,9 @@ The built-in flows and exported client assume these route families exist:
 - `/webAuthn/login/finish`
 - `/webAuthn/register/start`
 - `/webAuthn/register/finish`
-- `/otp/generate-phone-otp`, `/otp/generate-email-otp`, and their `-login-` variants
+- `POST /otp/generate-phone-otp`, `/otp/generate-email-otp`, and their `-login-` variants
 - `/otp/verify-phone-otp`, `/otp/verify-email-otp`, and their `-login-` variants
-- `/magic-link`
+- `POST /magic-link`
 - `/magic-link/check`
 - `/magic-link/verify/:token`
 - `/oauth/providers`, `/oauth/:providerId/start`, `/oauth/:providerId/callback`
@@ -194,6 +202,12 @@ The `@seamless-auth/express` adapter mounts the WebAuthn routes as `/webAuthn`
 (camelCase), and its cookie middleware matches request paths case-sensitively.
 Keep the client paths byte-for-byte aligned with the adapter's mounted paths;
 do not "normalize" casing here in isolation.
+
+The OTP generate routes and `/magic-link` are `POST`, not `GET`. As `GET` they
+were state-changing simple cross-site requests (an `<img>` tag could trigger SMS
+or email sends), so both the client and the adapter serve them over `POST` with a
+JSON body to force a CORS preflight. This depends on a matching adapter version;
+do not revert them to `GET` in isolation.
 
 Before documenting new flow behavior, verify the route contract in `seamless-auth-server` or `seamless-auth-api`.
 
@@ -234,8 +248,7 @@ For docs work:
 The biggest remaining gaps are no longer hidden internals. They are mostly polish and documentation-oriented:
 
 - custom UI examples can still be improved, especially full end-to-end examples for bespoke login and registration screens
-- passkey login currently handles the no-MFA and unsupported-browser paths cleanly, but there is still no bundled MFA continuation route
-- some client methods intentionally return raw `Response` objects, so callers are responsible for checking `response.ok` and handling body parsing consistently
+- there is no bundled MFA continuation route; login is not gated on a second factor today
 - public docs in sibling repos may still reflect older package behavior
 
 If you tackle one of these, keep the solution aligned with the existing public surface instead of reintroducing private screen-only helpers.

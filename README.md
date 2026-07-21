@@ -17,7 +17,8 @@
 - `useAuthClient()`
 - `usePasskeySupport()`
 - `hasScopedRole()` and `roleGrantsAccess()`
-- types including `AuthContextType`, `Credential`, `User`, `OAuthProvider`, `StepUpStatus`, and the headless client input/result types
+- `SeamlessAuthError`, the error type carried on a failed result
+- types including `AuthContextType`, `Credential`, `User`, `OAuthProvider`, `StepUpStatus`, the `SeamlessAuthResult` wrapper, and the headless client input/result types
 
 ## Installation
 
@@ -546,8 +547,9 @@ function CustomRegistration() {
   const [step, setStep] = useState<'details' | 'verify'>('details');
   const [message, setMessage] = useState('');
 
-  async function createAccount(email: string, phone: string) {
-    const { error } = await authClient.register({ email, phone });
+  async function createAccount(email: string) {
+    // Registration needs only an email. A phone can be added and verified later.
+    const { error } = await authClient.register({ email });
 
     if (error) {
       setMessage(error.message);
@@ -783,15 +785,15 @@ The built-in flows assume compatible endpoints for:
 - `/webAuthn/login/finish`
 - `/webAuthn/register/start`
 - `/webAuthn/register/finish`
-- `/otp/generate-phone-otp`
-- `/otp/generate-email-otp`
+- `POST /otp/generate-phone-otp`
+- `POST /otp/generate-email-otp`
 - `/otp/verify-phone-otp`
 - `/otp/verify-email-otp`
-- `/otp/generate-login-phone-otp`
-- `/otp/generate-login-email-otp`
+- `POST /otp/generate-login-phone-otp`
+- `POST /otp/generate-login-email-otp`
 - `/otp/verify-login-phone-otp`
 - `/otp/verify-login-email-otp`
-- `/magic-link`
+- `POST /magic-link`
 - `/magic-link/check`
 - `/magic-link/verify/:token`
 - `/oauth/providers`
@@ -813,6 +815,11 @@ The built-in flows assume compatible endpoints for:
 - `/organizations/:organizationId/switch`
 - `/organizations/:organizationId/members`
 - `/organizations/:organizationId/members/:userId`
+
+The state-changing OTP and magic-link request routes are `POST` (marked above). They were previously
+`GET`, which made them reachable as simple cross-site requests, so an `<img>` tag could trigger SMS or
+email sends to a signed-in user. Using `@seamless-auth/react` with an older adapter that only serves the
+`GET` forms returns a 404 for those requests. See the changelog for the minimum adapter version.
 
 ## Notes
 

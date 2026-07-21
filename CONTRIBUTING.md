@@ -53,7 +53,7 @@ cp .env.example .env
 > Change the APP_ORIGIN env to `http://localhost:5173` to match vite.
 > The React SDK talks to a server adapter mounted at `/auth`, not directly to API auth cookies.
 
-### If docker and docker compose are avaliable
+### If docker and docker compose are available
 
 ```bash
 docker compose up -d
@@ -95,7 +95,7 @@ curl http://localhost:5312/health/status
 
 ## 3. Create a Local Test Application
 
-You will need a web application to integerate the SDK into.
+You will need a web application to integrate the SDK into.
 We recommend using Vite for fast iteration:
 
 ```bash
@@ -106,7 +106,7 @@ npm create vite@latest seamless-auth-dev
 ### Select React as the framework, Typescript as the variant
 ```
 
-> Web site will be active at http://localhost:5137
+> Web site will be active at http://localhost:5173
 
 ---
 
