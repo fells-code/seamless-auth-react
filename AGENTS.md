@@ -113,7 +113,7 @@ Runtime exports currently include:
 - `usePasskeySupport`
 - `hasScopedRole` and `roleGrantsAccess`
 - `encodePrfSalt`, `extractPasskeyPrfResult`, and `isPasskeyPrfSupported`
-- `SeamlessAuthError` and `getOAuthErrorCode`
+- `SeamlessAuthError`, `getOAuthErrorCode`, and `getWebAuthnErrorDetail`
 
 Every request method on the client and the provider resolves to a
 `SeamlessAuthResult<T>` (`{ data, error }`) and does not throw for HTTP or
@@ -132,6 +132,7 @@ domain models, for example:
 - OAuth types: `OAuthProvider`, `OAuthProvidersResult`, `StartOAuthLoginInput`, `StartOAuthLoginResult`, `FinishOAuthLoginInput`, `OAuthErrorCode`
 - Organization types: `CreateOrganizationInput`, `UpdateOrganizationInput`, `OrganizationMemberInput`, `OrganizationMemberUpdateInput`, `OrganizationsResult`, `OrganizationResult`, `OrganizationMembersResult`, `OrganizationMembershipResult`, `OrganizationSwitchResult`
 - Step-up types: `StepUpMethod`, `StepUpStatus`, `StepUpPrfData`
+- WebAuthn failure detail: `WebAuthnErrorDetail`
 - `SeamlessAuthClient` and `SeamlessAuthClientOptions`
 
 Public API changes should be treated deliberately:

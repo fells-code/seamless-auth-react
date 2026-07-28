@@ -74,7 +74,8 @@ export function resultOf<T>(data: T): SeamlessAuthResult<T> {
 export function resultError<T>(
   message: string,
   status = NETWORK_ERROR_STATUS,
-  body?: unknown
+  body?: unknown,
+  cause?: unknown
 ): SeamlessAuthResult<T> {
-  return { data: null, error: new SeamlessAuthError(message, status, body) };
+  return { data: null, error: new SeamlessAuthError(message, status, body, cause) };
 }

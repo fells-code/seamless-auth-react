@@ -19,6 +19,7 @@
 - `hasScopedRole()` and `roleGrantsAccess()`
 - `SeamlessAuthError`, the error type carried on a failed result
 - `getOAuthErrorCode()`, which reads the known OAuth callback failure codes off that error
+- `getWebAuthnErrorDetail()`, which reads the underlying failure of a passkey or step-up ceremony
 - types including `AuthContextType`, `Credential`, `User`, `OAuthProvider`, `StepUpStatus`, the `SeamlessAuthResult` wrapper, and the headless client input/result types
 
 ## Installation
@@ -504,6 +505,38 @@ a disabled provider is a value you can map straight to UI state rather than an e
 
 `SeamlessAuthError` carries the server's `message`, the HTTP `status`, and the parsed response
 `body`, so you can branch on a specific failure.
+
+### WebAuthn ceremony failures
+
+A passkey or step-up ceremony can fail in the browser before any request is sent, so those results
+carry the thrown error as `cause` with `status` `0`. Use `getWebAuthnErrorDetail()` to read it: the
+`name` is the `DOMException` name that separates the cases a user can act on, and `code` is
+SimpleWebAuthn's narrower reason when it identified one.
+
+```ts
+import { getWebAuthnErrorDetail } from '@seamless-auth/react';
+
+const { error } = await authClient.verifyStepUpWithPasskey();
+const detail = getWebAuthnErrorDetail(error);
+
+switch (detail?.name) {
+  case 'NotAllowedError':
+    // The prompt was dismissed, or the account has no passkey to assert.
+    break;
+  case 'SecurityError':
+    // The origin or RP ID does not match what the API is configured for.
+    break;
+  case 'InvalidStateError':
+    // This authenticator already holds a passkey for the account.
+    break;
+  default:
+    // Not a ceremony failure. Fall back to error?.message.
+    break;
+}
+```
+
+`getWebAuthnErrorDetail()` returns `undefined` for any error that did not come from a ceremony, so an
+HTTP failure keeps flowing through `error.message` and `error.body` as usual.
 
 The single exception is `isPasskeySupported`-style capability checks:
 `isPasskeyPrfSupported(): Promise<boolean>` is a local check rather than a request, so it returns a
