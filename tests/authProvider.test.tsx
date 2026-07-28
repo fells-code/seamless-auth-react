@@ -170,12 +170,15 @@ describe('AuthProvider', () => {
     expect(screen.getByTestId('hasScopedRoleAdminRead')).toHaveTextContent('true');
   });
 
-  it('logs out if token validation fails (bad response)', async () => {
-    // Both calls need a response: the failed /users/me, and the logout that
-    // follows it.
-    mockFetchWithAuthImpl
-      .mockResolvedValueOnce({ ok: false, status: 401, json: async () => ({}) } as any)
-      .mockResolvedValueOnce({ ok: true, json: async () => ({}) } as any);
+  // A rejected session read means the server already considers the session
+  // unusable, so the session is dropped locally. Calling the logout endpoint
+  // here would fire a request on every anonymous page load.
+  it('clears the session without calling logout when validation fails', async () => {
+    mockFetchWithAuthImpl.mockResolvedValueOnce({
+      ok: false,
+      status: 401,
+      json: async () => ({}),
+    } as any);
 
     await act(async () => {
       render(
@@ -188,12 +191,16 @@ describe('AuthProvider', () => {
     await waitFor(() => {
       expect(screen.getByTestId('isAuthenticated')).toHaveTextContent('false');
     });
+
+    expect(mockFetchWithAuthImpl).toHaveBeenCalledTimes(1);
+    expect(mockFetchWithAuthImpl).not.toHaveBeenCalledWith(
+      '/logout',
+      expect.objectContaining({ method: 'DELETE' })
+    );
   });
 
-  it('logs out if token validation throws', async () => {
-    mockFetchWithAuthImpl
-      .mockRejectedValueOnce(new Error('network down'))
-      .mockResolvedValueOnce({ ok: true, json: async () => ({}) } as any);
+  it('clears the session without calling logout when validation throws', async () => {
+    mockFetchWithAuthImpl.mockRejectedValueOnce(new Error('network down'));
 
     await act(async () => {
       render(
@@ -206,6 +213,8 @@ describe('AuthProvider', () => {
     await waitFor(() => {
       expect(screen.getByTestId('isAuthenticated')).toHaveTextContent('false');
     });
+
+    expect(mockFetchWithAuthImpl).toHaveBeenCalledTimes(1);
   });
 
   it('refreshes step-up status on demand', async () => {

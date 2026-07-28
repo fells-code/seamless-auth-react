@@ -144,11 +144,16 @@ Public API changes should be treated deliberately:
 
 The current package is organized around a shared SDK core with optional UI layered on top:
 
+- `src/session/createAuthSession.ts`
+  - framework-agnostic session store: `getState`, `subscribe`, `actions`, `destroy`
+  - owns the session state machine, so a non-React binding does not reimplement it
+  - validates the session with `/users/me` and clears it locally when that fails
+- `src/session/storage.ts`
+  - `SessionStoragePort` plus browser, memory, and default implementations
+  - the store's only browser dependency, which is what keeps it SSR safe
 - `src/AuthProvider.tsx`
-  - owns auth/session state
-  - exposes the main provider context
-  - validates the session with `/users/me`
-  - exposes refresh, login, logout, user deletion, and credential actions
+  - React binding over the session store, via `useSyncExternalStore`
+  - exposes the main provider context and holds no session state of its own
 - `src/client/createSeamlessAuthClient.ts`
   - shared headless auth client
   - contains the backend request choreography for login, registration, OTP, magic-link, passkey flows, and credential mutations
@@ -173,6 +178,10 @@ Important architectural reality:
 
 - the internal-only auth context path is gone
 - built-in screens now use public primitives instead of hidden refresh helpers
+- the session state machine lives in `src/session`, not in the provider. It is
+  lint-enforced framework agnostic, so keep React and router imports out of it.
+  This is phase 1 of #64: the store stays in this repo and unexported until a
+  second binding exists to validate its API
 - remaining work is mostly docs, examples, and incremental polish rather than major extraction plumbing
 
 ## Backend Endpoints Assumed By The SDK
@@ -231,7 +240,7 @@ That means future work should usually build on the current public surface rather
 Bias toward these patterns:
 
 - add reusable behavior to the headless client first, then expose it through React hooks or provider helpers as needed
-- keep `AuthProvider` as the source of truth for auth/session state
+- keep the session store in `src/session` as the source of truth for auth/session state, and keep `AuthProvider` a thin binding over it
 - use `refreshSession()` when custom flows need to synchronize provider state after a successful auth step
 - export types intentionally from `src/index.ts`
 - keep built-in views thin and aligned with public APIs
@@ -293,7 +302,7 @@ Avoid these patterns unless the user explicitly asks for them:
 - exporting unstable internals without documenting them
 - changing endpoint assumptions without checking the server/api repos
 - leaving README or repo guidance out of sync with the actual exports
-- creating a second source of truth for session state outside `AuthProvider`
+- creating a second source of truth for session state outside the session store
 
 Commit hygiene, attribution, comments, TODOs, and public-facing-text rules live
 in Working Standards above.

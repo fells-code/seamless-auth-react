@@ -5,7 +5,6 @@
  */
 
 import {
-  createSeamlessAuthClient,
   CurrentUserResult,
   FinishOAuthLoginInput,
   LoginStartResult,
@@ -20,19 +19,16 @@ import {
 } from '@/client/createSeamlessAuthClient';
 import type { SeamlessAuthResult } from '@/client/result';
 import { PasskeyPrfInput } from '@/client/webauthnPrf';
+import { createAuthSession } from '@/session/createAuthSession';
 import { Credential, Organization, User } from '@/types';
 import React, {
   createContext,
   ReactNode,
-  useCallback,
   useContext,
   useEffect,
   useMemo,
-  useState,
+  useSyncExternalStore,
 } from 'react';
-
-import { usePreviousSignIn } from './hooks/usePreviousSignIn';
-import { hasScopedRole as rolesGrantScopedAccess } from './scopedRoles';
 
 export interface AuthContextType {
   user: User | null;
@@ -101,259 +97,36 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({
   apiHost,
   autoDetectPreviousSignin = true,
 }) => {
-  const [user, setUser] = useState<User | null>(null);
-  const [credentials, setCredentials] = useState<Credential[]>([]);
-  const [organizations, setOrganizations] = useState<Organization[]>([]);
-  const [activeOrganization, setActiveOrganization] = useState<Organization | null>(null);
-  const [stepUpStatus, setStepUpStatus] = useState<StepUpStatus | null>(null);
-  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
-  const [loading, setLoading] = useState<boolean>(true);
-  const { hasSignedInBefore, markSignedIn } = usePreviousSignIn();
-
-  const authClient = useMemo(
+  const session = useMemo(
     () =>
-      createSeamlessAuthClient({
+      createAuthSession({
         apiHost,
+        detectPreviousSignIn: autoDetectPreviousSignin,
       }),
-    [apiHost]
+    [apiHost, autoDetectPreviousSignin]
   );
 
-  const login = (identifier: string, passkeyAvailable: boolean) =>
-    authClient.login({ identifier, passkeyAvailable });
-
-  const handlePasskeyLogin = async () => {
-    const result = await authClient.loginWithPasskey();
-
-    if (!result.error) {
-      await validateToken();
-    }
-
-    return result;
-  };
-
-  const resetAuthState = useCallback(() => {
-    setIsAuthenticated(false);
-    setUser(null);
-    setCredentials([]);
-    setOrganizations([]);
-    setActiveOrganization(null);
-    setStepUpStatus(null);
-  }, []);
-
-  const logout = useCallback(async () => {
-    // The client reports failures through its result, so there is nothing to
-    // catch. The finally is deliberate: local auth state has to be cleared even
-    // when the server call fails, otherwise the UI keeps presenting a signed-in
-    // user whose session is already gone.
-    try {
-      return await authClient.logout();
-    } finally {
-      resetAuthState();
-    }
-  }, [authClient, resetAuthState]);
-
-  const logoutAllSessions = useCallback(async () => {
-    // The client reports failures through its result, so there is nothing to
-    // catch. The finally is deliberate: local auth state has to be cleared even
-    // when the server call fails, otherwise the UI keeps presenting a signed-in
-    // user whose session is already gone.
-    try {
-      return await authClient.logoutAllSessions();
-    } finally {
-      resetAuthState();
-    }
-  }, [authClient, resetAuthState]);
-
-  const deleteUser = async () => {
-    const result = await authClient.deleteUser();
-
-    if (!result.error) {
-      resetAuthState();
-    }
-
-    return result;
-  };
-
-  const hasRole = (role: string) => user?.roles?.includes(role);
-  const hasScopedRole = (role: string | string[]) =>
-    user ? rolesGrantScopedAccess(user.roles, role) : undefined;
-
-  const validateToken = useCallback(async () => {
-    setLoading(true);
-
-    const result = await authClient.getCurrentUser();
-
-    if (result.error) {
-      // An unusable session is cleared rather than left half-applied.
-      await logout();
-      setLoading(false);
-      return result;
-    }
-
-    setUser(result.data.user);
-    setCredentials(result.data.credentials ?? []);
-    setOrganizations(result.data.organizations ?? []);
-    setActiveOrganization(result.data.activeOrganization ?? null);
-    setIsAuthenticated(true);
-    setLoading(false);
-
-    return result;
-  }, [authClient, logout]);
-
-  const updateCredential = async (credential: Credential) => {
-    const { data, error } = await authClient.updateCredential({
-      friendlyName: credential.friendlyName,
-      id: credential.id,
-    });
-
-    if (error) {
-      return { data: null, error };
-    }
-
-    const updatedCredential = data.credential;
-
-    setCredentials(currentCredentials =>
-      currentCredentials.map(currentCredential =>
-        currentCredential.id === updatedCredential.id
-          ? { ...currentCredential, ...updatedCredential }
-          : currentCredential
-      )
-    );
-
-    return { data: updatedCredential, error: null };
-  };
-
-  const deleteCredential = async (credentialId: string) => {
-    const result = await authClient.deleteCredential(credentialId);
-
-    if (!result.error) {
-      setCredentials(currentCredentials =>
-        currentCredentials.filter(credential => credential.id !== credentialId)
-      );
-    }
-
-    return result;
-  };
-
-  const switchOrganization = async (organizationId: string) => {
-    const result = await authClient.switchOrganization(organizationId);
-
-    if (!result.error) {
-      await validateToken();
-    }
-
-    return result;
-  };
-
-  const listOAuthProviders = () => authClient.listOAuthProviders();
-
-  const startOAuthLogin = (input: StartOAuthLoginInput) =>
-    authClient.startOAuthLogin(input);
-
-  const finishOAuthLogin = async (input: FinishOAuthLoginInput) => {
-    const result = await authClient.finishOAuthLogin(input);
-
-    if (!result.error) {
-      await validateToken();
-    }
-
-    return result;
-  };
-
-  const refreshStepUpStatus = useCallback(async () => {
-    const result = await authClient.getStepUpStatus();
-
-    setStepUpStatus(result.error ? null : result.data);
-
-    return result;
-  }, [authClient]);
-
-  const verifyStepUpWithPasskey = useCallback(async () => {
-    const result = await authClient.verifyStepUpWithPasskey();
-
-    if (!result.error) {
-      setStepUpStatus(result.data);
-    }
-
-    return result;
-  }, [authClient]);
-
-  const verifyStepUpWithPasskeyPrf = useCallback(
-    async (input: PasskeyPrfInput) => {
-      const result = await authClient.verifyStepUpWithPasskeyPrf(input);
-
-      if (!result.error) {
-        setStepUpStatus({
-          fresh: result.data.fresh,
-          method: result.data.method,
-          verifiedAt: result.data.verifiedAt,
-          expiresAt: result.data.expiresAt,
-          maxAgeSeconds: result.data.maxAgeSeconds,
-        });
-      }
-
-      return result;
-    },
-    [authClient]
-  );
-
-  const verifyStepUpWithTotp = useCallback(
-    async (code: string) => {
-      const result = await authClient.verifyStepUpWithTotp(code);
-
-      if (!result.error) {
-        setStepUpStatus(result.data);
-      }
-
-      return result;
-    },
-    [authClient]
+  // The store is the source of truth; React only reads snapshots from it. The
+  // server snapshot is the same call because the store reaches browser storage
+  // through a port that falls back to memory when there is none.
+  const state = useSyncExternalStore(
+    session.subscribe,
+    session.getState,
+    session.getState
   );
 
   useEffect(() => {
-    void validateToken();
-  }, [validateToken]);
+    void session.actions.refreshSession();
 
-  useEffect(() => {
-    if (user && isAuthenticated) {
-      markSignedIn();
-    }
-  }, [user, isAuthenticated, markSignedIn]);
+    return () => {
+      session.destroy();
+    };
+  }, [session]);
 
-  return (
-    <AuthContext.Provider
-      value={{
-        user,
-        logout,
-        logoutAllSessions,
-        refreshSession: validateToken,
-        loading,
-        deleteUser,
-        isAuthenticated,
-        hasRole,
-        hasScopedRole,
-        apiHost,
-        markSignedIn,
-        hasSignedInBefore: autoDetectPreviousSignin ? hasSignedInBefore : false,
-        credentials,
-        organizations,
-        activeOrganization,
-        switchOrganization,
-        listOAuthProviders,
-        startOAuthLogin,
-        finishOAuthLogin,
-        stepUpStatus,
-        updateCredential,
-        deleteCredential,
-        login,
-        handlePasskeyLogin,
-        refreshStepUpStatus,
-        verifyStepUpWithPasskey,
-        verifyStepUpWithPasskeyPrf,
-        verifyStepUpWithTotp,
-      }}
-    >
-      {children}
-    </AuthContext.Provider>
+  const value = useMemo(
+    () => ({ ...state, ...session.actions, apiHost }),
+    [state, session, apiHost]
   );
+
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
