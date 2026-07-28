@@ -6,7 +6,13 @@
 
 import { createSeamlessAuthClient } from '../src/client/createSeamlessAuthClient';
 import { createFetchWithAuth } from '../src/fetchWithAuth';
-import { startAuthentication, startRegistration } from '@simplewebauthn/browser';
+import {
+  startAuthentication,
+  startRegistration,
+  WebAuthnError,
+} from '@simplewebauthn/browser';
+
+import { getWebAuthnErrorDetail } from '../src/client/errors';
 
 jest.mock('../src/fetchWithAuth');
 jest.mock('@simplewebauthn/browser', () => ({
@@ -26,8 +32,24 @@ jest.mock('@simplewebauthn/browser', () => ({
       .replace(/\//g, '_')
       .replace(/=+$/g, '')
   ),
+  // Mirrors the real class: the name is the DOMException name, and the code is
+  // SimpleWebAuthn's narrower reason.
   WebAuthnError: class WebAuthnError extends Error {
-    name = 'WebAuthnError';
+    code: string;
+
+    constructor({
+      message,
+      code,
+      cause,
+    }: {
+      message: string;
+      code: string;
+      cause: Error;
+    }) {
+      super(message);
+      this.name = cause.name;
+      this.code = code;
+    }
   },
 }));
 
@@ -781,6 +803,134 @@ describe('createSeamlessAuthClient', () => {
       error: expect.objectContaining({
         message: 'Failed to verify step-up authentication.',
       }),
+    });
+  });
+
+  describe('WebAuthn ceremony failures', () => {
+    const CEREMONY_MESSAGE = 'The operation either timed out or was not allowed.';
+    let consoleError: jest.SpyInstance;
+
+    const ceremonyError = () => {
+      const error = new Error(CEREMONY_MESSAGE);
+      error.name = 'NotAllowedError';
+      (error as Error & { code?: string }).code = 'ERROR_CEREMONY_ABORTED';
+
+      return error;
+    };
+
+    const mockStartedCeremony = () => {
+      mockFetchWithAuth.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ challenge: 'challenge' }),
+      });
+      (startAuthentication as jest.Mock).mockRejectedValueOnce(ceremonyError());
+    };
+
+    beforeEach(() => {
+      consoleError = jest.spyOn(console, 'error').mockImplementation(() => {});
+    });
+
+    afterEach(() => {
+      consoleError.mockRestore();
+    });
+
+    it('carries the assertion failure detail through step-up', async () => {
+      mockStartedCeremony();
+
+      const client = createSeamlessAuthClient({ apiHost: 'https://api.example.com' });
+      const { error } = await client.verifyStepUpWithPasskey();
+
+      expect(error?.message).toBe('Step-up authentication failed.');
+      expect(getWebAuthnErrorDetail(error)).toEqual({
+        name: 'NotAllowedError',
+        code: 'ERROR_CEREMONY_ABORTED',
+        message: CEREMONY_MESSAGE,
+      });
+    });
+
+    it('carries the assertion failure detail through PRF step-up', async () => {
+      mockStartedCeremony();
+
+      const client = createSeamlessAuthClient({ apiHost: 'https://api.example.com' });
+      const { error } = await client.verifyStepUpWithPasskeyPrf({
+        salt: Uint8Array.from(Array.from({ length: 32 }, (_, index) => index + 1)),
+      });
+
+      expect(error?.message).toBe('Step-up authentication failed.');
+      expect(getWebAuthnErrorDetail(error)?.name).toBe('NotAllowedError');
+    });
+
+    it('carries the assertion failure detail through passkey login', async () => {
+      mockStartedCeremony();
+
+      const client = createSeamlessAuthClient({ apiHost: 'https://api.example.com' });
+      const { error } = await client.loginWithPasskey();
+
+      expect(error?.message).toBe('Passkey login failed.');
+      expect(getWebAuthnErrorDetail(error)?.name).toBe('NotAllowedError');
+    });
+
+    it('carries the registration failure detail alongside the authenticator name', async () => {
+      mockFetchWithAuth.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ challenge: 'challenge' }),
+      });
+      const cause = new Error('The authenticator was previously registered');
+      cause.name = 'InvalidStateError';
+      const thrown = new WebAuthnError({
+        message: 'The authenticator was previously registered',
+        code: 'ERROR_AUTHENTICATOR_PREVIOUSLY_REGISTERED',
+        cause,
+      });
+      (startRegistration as jest.Mock).mockRejectedValueOnce(thrown);
+
+      const client = createSeamlessAuthClient({ apiHost: 'https://api.example.com' });
+      const { error } = await client.registerPasskey({
+        friendlyName: 'My Laptop',
+        platform: 'mac',
+        browser: 'chrome',
+        deviceInfo: 'mac • chrome',
+      });
+
+      expect(error?.message).toBe('InvalidStateError');
+      expect(getWebAuthnErrorDetail(error)).toMatchObject({
+        code: 'ERROR_AUTHENTICATOR_PREVIOUSLY_REGISTERED',
+        message: 'The authenticator was previously registered',
+      });
+    });
+
+    it('logs the error name without the ceremony message', async () => {
+      mockStartedCeremony();
+
+      const client = createSeamlessAuthClient({ apiHost: 'https://api.example.com' });
+      await client.verifyStepUpWithPasskey();
+
+      expect(consoleError).toHaveBeenCalledWith(
+        'Step-up authentication error.',
+        'NotAllowedError'
+      );
+      expect(consoleError).not.toHaveBeenCalledWith(
+        expect.anything(),
+        expect.stringContaining(CEREMONY_MESSAGE)
+      );
+    });
+
+    it('reports an unknown error when the ceremony throws a non-error', async () => {
+      mockFetchWithAuth.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ challenge: 'challenge' }),
+      });
+      (startAuthentication as jest.Mock).mockRejectedValueOnce('boom');
+
+      const client = createSeamlessAuthClient({ apiHost: 'https://api.example.com' });
+      const { error } = await client.verifyStepUpWithPasskey();
+
+      expect(error?.message).toBe('Step-up authentication failed.');
+      expect(getWebAuthnErrorDetail(error)).toBeUndefined();
+      expect(consoleError).toHaveBeenCalledWith(
+        'Step-up authentication error.',
+        'Unknown error.'
+      );
     });
   });
 });
