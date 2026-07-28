@@ -60,6 +60,7 @@ export default [
     // shared package for non-React adapters. See #64.
     files: [
       'src/client/**/*.ts',
+      'src/session/**/*.ts',
       'src/fetchWithAuth.ts',
       'src/scopedRoles.ts',
       'src/types.ts',
