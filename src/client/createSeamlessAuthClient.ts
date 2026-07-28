@@ -50,7 +50,6 @@ export interface RegisterInput {
   // Registration only needs an email. A phone can be added and verified later,
   // so it is optional here and only sent when a caller supplies one.
   phone?: string | null;
-  bootstrapToken?: string | null;
 }
 
 export interface PasskeyMetadata {
@@ -474,7 +473,6 @@ export const createSeamlessAuthClient = (
           body: JSON.stringify({
             email: input.email,
             ...(input.phone ? { phone: input.phone } : {}),
-            ...(input.bootstrapToken ? { bootstrapToken: input.bootstrapToken } : {}),
           }),
         }),
         'Failed to register.'
