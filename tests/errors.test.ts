@@ -4,7 +4,11 @@
  * See LICENSE file in the project root for full license information
  */
 
-import { SeamlessAuthError, toSeamlessAuthError } from '@/client/errors';
+import {
+  getOAuthErrorCode,
+  SeamlessAuthError,
+  toSeamlessAuthError,
+} from '@/client/errors';
 
 const responseWith = (status: number, json: () => Promise<unknown>) =>
   ({ status, json }) as unknown as Response;
@@ -62,5 +66,46 @@ describe('toSeamlessAuthError', () => {
 
     expect(error).toBeInstanceOf(Error);
     expect(error.name).toBe('SeamlessAuthError');
+  });
+});
+
+describe('getOAuthErrorCode', () => {
+  it.each(['oauth_missing_email', 'oauth_email_not_verified', 'oauth_missing_subject'])(
+    'returns the known code %s',
+    code => {
+      const error = new SeamlessAuthError('Sign-in failed', 400, {
+        error: 'Sign-in failed',
+        code,
+      });
+
+      expect(getOAuthErrorCode(error)).toBe(code);
+    }
+  );
+
+  it('ignores a code the SDK does not know', () => {
+    const error = new SeamlessAuthError('Sign-in failed', 400, {
+      code: 'oauth_something_new',
+    });
+
+    expect(getOAuthErrorCode(error)).toBeUndefined();
+  });
+
+  it('returns undefined when the body carries no code', () => {
+    expect(
+      getOAuthErrorCode(new SeamlessAuthError('Sign-in failed', 400, { error: 'nope' }))
+    ).toBeUndefined();
+  });
+
+  it('returns undefined for a missing or non-object body', () => {
+    expect(getOAuthErrorCode(new SeamlessAuthError('nope', 500))).toBeUndefined();
+    expect(
+      getOAuthErrorCode(new SeamlessAuthError('nope', 500, 'oauth_missing_email'))
+    ).toBeUndefined();
+  });
+
+  it('returns undefined for anything that is not a SeamlessAuthError', () => {
+    expect(getOAuthErrorCode(new Error('boom'))).toBeUndefined();
+    expect(getOAuthErrorCode({ body: { code: 'oauth_missing_email' } })).toBeUndefined();
+    expect(getOAuthErrorCode(null)).toBeUndefined();
   });
 });

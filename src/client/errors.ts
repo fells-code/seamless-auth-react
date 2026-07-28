@@ -20,6 +20,42 @@ export class SeamlessAuthError extends Error {
   }
 }
 
+/**
+ * Machine-readable codes the auth API returns alongside `error` on an OAuth
+ * callback failure the user can act on.
+ */
+export type OAuthErrorCode =
+  | 'oauth_missing_email'
+  | 'oauth_email_not_verified'
+  | 'oauth_missing_subject';
+
+const OAUTH_ERROR_CODES = new Set<string>([
+  'oauth_missing_email',
+  'oauth_email_not_verified',
+  'oauth_missing_subject',
+]);
+
+/**
+ * Read the OAuth failure code off a result error. Returns `undefined` for
+ * anything unrecognized, including codes added by a newer API, so callers keep
+ * their generic messaging instead of showing a raw code.
+ */
+export function getOAuthErrorCode(error: unknown): OAuthErrorCode | undefined {
+  if (!(error instanceof SeamlessAuthError)) {
+    return undefined;
+  }
+
+  if (typeof error.body !== 'object' || error.body === null) {
+    return undefined;
+  }
+
+  const { code } = error.body as { code?: unknown };
+
+  return typeof code === 'string' && OAUTH_ERROR_CODES.has(code)
+    ? (code as OAuthErrorCode)
+    : undefined;
+}
+
 function extractMessage(body: unknown): string | undefined {
   if (typeof body !== 'object' || body === null) {
     return undefined;
