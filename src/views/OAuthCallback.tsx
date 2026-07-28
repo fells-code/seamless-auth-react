@@ -7,9 +7,21 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/AuthProvider';
+import { getOAuthErrorCode, OAuthErrorCode } from '@/client/errors';
 import { OAUTH_PROVIDER_STORAGE_KEY } from '@/components/OAuthProviderButtons';
 
 import styles from '@/styles/verifyMagiclink.module.css';
+
+const GENERIC_ERROR = 'We could not complete sign-in. Please try again.';
+
+const CODE_ERRORS: Record<OAuthErrorCode, string> = {
+  oauth_missing_email:
+    'Your provider account did not share an email address. Add an email to that account and make it visible, then try again.',
+  oauth_email_not_verified:
+    'The email address on your provider account is not verified. Verify it with your provider, then try again.',
+  oauth_missing_subject:
+    'Your provider did not return a usable account identifier. Try again, or sign in with a different method.',
+};
 
 const OAuthCallback: React.FC = () => {
   const { finishOAuthLogin } = useAuth();
@@ -33,7 +45,8 @@ const OAuthCallback: React.FC = () => {
 
     void finishOAuthLogin({ providerId, code, state }).then(({ error: finishError }) => {
       if (finishError) {
-        setError('We could not complete sign-in. Please try again.');
+        const code = getOAuthErrorCode(finishError);
+        setError(code ? CODE_ERRORS[code] : GENERIC_ERROR);
         return;
       }
 

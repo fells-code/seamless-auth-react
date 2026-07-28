@@ -18,6 +18,7 @@
 - `usePasskeySupport()`
 - `hasScopedRole()` and `roleGrantsAccess()`
 - `SeamlessAuthError`, the error type carried on a failed result
+- `getOAuthErrorCode()`, which reads the known OAuth callback failure codes off that error
 - types including `AuthContextType`, `Credential`, `User`, `OAuthProvider`, `StepUpStatus`, the `SeamlessAuthResult` wrapper, and the headless client input/result types
 
 ## Installation
@@ -383,6 +384,33 @@ function OAuthCallback() {
   return <p>Finishing sign-in...</p>;
 }
 ```
+
+Some callback failures are the user's to fix, so the API returns a stable `code` alongside the error
+message. `getOAuthErrorCode()` narrows it to the codes this SDK knows about and returns `undefined`
+for everything else, so unexpected failures keep your generic message:
+
+```tsx
+import { getOAuthErrorCode, useAuth } from '@seamless-auth/react';
+
+const { error } = await finishOAuthLogin({ providerId, code, state });
+
+switch (getOAuthErrorCode(error)) {
+  case 'oauth_missing_email':
+    // The provider account shared no email address.
+    break;
+  case 'oauth_email_not_verified':
+    // The provider account's email is unverified.
+    break;
+  case 'oauth_missing_subject':
+    // The provider returned no usable account identifier.
+    break;
+  default:
+    // No error, or one without a recognized code.
+    break;
+}
+```
+
+The bundled `AuthRoutes` callback screen already maps these three codes to actionable text.
 
 For fully custom UI without `useAuth()`, call the headless client directly:
 

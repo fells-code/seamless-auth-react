@@ -41,7 +41,7 @@ import {
   TotpStatus,
   UpdateOrganizationInput,
 } from '@/client/createSeamlessAuthClient';
-import { SeamlessAuthError } from '@/client/errors';
+import { getOAuthErrorCode, OAuthErrorCode, SeamlessAuthError } from '@/client/errors';
 import type { SeamlessAuthResult } from '@/client/result';
 import {
   encodePrfSalt,
@@ -61,6 +61,7 @@ export {
   createSeamlessAuthClient,
   encodePrfSalt,
   extractPasskeyPrfResult,
+  getOAuthErrorCode,
   hasScopedRole,
   isPasskeyPrfSupported,
   roleGrantsAccess,
@@ -80,6 +81,7 @@ export type {
   LoginMethod,
   LoginStartResult,
   MessageResult,
+  OAuthErrorCode,
   OAuthProvider,
   OAuthProvidersResult,
   Organization,
