@@ -404,7 +404,7 @@ For production providers, configure exact `redirectUris` on the Seamless Auth AP
 send the callback URL it expects to receive, but redirect allowlisting, signed state expiry, OIDC
 nonce handling, email verification policy, and account-linking policy are enforced by the API.
 
-The built-in views avoid logging OTPs, magic-link tokens, bootstrap tokens, PRF salts, or raw
+The built-in views avoid logging OTPs, magic-link tokens, PRF salts, or raw
 exception payloads that may contain sensitive request URLs.
 
 ## Headless Client

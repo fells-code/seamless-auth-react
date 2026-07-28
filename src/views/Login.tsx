@@ -31,18 +31,10 @@ const Login: React.FC = () => {
   const [identifierError, setIdentifierError] = useState<string>('');
   const [showFallbackOptions, setShowFallbackOptions] = useState(false);
   const [loginMethods, setLoginMethods] = useState<LoginMethod[]>(DEFAULT_LOGIN_METHODS);
-  const [bootstrapToken, setBootstrapToken] = useState<string | null>(null);
 
   useEffect(() => {
     if (hasSignedInBefore) {
       setMode('login');
-    }
-
-    const params = new URLSearchParams(window.location.search);
-    const token = params.get('bootstrapToken');
-
-    if (token && token.length > 10) {
-      setBootstrapToken(token);
     }
   }, [hasSignedInBefore]);
 
@@ -70,7 +62,6 @@ const Login: React.FC = () => {
 
     const { data, error } = await authClient.register({
       email,
-      bootstrapToken,
     });
 
     if (error) {
