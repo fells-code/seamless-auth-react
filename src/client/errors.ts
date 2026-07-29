@@ -46,10 +46,23 @@ const OAUTH_ERROR_CODES: Record<OAuthErrorCode, true> = {
   oauth_missing_subject: true,
 };
 
+function readCode(body: unknown): unknown {
+  if (typeof body !== 'object' || body === null) {
+    return undefined;
+  }
+
+  return (body as { code?: unknown }).code;
+}
+
 /**
  * Read the OAuth failure code off a result error. Returns `undefined` for
  * anything unrecognized, including codes added by a newer API, so callers keep
  * their generic messaging instead of showing a raw code.
+ *
+ * The auth API puts `code` at the top level of the error body, but a proxy in
+ * front of it may normalize that body and nest the siblings of `error` under
+ * `details`. Both locations are accepted so such a proxy does not silently
+ * downgrade OAuth messaging to a generic failure.
  */
 export function getOAuthErrorCode(error: unknown): OAuthErrorCode | undefined {
   if (!(error instanceof SeamlessAuthError)) {
@@ -60,7 +73,8 @@ export function getOAuthErrorCode(error: unknown): OAuthErrorCode | undefined {
     return undefined;
   }
 
-  const { code } = error.body as { code?: unknown };
+  const code =
+    readCode(error.body) ?? readCode((error.body as { details?: unknown }).details);
 
   return typeof code === 'string' &&
     Object.prototype.hasOwnProperty.call(OAUTH_ERROR_CODES, code)
