@@ -6,8 +6,13 @@
 
 import type { Credential, Organization, User } from '@/types';
 import type {
+  CredentialUpdateResult,
   LoginStartResult,
   MessageResult,
+  OAuthProvidersResult,
+  OrganizationMembersResult,
+  OrganizationMembershipResult,
+  OrganizationResult,
   OrganizationSwitchResult,
   StepUpStatus,
 } from '@/client/createSeamlessAuthClient';
@@ -56,6 +61,28 @@ describe('wire types match what the API sends', () => {
     expect(login.token).toBeUndefined();
     // @ts-expect-error the switch result must not advertise a session id
     expect(organizationSwitch.sessionId).toBeUndefined();
+  });
+
+  // These five were declared by hand until the package exported aliases for them
+  // (seamless-auth-types#10). Pinning the envelopes keeps that from creeping back.
+  it('takes the response envelopes from the package', () => {
+    const providers = {} as OAuthProvidersResult;
+    const organization = {} as OrganizationResult;
+    const members = {} as OrganizationMembersResult;
+    const membership = {} as OrganizationMembershipResult;
+    const credentialUpdate = {} as CredentialUpdateResult;
+
+    const providerId: string | undefined = providers.providers?.[0]?.id;
+    const total: number = members.total;
+    const lastUsedAt: string | null | undefined = credentialUpdate.credential?.lastUsedAt;
+
+    expect([
+      providerId,
+      organization.organization,
+      membership.membership,
+      total,
+      lastUsedAt,
+    ]).toHaveLength(5);
   });
 
   it('keeps the acknowledgement and step-up shapes intact', () => {
