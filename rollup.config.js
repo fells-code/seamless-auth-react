@@ -25,6 +25,10 @@ export default [
 
       '@simplewebauthn/browser',
       'libphonenumber-js',
+
+      // Role matching resolves from the package at runtime rather than being
+      // inlined here. The subpath is Zod-free, so nothing else comes with it.
+      '@seamless-auth/types/role/matching',
     ],
     plugins: [
       peerDepsExternal(),

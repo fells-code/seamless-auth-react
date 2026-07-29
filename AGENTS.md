@@ -107,10 +107,15 @@ redeclaring shapes.
 
 Rules for this dependency:
 
-- types only. Import with `import type` so the package's Zod dependency never
-  reaches the browser bundle. There is a `Record<OAuthErrorCode, true>` in
-  `src/client/errors.ts` that exists for exactly this reason: it is a
-  compile-time membership check standing in for the upstream runtime list.
+- types only from the barrel, and lint-enforced. Import with `import type` so the
+  package's Zod dependency never reaches the browser bundle. There is a
+  `Record<OAuthErrorCode, true>` in `src/client/errors.ts` that exists for
+  exactly this reason: it is a compile-time membership check standing in for the
+  upstream runtime list.
+- `@seamless-auth/types/role/matching` is the one deliberate runtime import. That
+  subpath imports nothing at runtime, so `src/scopedRoles.ts` re-exports it
+  instead of the SDK carrying a second copy of the authorization rules. It is
+  declared external in the rollup config and is exempt from the lint rule.
 - keep the SDK's own export names. Adopters import `Credential` from this
   package, so alias upstream shapes to local names instead of re-exporting
   theirs.
@@ -124,6 +129,11 @@ Rules for this dependency:
 
 The PRF helper types and `SeamlessAuthResult` stay local: they are SDK concerns,
 not wire contracts.
+
+Jest cannot follow the package's ESM subpath exports on its own, so
+`jest.config.ts` maps `role/matching` directly and exempts the package from
+`transformIgnorePatterns`. Do not widen `customExportConditions` to fix this:
+that pushes unrelated dependencies onto their ESM builds and breaks the run.
 
 ## Current Public API
 

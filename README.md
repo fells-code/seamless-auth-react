@@ -191,7 +191,9 @@ hasScopedRole('admin:write'); // true for admin or admin:write
 ```
 
 The package also exports standalone `hasScopedRole(roles, required)` and `roleGrantsAccess(...)`
-helpers for code that is not inside `AuthProvider`.
+helpers for code that is not inside `AuthProvider`. Both come from
+[`@seamless-auth/types`](https://www.npmjs.com/package/@seamless-auth/types), so the rules match what
+the API and the other SDKs enforce rather than being a client-side reimplementation of them.
 
 ### Step-up authentication
 
@@ -483,9 +485,11 @@ the auth API's schemas. `User`, `Credential`, `Organization`, `StepUpStatus`, `M
 other wire shapes describe what the API actually sends, rather than a second copy maintained here that
 could drift from it.
 
-The dependency is types-only. Nothing from it is imported at runtime, so no schema validation library
-reaches your bundle. Names exported from this package stay the SDK's own, so you keep importing
-`Credential` from `@seamless-auth/react`.
+The shapes are types-only, so no schema validation library reaches your bundle. Names exported from
+this package stay the SDK's own, so you keep importing `Credential` from `@seamless-auth/react`.
+
+The single runtime import is the role matching used by `hasScopedRole()`, which the package publishes
+as a Zod-free entry point. It adds no validation library to your bundle either.
 
 Two SDK concerns are deliberately not shared, because they are not wire contracts: the PRF helper
 types and the `SeamlessAuthResult` wrapper.

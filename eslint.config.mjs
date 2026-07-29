@@ -56,6 +56,28 @@ export default [
     },
   },
   {
+    // `@seamless-auth/types` is a types-only dependency: importing values from
+    // the barrel would pull Zod into every adopter's bundle. The Zod-free
+    // `role/matching` subpath is the one deliberate runtime import and is not
+    // restricted here.
+    files: ['src/**/*.ts', 'src/**/*.tsx'],
+    rules: {
+      '@typescript-eslint/no-restricted-imports': [
+        'error',
+        {
+          paths: [
+            {
+              name: '@seamless-auth/types',
+              allowTypeImports: true,
+              message:
+                'Import types only from the package barrel. A value import pulls Zod into the bundle.',
+            },
+          ],
+        },
+      ],
+    },
+  },
+  {
     // The client layer stays framework agnostic so it can be extracted into a
     // shared package for non-React adapters. See #64.
     files: [
