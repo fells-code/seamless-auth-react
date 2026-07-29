@@ -98,6 +98,33 @@ Important implication:
 - frontend behavior here is tightly coupled to backend route names and cookie/session expectations
 - if request paths or auth flow ordering seem questionable, inspect `seamless-auth-server` or `seamless-auth-api` before changing code or docs
 
+## Wire Types
+
+Request and response shapes come from `@seamless-auth/types`, which is generated
+from the auth API's schemas. `src/types.ts` and the type declarations in
+`src/client/createSeamlessAuthClient.ts` alias that package rather than
+redeclaring shapes.
+
+Rules for this dependency:
+
+- types only. Import with `import type` so the package's Zod dependency never
+  reaches the browser bundle. There is a `Record<OAuthErrorCode, true>` in
+  `src/client/errors.ts` that exists for exactly this reason: it is a
+  compile-time membership check standing in for the upstream runtime list.
+- keep the SDK's own export names. Adopters import `Credential` from this
+  package, so alias upstream shapes to local names instead of re-exporting
+  theirs.
+- session material stays unexposed. `LoginStartResult` and
+  `OrganizationSwitchResult` `Omit` the token, subject, and session id the API
+  returns, because sessions are carried by cookies here.
+- a few shapes have upstream schemas but no exported type alias
+  (`OAuthProvidersResponse`, `CredentialUpdateResponse`, and the organization
+  envelope responses). Those stay declared locally until the package exports
+  them.
+
+The PRF helper types and `SeamlessAuthResult` stay local: they are SDK concerns,
+not wire contracts.
+
 ## Current Public API
 
 `src/index.ts` is the authoritative export list. Treat the enumeration below as a
@@ -171,7 +198,7 @@ The current package is organized around a shared SDK core with optional UI layer
 - `src/fetchWithAuth.ts`
   - `/auth` request construction
 - `src/types.ts`
-  - shared user and credential types
+  - aliases of the wire contract in `@seamless-auth/types`, not hand-written shapes
 - `tests/*`
   - Jest + Testing Library coverage for provider, client, hooks, and views
 

@@ -475,6 +475,21 @@ The headless client exposes helpers for:
 - logout and delete-user
 - credential update and deletion
 
+### Where the response types come from
+
+The request and response types are aliases of
+[`@seamless-auth/types`](https://www.npmjs.com/package/@seamless-auth/types), which is generated from
+the auth API's schemas. `User`, `Credential`, `Organization`, `StepUpStatus`, `MessageResult`, and the
+other wire shapes describe what the API actually sends, rather than a second copy maintained here that
+could drift from it.
+
+The dependency is types-only. Nothing from it is imported at runtime, so no schema validation library
+reaches your bundle. Names exported from this package stay the SDK's own, so you keep importing
+`Credential` from `@seamless-auth/react`.
+
+Two SDK concerns are deliberately not shared, because they are not wire contracts: the PRF helper
+types and the `SeamlessAuthResult` wrapper.
+
 ### Result convention
 
 Every request method resolves to a `SeamlessAuthResult<T>`:
@@ -786,6 +801,13 @@ function PasskeyList() {
     </ul>
   );
 }
+```
+
+`Credential.lastUsedAt` and `Credential.createdAt` are ISO 8601 strings, which is what the API sends.
+Wrap them yourself to format:
+
+```tsx
+const lastUsed = credential.lastUsedAt ? new Date(credential.lastUsedAt) : null;
 ```
 
 Removing a passkey is a sensitive change. Gate it behind a fresh step-up when the account has other

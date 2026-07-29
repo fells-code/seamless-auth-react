@@ -14,8 +14,29 @@ import {
   WebAuthnError,
 } from '@simplewebauthn/browser';
 
+import type {
+  AddOrganizationMemberRequest,
+  CreateOrganizationRequest,
+  LoginMethod as LoginMethodShape,
+  LoginSuccessResponse,
+  LogoutScope as LogoutScopeShape,
+  MeResponse,
+  MessageResponse,
+  OrganizationListResponse,
+  OrganizationSwitchResponse,
+  PublicOAuthProvider,
+  RegistrationRequest,
+  StartOAuthLoginResponse,
+  StepUpMethod as StepUpMethodShape,
+  StepUpStatus as StepUpStatusShape,
+  TotpEnrollmentStartResponse,
+  TotpStatus as TotpStatusShape,
+  UpdateOrganizationMemberRequest,
+  UpdateOrganizationRequest,
+} from '@seamless-auth/types';
+
 import { createFetchWithAuth } from '../fetchWithAuth';
-import { Credential, Organization, OrganizationMembership, User } from '../types';
+import { Credential, Organization, OrganizationMembership } from '../types';
 import { getWebAuthnErrorDetail } from './errors';
 import {
   NETWORK_ERROR_STATUS,
@@ -44,20 +65,18 @@ export interface LoginInput {
   passkeyAvailable: boolean;
 }
 
-export type LoginMethod = 'passkey' | 'magic_link' | 'email_otp' | 'phone_otp' | 'oauth';
+export type LoginMethod = LoginMethodShape;
 
-export interface LoginStartResult {
-  message?: string;
-  identifierType?: 'email' | 'phone';
-  loginMethods?: LoginMethod[];
-}
+/**
+ * The login response minus its session material. The API returns a token and
+ * subject here, which this SDK deliberately does not surface: sessions are
+ * carried by cookies, so adopters have no reason to handle raw tokens.
+ */
+export type LoginStartResult = Omit<LoginSuccessResponse, 'token' | 'sub'>;
 
-export interface RegisterInput {
-  email: string;
-  // Registration only needs an email. A phone can be added and verified later,
-  // so it is optional here and only sent when a caller supplies one.
-  phone?: string | null;
-}
+// Registration only needs an email. A phone can be added and verified later, so
+// it is optional on the wire and only sent when a caller supplies one.
+export type RegisterInput = RegistrationRequest;
 
 export interface PasskeyMetadata {
   friendlyName: string;
@@ -66,41 +85,17 @@ export interface PasskeyMetadata {
   deviceInfo: string;
 }
 
-export interface CurrentUserResult {
-  user: User;
-  credentials: Credential[];
-  organizations?: Organization[];
-  activeOrganization?: Organization | null;
-}
+export type CurrentUserResult = MeResponse;
 
-export interface CreateOrganizationInput {
-  name: string;
-  slug?: string;
-  metadata?: Record<string, unknown> | null;
-}
+export type CreateOrganizationInput = CreateOrganizationRequest;
 
-export interface UpdateOrganizationInput {
-  name?: string;
-  slug?: string;
-  metadata?: Record<string, unknown> | null;
-}
+export type UpdateOrganizationInput = UpdateOrganizationRequest;
 
-export interface OrganizationMemberInput {
-  userId?: string;
-  email?: string;
-  roles?: string[];
-  scopes?: string[];
-}
+export type OrganizationMemberInput = AddOrganizationMemberRequest;
 
-export interface OrganizationMemberUpdateInput {
-  roles?: string[];
-  scopes?: string[];
-}
+export type OrganizationMemberUpdateInput = UpdateOrganizationMemberRequest;
 
-export interface OrganizationsResult {
-  organizations: Organization[];
-  activeOrganizationId?: string | null;
-}
+export type OrganizationsResult = OrganizationListResponse;
 
 export interface OrganizationResult {
   organization: Organization;
@@ -117,21 +112,15 @@ export interface OrganizationMembershipResult {
 }
 
 /**
- * Response body when the active organization changes. The server also returns
- * session material here, which this SDK deliberately does not surface: sessions
- * are carried by cookies, so adopters have no reason to handle raw tokens.
+ * Response body when the active organization changes, minus its session
+ * material. See `LoginStartResult` for why the token and subject are dropped.
  */
-export interface OrganizationSwitchResult {
-  message: string;
-  organizationId: string;
-  organization: Organization;
-}
+export type OrganizationSwitchResult = Omit<
+  OrganizationSwitchResponse,
+  'token' | 'sub' | 'sessionId'
+>;
 
-export interface OAuthProvider {
-  id: string;
-  name: string;
-  scopes: string[];
-}
+export type OAuthProvider = PublicOAuthProvider;
 
 export interface OAuthProvidersResult {
   providers: OAuthProvider[];
@@ -143,11 +132,7 @@ export interface StartOAuthLoginInput {
   returnTo?: string;
 }
 
-export interface StartOAuthLoginResult {
-  provider: OAuthProvider;
-  state: string;
-  authorizationUrl: string;
-}
+export type StartOAuthLoginResult = StartOAuthLoginResponse;
 
 export interface FinishOAuthLoginInput {
   providerId: string;
@@ -156,9 +141,7 @@ export interface FinishOAuthLoginInput {
 }
 
 /** Response body for endpoints that only acknowledge the request. */
-export interface MessageResult {
-  message: string;
-}
+export type MessageResult = MessageResponse;
 
 /** Payload returned by a completed passkey login. */
 export interface PasskeyLoginData {
@@ -183,32 +166,13 @@ export interface RegisterPasskeyOptions {
   requirePrf?: boolean;
 }
 
-export type StepUpMethod = 'webauthn' | 'totp';
+export type StepUpMethod = StepUpMethodShape;
 
-export interface TotpStatus {
-  enabled: boolean;
-  verifiedAt: string | null;
-  lastUsedAt: string | null;
-}
+export type TotpStatus = TotpStatusShape;
 
-export interface TotpEnrollmentStartResult {
-  message: string;
-  secret: string;
-  otpauthUrl: string;
-  issuer: string;
-  accountName: string;
-  algorithm: string;
-  digits: number;
-  period: number;
-}
+export type TotpEnrollmentStartResult = TotpEnrollmentStartResponse;
 
-export interface StepUpStatus {
-  fresh: boolean;
-  method: StepUpMethod | null;
-  verifiedAt: string | null;
-  expiresAt: string | null;
-  maxAgeSeconds: number;
-}
+export type StepUpStatus = StepUpStatusShape;
 
 export interface PasskeyLoginOptions {
   prf?: PasskeyPrfInput;
@@ -220,7 +184,7 @@ export interface StepUpPrfData extends StepUpStatus {
   prf: PasskeyPrfResult;
 }
 
-export type LogoutScope = 'current_session' | 'all_sessions';
+export type LogoutScope = LogoutScopeShape;
 
 export interface LogoutOptions {
   scope?: LogoutScope;
