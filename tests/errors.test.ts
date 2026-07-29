@@ -83,9 +83,38 @@ describe('getOAuthErrorCode', () => {
     }
   );
 
+  it.each(['oauth_missing_email', 'oauth_email_not_verified', 'oauth_missing_subject'])(
+    'returns the known code %s nested under details',
+    code => {
+      const error = new SeamlessAuthError('Sign-in failed', 400, {
+        error: 'Sign-in failed',
+        details: { code },
+      });
+
+      expect(getOAuthErrorCode(error)).toBe(code);
+    }
+  );
+
+  it('prefers the top-level code over the nested one', () => {
+    const error = new SeamlessAuthError('Sign-in failed', 400, {
+      code: 'oauth_missing_email',
+      details: { code: 'oauth_missing_subject' },
+    });
+
+    expect(getOAuthErrorCode(error)).toBe('oauth_missing_email');
+  });
+
   it('ignores a code the SDK does not know', () => {
     const error = new SeamlessAuthError('Sign-in failed', 400, {
       code: 'oauth_something_new',
+    });
+
+    expect(getOAuthErrorCode(error)).toBeUndefined();
+  });
+
+  it('ignores a nested code the SDK does not know', () => {
+    const error = new SeamlessAuthError('Sign-in failed', 400, {
+      details: { code: 'oauth_something_new' },
     });
 
     expect(getOAuthErrorCode(error)).toBeUndefined();
@@ -97,10 +126,36 @@ describe('getOAuthErrorCode', () => {
     ).toBeUndefined();
   });
 
+  it('returns undefined when details carries no code', () => {
+    expect(
+      getOAuthErrorCode(
+        new SeamlessAuthError('Sign-in failed', 400, {
+          error: 'nope',
+          details: { requestId: 'abc' },
+        })
+      )
+    ).toBeUndefined();
+  });
+
   it('returns undefined for a missing or non-object body', () => {
     expect(getOAuthErrorCode(new SeamlessAuthError('nope', 500))).toBeUndefined();
     expect(
+      getOAuthErrorCode(new SeamlessAuthError('nope', 500, undefined))
+    ).toBeUndefined();
+    expect(getOAuthErrorCode(new SeamlessAuthError('nope', 500, null))).toBeUndefined();
+    expect(
       getOAuthErrorCode(new SeamlessAuthError('nope', 500, 'oauth_missing_email'))
+    ).toBeUndefined();
+  });
+
+  it('returns undefined for a non-object details', () => {
+    expect(
+      getOAuthErrorCode(
+        new SeamlessAuthError('nope', 500, { details: 'oauth_missing_email' })
+      )
+    ).toBeUndefined();
+    expect(
+      getOAuthErrorCode(new SeamlessAuthError('nope', 500, { details: null }))
     ).toBeUndefined();
   });
 
