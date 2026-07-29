@@ -6,6 +6,7 @@
 
 import {
   getOAuthErrorCode,
+  getWebAuthnErrorDetail,
   SeamlessAuthError,
   toSeamlessAuthError,
 } from '@/client/errors';
@@ -107,5 +108,63 @@ describe('getOAuthErrorCode', () => {
     expect(getOAuthErrorCode(new Error('boom'))).toBeUndefined();
     expect(getOAuthErrorCode({ body: { code: 'oauth_missing_email' } })).toBeUndefined();
     expect(getOAuthErrorCode(null)).toBeUndefined();
+  });
+});
+
+describe('getWebAuthnErrorDetail', () => {
+  const ceremonyError = () => {
+    const error = new Error('The operation is insecure.');
+    error.name = 'SecurityError';
+
+    return error;
+  };
+
+  it('reads the name and message off the underlying ceremony error', () => {
+    const error = new SeamlessAuthError(
+      'Step-up authentication failed.',
+      0,
+      undefined,
+      ceremonyError()
+    );
+
+    expect(getWebAuthnErrorDetail(error)).toEqual({
+      name: 'SecurityError',
+      code: undefined,
+      message: 'The operation is insecure.',
+    });
+  });
+
+  it('includes the narrower reason code when the thrown error carries one', () => {
+    const thrown = Object.assign(ceremonyError(), { code: 'ERROR_INVALID_RP_ID' });
+
+    expect(
+      getWebAuthnErrorDetail(new SeamlessAuthError('nope', 0, undefined, thrown))?.code
+    ).toBe('ERROR_INVALID_RP_ID');
+  });
+
+  it('reads a DOMException, which is not always an Error instance across realms', () => {
+    const thrown = { name: 'NotAllowedError', message: 'Cancelled.' };
+
+    expect(
+      getWebAuthnErrorDetail(new SeamlessAuthError('nope', 0, undefined, thrown))
+    ).toEqual({ name: 'NotAllowedError', code: undefined, message: 'Cancelled.' });
+  });
+
+  it('returns undefined for an error with no ceremony cause', async () => {
+    expect(getWebAuthnErrorDetail(new SeamlessAuthError('nope', 400))).toBeUndefined();
+    expect(
+      getWebAuthnErrorDetail(new SeamlessAuthError('nope', 0, undefined, 'boom'))
+    ).toBeUndefined();
+    expect(
+      await toSeamlessAuthError(
+        responseWith(400, async () => ({ error: 'nope' })),
+        'fallback'
+      ).then(getWebAuthnErrorDetail)
+    ).toBeUndefined();
+  });
+
+  it('returns undefined for anything that is not a SeamlessAuthError', () => {
+    expect(getWebAuthnErrorDetail(ceremonyError())).toBeUndefined();
+    expect(getWebAuthnErrorDetail(null)).toBeUndefined();
   });
 });

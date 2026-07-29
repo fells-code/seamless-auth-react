@@ -11,12 +11,18 @@
 export class SeamlessAuthError extends Error {
   readonly status: number;
   readonly body: unknown;
+  /**
+   * The underlying failure when the error was raised locally rather than by a
+   * response, for example the `DOMException` a WebAuthn ceremony throws.
+   */
+  readonly cause: unknown;
 
-  constructor(message: string, status: number, body?: unknown) {
+  constructor(message: string, status: number, body?: unknown, cause?: unknown) {
     super(message);
     this.name = 'SeamlessAuthError';
     this.status = status;
     this.body = body;
+    this.cause = cause;
   }
 }
 
@@ -54,6 +60,51 @@ export function getOAuthErrorCode(error: unknown): OAuthErrorCode | undefined {
   return typeof code === 'string' && OAUTH_ERROR_CODES.has(code)
     ? (code as OAuthErrorCode)
     : undefined;
+}
+
+/**
+ * Detail recovered from a failed WebAuthn ceremony.
+ *
+ * `name` is the `DOMException` name, which is what distinguishes the cases a
+ * user can act on: `NotAllowedError` for a dismissed prompt or no usable
+ * credential, `SecurityError` for an origin or RP ID mismatch,
+ * `InvalidStateError` for an already registered passkey. `code` is
+ * SimpleWebAuthn's narrower reason when it identified one, for example
+ * `ERROR_CEREMONY_ABORTED`.
+ */
+export type WebAuthnErrorDetail = {
+  name: string;
+  code?: string;
+  message: string;
+};
+
+function isErrorLike(
+  value: unknown
+): value is { name: string; message?: unknown; code?: unknown } {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    typeof (value as { name?: unknown }).name === 'string'
+  );
+}
+
+/**
+ * Read the WebAuthn failure behind a result error. Returns `undefined` for
+ * errors that did not come from a ceremony, so callers can branch on the
+ * specific failure and otherwise fall back to `error.message`.
+ */
+export function getWebAuthnErrorDetail(error: unknown): WebAuthnErrorDetail | undefined {
+  if (!(error instanceof SeamlessAuthError) || !isErrorLike(error.cause)) {
+    return undefined;
+  }
+
+  const { name, code, message } = error.cause;
+
+  return {
+    name,
+    code: typeof code === 'string' ? code : undefined,
+    message: typeof message === 'string' ? message : '',
+  };
 }
 
 function extractMessage(body: unknown): string | undefined {

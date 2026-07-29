@@ -16,7 +16,14 @@ import {
 
 import { createFetchWithAuth } from '../fetchWithAuth';
 import { Credential, Organization, OrganizationMembership, User } from '../types';
-import { requestResult, resultError, resultOf, type SeamlessAuthResult } from './result';
+import { getWebAuthnErrorDetail } from './errors';
+import {
+  NETWORK_ERROR_STATUS,
+  requestResult,
+  resultError,
+  resultOf,
+  type SeamlessAuthResult,
+} from './result';
 import {
   createPrfRequestBody,
   extractPasskeyPrfResult,
@@ -377,6 +384,25 @@ function buildAssertionStartInit(input?: PasskeyPrfInput): RequestInit {
   };
 }
 
+/**
+ * A ceremony failure never reaches the server, so there is no response body to
+ * carry detail. Keep the friendly message and hand the thrown error to callers
+ * as the cause, so a dismissed prompt can be told apart from an RP ID mismatch.
+ * Only the error name is logged: ceremony messages can name the origin.
+ */
+function webAuthnFailure<T>(
+  logContext: string,
+  message: string,
+  thrown: unknown
+): SeamlessAuthResult<T> {
+  const failure = resultError<T>(message, NETWORK_ERROR_STATUS, undefined, thrown);
+  const detail = getWebAuthnErrorDetail(failure.error);
+
+  console.error(logContext, detail?.name ?? 'Unknown error.');
+
+  return failure;
+}
+
 export const createSeamlessAuthClient = (
   opts: SeamlessAuthClientOptions
 ): SeamlessAuthClient => {
@@ -421,10 +447,9 @@ export const createSeamlessAuthClient = (
         })) as AuthenticationResponseJSON;
         prf = extractPasskeyPrfResult(credential);
         assertionResponse = stripPrfResultsFromAssertion(credential);
-      } catch {
+      } catch (error) {
         // Typically a cancelled or unsupported authenticator prompt.
-        console.error('Passkey login error.');
-        return resultError('Passkey login failed.');
+        return webAuthnFailure('Passkey login error.', 'Passkey login failed.', error);
       }
 
       const verified = await requestResult<MessageResult>(
@@ -637,11 +662,14 @@ export const createSeamlessAuthClient = (
         if (error instanceof WebAuthnError) {
           // The authenticator name is the useful detail here, for example
           // InvalidStateError when the passkey already exists.
-          return resultError(error.name);
+          return resultError(error.name, NETWORK_ERROR_STATUS, undefined, error);
         }
 
-        console.error('Passkey registration error.');
-        return resultError('Passkey registration failed.');
+        return webAuthnFailure(
+          'Passkey registration error.',
+          'Passkey registration failed.',
+          error
+        );
       }
 
       const prfCapable = getRegistrationPrfCapable(attestationResponse);
@@ -689,9 +717,12 @@ export const createSeamlessAuthClient = (
           optionsJSON: preparePrfRequestOptions(started.data),
         })) as AuthenticationResponseJSON;
         assertionResponse = stripPrfResultsFromAssertion(credential);
-      } catch {
-        console.error('Step-up authentication error.');
-        return resultError('Step-up authentication failed.');
+      } catch (error) {
+        return webAuthnFailure(
+          'Step-up authentication error.',
+          'Step-up authentication failed.',
+          error
+        );
       }
 
       const verified = await requestResult<StepUpPayload>(
@@ -730,9 +761,12 @@ export const createSeamlessAuthClient = (
         })) as AuthenticationResponseJSON;
         prf = extractPasskeyPrfResult(credential);
         assertionResponse = stripPrfResultsFromAssertion(credential);
-      } catch {
-        console.error('Step-up authentication error.');
-        return resultError('Step-up authentication failed.');
+      } catch (error) {
+        return webAuthnFailure(
+          'Step-up authentication error.',
+          'Step-up authentication failed.',
+          error
+        );
       }
 
       if (!prf) {
