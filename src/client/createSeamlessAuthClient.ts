@@ -17,12 +17,17 @@ import {
 import type {
   AddOrganizationMemberRequest,
   CreateOrganizationRequest,
+  CredentialUpdateResponse,
   LoginMethod as LoginMethodShape,
   LoginSuccessResponse,
   LogoutScope as LogoutScopeShape,
   MeResponse,
   MessageResponse,
+  OAuthProvidersResponse,
+  OrganizationEnvelopeResponse,
   OrganizationListResponse,
+  OrganizationMembersResponse,
+  OrganizationMembershipEnvelopeResponse,
   OrganizationSwitchResponse,
   PublicOAuthProvider,
   RegistrationRequest,
@@ -36,7 +41,6 @@ import type {
 } from '@seamless-auth/types';
 
 import { createFetchWithAuth } from '../fetchWithAuth';
-import { Credential, Organization, OrganizationMembership } from '../types';
 import { getWebAuthnErrorDetail } from './errors';
 import {
   NETWORK_ERROR_STATUS,
@@ -97,19 +101,12 @@ export type OrganizationMemberUpdateInput = UpdateOrganizationMemberRequest;
 
 export type OrganizationsResult = OrganizationListResponse;
 
-export interface OrganizationResult {
-  organization: Organization;
-}
+export type OrganizationResult = OrganizationEnvelopeResponse;
 
-export interface OrganizationMembersResult {
-  members: OrganizationMembership[];
-  total: number;
-}
+export type OrganizationMembersResult = OrganizationMembersResponse;
 
 /** Response body for a single membership mutation. */
-export interface OrganizationMembershipResult {
-  membership: OrganizationMembership;
-}
+export type OrganizationMembershipResult = OrganizationMembershipEnvelopeResponse;
 
 /**
  * Response body when the active organization changes, minus its session
@@ -122,9 +119,7 @@ export type OrganizationSwitchResult = Omit<
 
 export type OAuthProvider = PublicOAuthProvider;
 
-export interface OAuthProvidersResult {
-  providers: OAuthProvider[];
-}
+export type OAuthProvidersResult = OAuthProvidersResponse;
 
 export interface StartOAuthLoginInput {
   providerId: string;
@@ -155,10 +150,7 @@ export interface PasskeyRegistrationData {
 }
 
 /** Response body returned when credential metadata is updated. */
-export interface CredentialUpdateResult {
-  message: string;
-  credential: Credential;
-}
+export type CredentialUpdateResult = CredentialUpdateResponse;
 
 export interface RegisterPasskeyOptions {
   metadata: PasskeyMetadata;

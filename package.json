@@ -102,7 +102,7 @@
     "typescript-eslint": "^8.46.1"
   },
   "dependencies": {
-    "@seamless-auth/types": "^0.2.0",
+    "@seamless-auth/types": "^0.4.0",
     "@simplewebauthn/browser": "^13.1.0",
     "eslint-plugin-license-header": "^0.9.0",
     "libphonenumber-js": "^1.12.7",

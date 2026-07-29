@@ -117,10 +117,10 @@ Rules for this dependency:
 - session material stays unexposed. `LoginStartResult` and
   `OrganizationSwitchResult` `Omit` the token, subject, and session id the API
   returns, because sessions are carried by cookies here.
-- a few shapes have upstream schemas but no exported type alias
-  (`OAuthProvidersResponse`, `CredentialUpdateResponse`, and the organization
-  envelope responses). Those stay declared locally until the package exports
-  them.
+- do not redeclare a shape the package already exports. Every exported schema has
+  a `z.infer` alias as of types 0.4.0, and a test upstream keeps it that way, so
+  a local interface mirroring a wire shape is a bug. If an alias is genuinely
+  missing, file it on `seamless-auth-types` rather than working around it.
 
 The PRF helper types and `SeamlessAuthResult` stay local: they are SDK concerns,
 not wire contracts.
