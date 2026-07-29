@@ -115,12 +115,19 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({
     session.getState
   );
 
+  // The store is deliberately not destroyed on cleanup. `destroy()` is terminal,
+  // and React may run mount, cleanup, mount against the same memoized store:
+  // StrictMode does it on every mount today, and Activity will do it whenever a
+  // tree is hidden and shown again. Tearing down here left the remounted provider
+  // holding a store that refuses updates, stuck on `loading: true` forever.
+  //
+  // Nothing leaks by skipping it. `useSyncExternalStore` removes its own listener
+  // when the provider unmounts, and the store owns no timers or subscriptions, so
+  // it is reclaimed with the component. A refresh still in flight then resolves
+  // into a store nobody observes. `destroy()` stays on the store for bindings that
+  // genuinely own its lifetime.
   useEffect(() => {
     void session.actions.refreshSession();
-
-    return () => {
-      session.destroy();
-    };
   }, [session]);
 
   const value = useMemo(

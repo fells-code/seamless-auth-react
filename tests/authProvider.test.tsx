@@ -5,6 +5,7 @@
  */
 
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { StrictMode } from 'react';
 import { AuthProvider, useAuth } from '../src/AuthProvider';
 import { createFetchWithAuth } from '../src/fetchWithAuth';
 
@@ -23,6 +24,7 @@ const Consumer = () => {
     <div>
       <span data-testid="user">{auth.user ? auth.user.email : 'none'}</span>
       <span data-testid="isAuthenticated">{String(auth.isAuthenticated)}</span>
+      <span data-testid="loading">{String(auth.loading)}</span>
       <span data-testid="hasRoleAdmin">{String(auth.hasRole('admin'))}</span>
       <span data-testid="hasScopedRoleAdminRead">
         {String(auth.hasScopedRole('admin:read'))}
@@ -461,6 +463,64 @@ describe('AuthProvider', () => {
     expect(returned.data).toEqual(updatedCredential);
     expect(returned.data?.friendlyName).toBe('Renamed passkey');
     expect(returned.data).not.toHaveProperty('message');
+  });
+
+  // StrictMode runs mount, cleanup, mount while useMemo keeps the same session
+  // store, so a provider that tore the store down on cleanup came back holding a
+  // store that refused every update and never left `loading`. The templates ship
+  // StrictMode, so this is the default path for a new app, not an edge case.
+  describe('StrictMode remount', () => {
+    it('settles a signed-out session instead of loading forever', async () => {
+      // The adapter answers a missing access cookie with 400, which is the
+      // ordinary anonymous first load.
+      mockFetchWithAuthImpl.mockResolvedValue(
+        failure(400, { error: 'Missing required cookie "seamless-access"' })
+      );
+
+      await act(async () => {
+        render(
+          <StrictMode>
+            <AuthProvider apiHost={apiHost}>
+              <Consumer />
+            </AuthProvider>
+          </StrictMode>
+        );
+      });
+
+      await waitFor(() => {
+        expect(screen.getByTestId('loading')).toHaveTextContent('false');
+      });
+
+      expect(screen.getByTestId('isAuthenticated')).toHaveTextContent('false');
+      expect(screen.getByTestId('user')).toHaveTextContent('none');
+    });
+
+    it('still loads an authenticated session', async () => {
+      mockFetchWithAuthImpl.mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          user: { id: '1', email: 'test@example.com', phone: '', roles: ['admin'] },
+          credentials: [],
+        }),
+      } as any);
+
+      await act(async () => {
+        render(
+          <StrictMode>
+            <AuthProvider apiHost={apiHost}>
+              <Consumer />
+            </AuthProvider>
+          </StrictMode>
+        );
+      });
+
+      await waitFor(() => {
+        expect(screen.getByTestId('user')).toHaveTextContent('test@example.com');
+      });
+
+      expect(screen.getByTestId('loading')).toHaveTextContent('false');
+      expect(screen.getByTestId('isAuthenticated')).toHaveTextContent('true');
+    });
   });
 
   describe('failure paths', () => {
