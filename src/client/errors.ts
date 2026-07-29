@@ -4,6 +4,8 @@
  * See LICENSE file in the project root for full license information
  */
 
+import type { OAuthErrorCode as OAuthErrorCodeShape } from '@seamless-auth/types';
+
 /**
  * Error carrying the auth server's response detail, so callers can map known
  * failures to their own messaging instead of only seeing a generic string.
@@ -30,16 +32,19 @@ export class SeamlessAuthError extends Error {
  * Machine-readable codes the auth API returns alongside `error` on an OAuth
  * callback failure the user can act on.
  */
-export type OAuthErrorCode =
-  | 'oauth_missing_email'
-  | 'oauth_email_not_verified'
-  | 'oauth_missing_subject';
+export type OAuthErrorCode = OAuthErrorCodeShape;
 
-const OAUTH_ERROR_CODES = new Set<string>([
-  'oauth_missing_email',
-  'oauth_email_not_verified',
-  'oauth_missing_subject',
-]);
+/*
+ * The upstream package exports a runtime list of these codes too, but importing
+ * it would pull Zod into the browser bundle for what is a membership test. This
+ * is the type-only equivalent: `Record<OAuthErrorCode, true>` fails to compile
+ * if the upstream union gains or loses a member, so it cannot drift silently.
+ */
+const OAUTH_ERROR_CODES: Record<OAuthErrorCode, true> = {
+  oauth_missing_email: true,
+  oauth_email_not_verified: true,
+  oauth_missing_subject: true,
+};
 
 /**
  * Read the OAuth failure code off a result error. Returns `undefined` for
@@ -57,7 +62,8 @@ export function getOAuthErrorCode(error: unknown): OAuthErrorCode | undefined {
 
   const { code } = error.body as { code?: unknown };
 
-  return typeof code === 'string' && OAUTH_ERROR_CODES.has(code)
+  return typeof code === 'string' &&
+    Object.prototype.hasOwnProperty.call(OAUTH_ERROR_CODES, code)
     ? (code as OAuthErrorCode)
     : undefined;
 }

@@ -4,53 +4,27 @@
  * See LICENSE file in the project root for full license information
  */
 
-import {
-  AuthenticatorTransportFuture,
-  CredentialDeviceType,
-} from '@simplewebauthn/browser';
+import type {
+  CredentialResponse,
+  MeUser,
+  Organization as OrganizationShape,
+  OrganizationMembership as OrganizationMembershipShape,
+} from '@seamless-auth/types';
 
-export interface User {
-  id: string;
-  email: string;
-  phone: string;
-  roles?: string[];
-  activeOrganizationId?: string | null;
-}
+/*
+ * The wire contract lives in `@seamless-auth/types`, which is generated from the
+ * auth API's Zod schemas. These names are the SDK's public vocabulary, so they
+ * stay, but they are aliases now rather than a second hand-maintained copy that
+ * can drift from what the API actually sends.
+ *
+ * Types only: nothing here is imported at runtime, so Zod never reaches the
+ * browser bundle.
+ */
 
-export interface OrganizationMembership {
-  id: string;
-  organizationId: string;
-  userId: string;
-  roles: string[];
-  scopes: string[];
-  createdAt: string | Date;
-  updatedAt: string | Date;
-  user?: User;
-}
+export type User = MeUser;
 
-export interface Organization {
-  id: string;
-  name: string;
-  slug: string;
-  createdByUserId: string | null;
-  metadata: Record<string, unknown> | null;
-  createdAt: string | Date;
-  updatedAt: string | Date;
-  membership?: OrganizationMembership;
-  memberCount?: number;
-}
+export type OrganizationMembership = OrganizationMembershipShape;
 
-export interface Credential {
-  id: string;
-  counter: number;
-  transports?: AuthenticatorTransportFuture[];
-  deviceType: CredentialDeviceType;
-  backedup: boolean;
-  backedUp?: boolean;
-  prfCapable?: boolean;
-  friendlyName: string | null;
-  lastUsedAt: Date | null;
-  platform: string | null;
-  browser: string | null;
-  deviceInfo: string | null;
-}
+export type Organization = OrganizationShape;
+
+export type Credential = CredentialResponse;

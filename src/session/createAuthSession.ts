@@ -244,7 +244,9 @@ export function createAuthSession(options: AuthSessionOptions): AuthSession {
 
     updateCredential: async credential => {
       const { data, error } = await client.updateCredential({
-        friendlyName: credential.friendlyName,
+        // The wire type leaves the name optional, and the update endpoint reads
+        // null as "clear it", so an absent name is sent as an explicit null.
+        friendlyName: credential.friendlyName ?? null,
         id: credential.id,
       });
 
