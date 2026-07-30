@@ -1,5 +1,33 @@
 # @seamless-auth/react
 
+## 0.7.0
+
+### Minor Changes
+
+- b4b7ca1: Stop discarding the underlying WebAuthn error. The passkey login, passkey registration, and step-up verification methods now attach the thrown ceremony error to the returned `SeamlessAuthError` as `cause`, and a new `getWebAuthnErrorDetail()` export reads its `name`, `code`, and `message`. Callers can tell a dismissed prompt or missing credential (`NotAllowedError`) apart from an origin or RP ID mismatch (`SecurityError`) instead of seeing one generic string. The friendly result messages are unchanged, and only the error name is logged.
+- 41dfea7: Adopt `@seamless-auth/types` for the API request and response shapes. The SDK's types were hand-written and maintained in parallel with the auth API's schemas; they are now aliases of the published contract, so they cannot drift from what the API actually sends. The dependency is types-only, imported with `import type`, so no schema validation library reaches your bundle and the export names you import are unchanged.
+
+  Some types are now more accurate, which is a breaking change at the type level for adopters:
+  - `Credential.lastUsedAt` is `string | null | undefined`, not `Date | null`. The API serializes it as an ISO 8601 string, so code calling a `Date` method on it was relying on a type that never matched the wire value and threw at runtime. Wrap it yourself: `new Date(credential.lastUsedAt)`.
+  - `Credential.deviceType`, `friendlyName`, `platform`, `browser`, and `deviceInfo` are optional, matching the API. `Credential.createdAt` is now present.
+  - `User.phone` is `string | null`, and `User.roles` is required rather than optional. `User` also carries `lastLogin`.
+  - `Organization.createdAt` and `updatedAt` are `string` rather than `string | Date`.
+
+  No runtime behavior changes.
+
+- 3922389: Surface OAuth callback error codes. A new `getOAuthErrorCode()` export reads the auth API's machine-readable `code` off a `SeamlessAuthError` and narrows it to `oauth_missing_email`, `oauth_email_not_verified`, or `oauth_missing_subject`, returning `undefined` for anything unrecognized. The bundled OAuth callback screen now maps those three codes to actionable text instead of one generic failure message.
+
+### Patch Changes
+
+- a82768d: Read the OAuth failure code from a nested `details` object when the error body does not carry it at the top level. `getOAuthErrorCode` only looked at a top-level `code`, which is where the auth API puts it, so a proxy that normalized the error body and moved the siblings of `error` under `details` silently downgraded OAuth messaging to a generic failure. Both locations are accepted now, the top level still wins, and the allowlist is unchanged: an unrecognized code in either place still returns `undefined`.
+- e27dcca: Stop calling the logout endpoint when the session check fails. A failed `/users/me` means the server already considers the session unusable, so the SDK now clears it locally instead of sending a `DELETE /logout` for a session that does not exist. Previously every anonymous page load fired that second request.
+
+  Session state now lives in a framework-agnostic store behind `AuthProvider`, which reads it through `useSyncExternalStore`. The provider's public API is unchanged. Reading a previous sign-in goes through a storage port that falls back to memory when there is no `localStorage`, so the store is safe to create during server-side rendering.
+
+  The store survives a remount. React can run mount, cleanup, mount against the same provider, which StrictMode does on every mount and Activity does whenever a hidden tree is shown again, so the provider no longer destroys the store from its effect cleanup. `destroy()` is terminal, and tearing it down there left the remounted provider holding a store that refused every update and stayed on `loading: true`.
+
+- 83bf7b8: Take the last five response envelopes from `@seamless-auth/types` instead of declaring them here. `OAuthProvidersResult`, `CredentialUpdateResult`, `OrganizationResult`, `OrganizationMembersResult`, and `OrganizationMembershipResult` were hand-written because the package had no exported alias for their schemas; types 0.4.0 exports one for every schema, so they are aliases now like the rest. The shapes are identical, so this is a no-op for adopters, and the dependency stays types-only.
+
 ## 0.6.0
 
 ### Minor Changes
