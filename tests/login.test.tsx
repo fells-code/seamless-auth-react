@@ -45,6 +45,7 @@ describe('Login', () => {
     requestPhoneOtp: jest.fn(),
     requestLoginPhoneOtp: jest.fn(),
     requestLoginEmailOtp: jest.fn(),
+    getPublicSystemConfig: jest.fn(),
   };
 
   beforeEach(() => {
@@ -62,6 +63,11 @@ describe('Login', () => {
     (usePasskeySupport as jest.Mock).mockReturnValue({
       passkeySupported: false,
       loading: false,
+    });
+
+    mockAuthClient.getPublicSystemConfig.mockResolvedValue({
+      data: { loginMethods: ['passkey', 'magic_link', 'phone_otp'] },
+      error: null,
     });
 
     (isValidEmail as jest.Mock).mockReturnValue(true);

@@ -8,6 +8,7 @@ import { useAuth } from '@/AuthProvider';
 import { PasskeyMetadata } from '@/client/createSeamlessAuthClient';
 import React, { useState } from 'react';
 import { useAuthClient } from '@/hooks/useAuthClient';
+import { hasNonPasskeyLoginMethod, useLoginMethods } from '@/hooks/useLoginMethods';
 import { usePasskeySupport } from '@/hooks/usePasskeySupport';
 import { useNavigate } from 'react-router-dom';
 
@@ -19,6 +20,7 @@ const PasskeyRegistration: React.FC = () => {
   const { refreshSession } = useAuth();
   const authClient = useAuthClient();
   const { passkeySupported, loading: passkeySupportLoading } = usePasskeySupport();
+  const { loginMethods, loading: loginMethodsLoading } = useLoginMethods();
   const navigate = useNavigate();
 
   const [status, setStatus] = useState<'idle' | 'success' | 'error' | 'loading'>('idle');
@@ -30,6 +32,20 @@ const PasskeyRegistration: React.FC = () => {
     browser: string;
     deviceInfo: string;
   } | null>(null);
+
+  // The session already exists by the time this screen renders: the OTP step
+  // that led here established it. A passkey is an addition to that session
+  // rather than what completes registration, which is what makes leaving
+  // without one a legitimate way to finish and not an escape hatch.
+  //
+  // Gated on another method being enabled. With passkey as the only one, a user
+  // who skipped would have no way back into the account they just made.
+  const canSkip = hasNonPasskeyLoginMethod(loginMethods);
+
+  const finishWithoutPasskey = async () => {
+    await refreshSession();
+    navigate('/');
+  };
 
   const openDeviceModal = () => {
     const { platform, browser, deviceInfo } = parseUserAgent();
@@ -73,14 +89,32 @@ const PasskeyRegistration: React.FC = () => {
     <>
       <div className={styles.container}>
         <div className={styles.card}>
-          {passkeySupportLoading || !passkeySupported ? (
+          {passkeySupportLoading || loginMethodsLoading ? (
             <div className={styles.loading}>
               <div className={styles.spinner}></div>
-              <span>
-                {passkeySupportLoading
-                  ? 'Checking for Passkey Support...'
-                  : 'Passkeys are not supported on this device.'}
-              </span>
+              <span>Checking for Passkey Support...</span>
+            </div>
+          ) : !passkeySupported ? (
+            // This used to be the end of the road: a message and no control of
+            // any kind, on a screen the user could not leave. Whether there is a
+            // way forward depends on the instance, so say which case this is.
+            <div className={styles.supported}>
+              <h2 className={styles.title}>Passkeys are not available here</h2>
+              <p className={styles.description}>
+                {canSkip
+                  ? 'This device does not support passkeys. You can continue without one and add a passkey later from a device that does.'
+                  : 'This device does not support passkeys, and this application requires one to sign in. Try again from a device or browser that supports them.'}
+              </p>
+
+              {canSkip && (
+                <button
+                  type="button"
+                  onClick={finishWithoutPasskey}
+                  className={styles.button}
+                >
+                  Continue
+                </button>
+              )}
             </div>
           ) : (
             <div className={styles.supported}>
@@ -105,6 +139,17 @@ const PasskeyRegistration: React.FC = () => {
                 >
                   {message}
                 </p>
+              )}
+
+              {canSkip && (
+                <button
+                  type="button"
+                  onClick={finishWithoutPasskey}
+                  disabled={status === 'loading'}
+                  className={styles.skip}
+                >
+                  Skip for now
+                </button>
               )}
             </div>
           )}

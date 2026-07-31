@@ -18,6 +18,7 @@ import {
   MessageResult,
   OAuthProvider,
   OAuthProvidersResult,
+  PublicSystemConfigResult,
   OrganizationMemberInput,
   OrganizationMemberUpdateInput,
   OrganizationMembersResult,
@@ -57,6 +58,7 @@ import {
   PasskeyPrfResult,
 } from '@/client/webauthnPrf';
 import { useAuthClient } from '@/hooks/useAuthClient';
+import { hasNonPasskeyLoginMethod, useLoginMethods } from '@/hooks/useLoginMethods';
 import { usePasskeySupport } from '@/hooks/usePasskeySupport';
 import { hasScopedRole, roleGrantsAccess } from '@/scopedRoles';
 import { Credential, Organization, OrganizationMembership, User } from '@/types';
@@ -69,12 +71,14 @@ export {
   extractPasskeyPrfResult,
   getOAuthErrorCode,
   getWebAuthnErrorDetail,
+  hasNonPasskeyLoginMethod,
   hasScopedRole,
   isPasskeyPrfSupported,
   roleGrantsAccess,
   SeamlessAuthError,
   useAuth,
   useAuthClient,
+  useLoginMethods,
   usePasskeySupport,
 };
 export type {
@@ -105,6 +109,7 @@ export type {
   PasskeyPrfInput,
   PasskeyPrfResult,
   PasskeyRegistrationData,
+  PublicSystemConfigResult,
   RegisterInput,
   RegisterPasskeyOptions,
   SeamlessAuthClient,
