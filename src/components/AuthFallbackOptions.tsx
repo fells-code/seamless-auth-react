@@ -16,7 +16,7 @@ interface AuthFallbackOptionsProps {
   onEmailOtp?: () => void;
   onPhoneOtp: () => void;
   onPasskeyRetry?: () => void;
-  loginMethods?: LoginMethod[];
+  loginMethods?: LoginMethod[] | null;
 }
 
 const AuthFallbackOptions: React.FC<AuthFallbackOptionsProps> = ({
@@ -27,6 +27,9 @@ const AuthFallbackOptions: React.FC<AuthFallbackOptionsProps> = ({
   onPasskeyRetry,
   loginMethods,
 }) => {
+  // Null means the caller has not resolved the methods yet. This component is
+  // the last step of a fallback flow, so it stays permissive and lets the
+  // handlers it was given decide, rather than hiding an option a caller wired up.
   const allowedMethods = new Set<LoginMethod>(
     loginMethods ?? ['passkey', 'magic_link', 'phone_otp']
   );

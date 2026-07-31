@@ -30,6 +30,7 @@ import type {
   OrganizationMembershipEnvelopeResponse,
   OrganizationSwitchResponse,
   PublicOAuthProvider,
+  PublicSystemConfigResponse,
   RegistrationRequest,
   StartOAuthLoginResponse,
   StepUpMethod as StepUpMethodShape,
@@ -120,6 +121,13 @@ export type OrganizationSwitchResult = Omit<
 export type OAuthProvider = PublicOAuthProvider;
 
 export type OAuthProvidersResult = OAuthProvidersResponse;
+
+/**
+ * The configuration a signed-out client may read. Fetched before there is a
+ * session, so the sign-in screens can match how this instance is configured
+ * instead of assuming a default set of methods.
+ */
+export type PublicSystemConfigResult = PublicSystemConfigResponse;
 
 export interface StartOAuthLoginInput {
   providerId: string;
@@ -220,6 +228,7 @@ export interface SeamlessAuthClient {
   checkMagicLink: () => Promise<SeamlessAuthResult<MessageResult>>;
   verifyMagicLink: (token: string) => Promise<SeamlessAuthResult<MessageResult>>;
   listOAuthProviders: () => Promise<SeamlessAuthResult<OAuthProvidersResult>>;
+  getPublicSystemConfig: () => Promise<SeamlessAuthResult<PublicSystemConfigResult>>;
   startOAuthLogin: (
     input: StartOAuthLoginInput
   ) => Promise<SeamlessAuthResult<StartOAuthLoginResult>>;
@@ -573,6 +582,12 @@ export const createSeamlessAuthClient = (
       requestResult<OAuthProvidersResult>(
         fetchWithAuth(`/oauth/providers`, { method: 'GET' }),
         'Failed to list OAuth providers.'
+      ),
+
+    getPublicSystemConfig: () =>
+      requestResult<PublicSystemConfigResult>(
+        fetchWithAuth(`/system-config/public`, { method: 'GET' }),
+        'Failed to read the public system configuration.'
       ),
 
     startOAuthLogin: input =>

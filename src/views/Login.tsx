@@ -7,6 +7,7 @@
 import { useAuth } from '@/AuthProvider';
 import React, { useEffect, useState } from 'react';
 import { useAuthClient } from '@/hooks/useAuthClient';
+import { FALLBACK_LOGIN_METHODS, useLoginMethods } from '@/hooks/useLoginMethods';
 import { usePasskeySupport } from '@/hooks/usePasskeySupport';
 import { useNavigate } from 'react-router-dom';
 import { authRoutePaths } from '@/routes';
@@ -16,13 +17,12 @@ import AuthFallbackOptions from '@/components/AuthFallbackOptions';
 import OAuthProviderButtons from '@/components/OAuthProviderButtons';
 import type { LoginMethod } from '@/client/createSeamlessAuthClient';
 
-const DEFAULT_LOGIN_METHODS: LoginMethod[] = ['passkey', 'magic_link', 'phone_otp'];
-
 const Login: React.FC = () => {
   const navigate = useNavigate();
   const { hasSignedInBefore, login, handlePasskeyLogin } = useAuth();
   const authClient = useAuthClient();
   const { passkeySupported } = usePasskeySupport();
+  const { loginMethods: configuredMethods } = useLoginMethods();
   const [identifier, setIdentifier] = useState<string>('');
   const [email, setEmail] = useState<string>('');
   const [mode, setMode] = useState<'login' | 'register'>('register');
@@ -30,7 +30,7 @@ const Login: React.FC = () => {
   const [emailError, setEmailError] = useState<string>('');
   const [identifierError, setIdentifierError] = useState<string>('');
   const [showFallbackOptions, setShowFallbackOptions] = useState(false);
-  const [loginMethods, setLoginMethods] = useState<LoginMethod[]>(DEFAULT_LOGIN_METHODS);
+  const [loginMethods, setLoginMethods] = useState<LoginMethod[] | null>(null);
 
   useEffect(() => {
     if (hasSignedInBefore) {
@@ -126,9 +126,12 @@ const Login: React.FC = () => {
           return;
         }
 
+        // The login response is per-user and authoritative when present. The
+        // instance configuration is the better fallback than a hardcoded list,
+        // because it at least reflects this deployment.
         const availableMethods = loginStart?.loginMethods?.length
           ? loginStart.loginMethods
-          : DEFAULT_LOGIN_METHODS;
+          : (configuredMethods ?? FALLBACK_LOGIN_METHODS);
         setLoginMethods(availableMethods);
 
         if (passkeySupported && availableMethods.includes('passkey')) {

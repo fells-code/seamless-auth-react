@@ -7,6 +7,7 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import RegisterPasskey from '../src/views/PassKeyRegistration';
 import { useAuthClient } from '@/hooks/useAuthClient';
+import { useLoginMethods } from '@/hooks/useLoginMethods';
 import { usePasskeySupport } from '@/hooks/usePasskeySupport';
 
 const mockNavigate = jest.fn();
@@ -26,6 +27,13 @@ jest.mock('@/AuthProvider', () => ({
 
 jest.mock('@/hooks/useAuthClient');
 jest.mock('@/hooks/usePasskeySupport');
+
+// hasNonPasskeyLoginMethod stays real: it encodes the rule that decides whether
+// a skip is safe to offer, so mocking it would test nothing.
+jest.mock('@/hooks/useLoginMethods', () => ({
+  ...jest.requireActual('@/hooks/useLoginMethods'),
+  useLoginMethods: jest.fn(),
+}));
 
 jest.mock('@/utils', () => ({
   parseUserAgent: jest.fn().mockReturnValue({
@@ -53,6 +61,10 @@ beforeEach(() => {
   });
   (usePasskeySupport as jest.Mock).mockReturnValue({
     passkeySupported: true,
+    loading: false,
+  });
+  (useLoginMethods as jest.Mock).mockReturnValue({
+    loginMethods: ['passkey', 'magic_link'],
     loading: false,
   });
 });
@@ -161,8 +173,83 @@ describe('RegisterPasskey', () => {
 
     render(<RegisterPasskey />);
 
+    expect(screen.getByText(/Passkeys are not available here/i)).toBeInTheDocument();
     expect(
-      screen.getByText(/passkeys are not supported on this device/i)
+      screen.getByText(/This device does not support passkeys/i)
     ).toBeInTheDocument();
+  });
+});
+
+describe('RegisterPasskey skip control', () => {
+  it('offers a skip when another login method is enabled', async () => {
+    render(<RegisterPasskey />);
+
+    fireEvent.click(await screen.findByText(/Skip for now/i));
+
+    await waitFor(() => {
+      expect(mockRefreshSession).toHaveBeenCalled();
+    });
+
+    expect(mockNavigate).toHaveBeenCalledWith('/');
+    expect(mockRegisterPasskey).not.toHaveBeenCalled();
+  });
+
+  // Skipping here would leave the user with no way back into the account they
+  // just created, so the control must not exist at all.
+  it('offers no skip when passkey is the only login method', async () => {
+    (useLoginMethods as jest.Mock).mockReturnValue({
+      loginMethods: ['passkey'],
+      loading: false,
+    });
+
+    render(<RegisterPasskey />);
+
+    await screen.findByText(/Secure Your Account/i);
+    expect(screen.queryByText(/Skip for now/i)).not.toBeInTheDocument();
+  });
+
+  it('offers no skip while the login methods are still unknown', async () => {
+    (useLoginMethods as jest.Mock).mockReturnValue({
+      loginMethods: null,
+      loading: false,
+    });
+
+    render(<RegisterPasskey />);
+
+    await screen.findByText(/Secure Your Account/i);
+    expect(screen.queryByText(/Skip for now/i)).not.toBeInTheDocument();
+  });
+
+  it('gives an unsupported device a way forward when another method is enabled', async () => {
+    (usePasskeySupport as jest.Mock).mockReturnValue({
+      passkeySupported: false,
+      loading: false,
+    });
+
+    render(<RegisterPasskey />);
+
+    fireEvent.click(await screen.findByText(/^Continue$/i));
+
+    await waitFor(() => {
+      expect(mockRefreshSession).toHaveBeenCalled();
+    });
+
+    expect(mockNavigate).toHaveBeenCalledWith('/');
+  });
+
+  it('tells an unsupported device it is stuck when passkey is the only method', async () => {
+    (usePasskeySupport as jest.Mock).mockReturnValue({
+      passkeySupported: false,
+      loading: false,
+    });
+    (useLoginMethods as jest.Mock).mockReturnValue({
+      loginMethods: ['passkey'],
+      loading: false,
+    });
+
+    render(<RegisterPasskey />);
+
+    expect(await screen.findByText(/requires one to sign in/i)).toBeInTheDocument();
+    expect(screen.queryByText(/^Continue$/i)).not.toBeInTheDocument();
   });
 });
