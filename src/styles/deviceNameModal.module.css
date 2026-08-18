@@ -1,7 +1,7 @@
 .overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.45);
+  background: var(--seamless-overlay, rgba(0, 0, 0, 0.45));
   display: flex;
   align-items: center;
   justify-content: center;
@@ -9,18 +9,18 @@
 }
 
 .modal {
-  background: #1f2937;
-  color: #fff;
+  background: var(--seamless-surface, #1f2937);
+  color: var(--seamless-text, #fff);
   padding: 24px;
   border-radius: 12px;
   width: 100%;
   max-width: 420px;
-  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 20px 40px var(--seamless-shadow, rgba(0, 0, 0, 0.15));
 }
 
 .description {
   font-size: 14px;
-  color: #fff;
+  color: var(--seamless-text, #fff);
   margin-bottom: 16px;
 }
 
@@ -28,7 +28,7 @@
   width: 100%;
   padding: 10px 12px;
   border-radius: 8px;
-  border: 1px solid #ddd;
+  border: 1px solid var(--seamless-border, #ddd);
   margin-bottom: 20px;
   font-size: 14px;
 }
@@ -40,8 +40,8 @@
 }
 
 .primary {
-  background: #2563eb;
-  color: white;
+  background: var(--seamless-accent, #2563eb);
+  color: var(--seamless-accent-contrast, white);
   border: none;
   padding: 8px 14px;
   border-radius: 8px;
@@ -50,7 +50,7 @@
 
 .secondary {
   background: transparent;
-  border: 1px solid #ccc;
+  border: 1px solid var(--seamless-border, #ccc);
   padding: 8px 14px;
   border-radius: 8px;
   cursor: pointer;

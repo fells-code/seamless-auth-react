@@ -849,6 +849,69 @@ Two paths are unchanged because they are owned by contracts outside this package
 - `/oauth/callback` is registered with OAuth providers as an allowed redirect URI, so renaming it
   would break configured integrations.
 
+## Theming The Built-In UI
+
+Every colour in the built-in screens is a CSS custom property with a fallback, so the default look is
+unchanged if you set nothing. To match your brand, set the tokens you care about on `:root`, or on any
+element that wraps `<AuthRoutes />`.
+
+```css
+:root {
+  --seamless-accent: #1f3a34;
+  --seamless-accent-hover: #16302b;
+  --seamless-surface: #f7f5f0;
+  --seamless-text: #1a1a1a;
+}
+```
+
+Scoping to a wrapper also works, which is useful when the auth screens should look different from the
+rest of the app:
+
+```css
+.auth-shell {
+  --seamless-accent: #1f3a34;
+  --seamless-accent-soft: #3c6f63;
+}
+```
+
+There is no provider prop or JavaScript API for this. Setting the variables is the whole interface.
+
+### Tokens
+
+| Token                        | Used for                                                               | Default                                       |
+| ---------------------------- | ---------------------------------------------------------------------- | --------------------------------------------- |
+| `--seamless-accent`          | Primary buttons, focus rings, selected states, accent borders, spinner | `#2563eb` fills, `#3b82f6` rings and borders  |
+| `--seamless-accent-hover`    | Hover state of primary buttons                                         | `#1d4ed8`                                     |
+| `--seamless-accent-contrast` | Label text on accent-filled buttons                                    | `white`                                       |
+| `--seamless-accent-soft`     | Links, toggle buttons, accent icons                                    | `#60a5fa`, `#a5b4fc` on the magic-link screen |
+| `--seamless-surface`         | Card and modal backgrounds                                             | `#1f2937`                                     |
+| `--seamless-surface-raised`  | Inputs and panels sitting on a card                                    | `#374151`, `#4b5563` on the login form        |
+| `--seamless-surface-hover`   | Hover state of secondary buttons                                       | `#4b5563`                                     |
+| `--seamless-border`          | Input, button, and panel borders                                       | `#4b5563`, `#d1d5db`                          |
+| `--seamless-text`            | Headings and body text                                                 | `white`                                       |
+| `--seamless-text-muted`      | Labels, helper text, secondary copy                                    | `#9ca3af`, `#d1d5db`                          |
+| `--seamless-disabled`        | Background of disabled submit buttons                                  | `#9ca3af`                                     |
+| `--seamless-danger`          | Error messages                                                         | `#f87171`                                     |
+| `--seamless-success`         | Success messages and the verified check icon                           | `#34d399`                                     |
+| `--seamless-warning`         | OTP countdown and resend timers                                        | `#facc15`                                     |
+| `--seamless-overlay`         | Modal backdrop scrim                                                   | `rgba(0, 0, 0, 0.45)`                         |
+| `--seamless-shadow`          | Card and modal shadow colour                                           | `rgba(0, 0, 0, 0.1)` to `rgba(0, 0, 0, 0.4)`  |
+
+### Notes
+
+- Where the original design used near-duplicate shades for the same role, each declaration keeps its
+  own original value as the fallback. That is why some rows list more than one default. Nothing shifts
+  until you set the token, and once you do, every use of that role picks up your value.
+- `--seamless-shadow` is the shadow colour only. Offsets and blur are fixed. Setting it applies one
+  colour to every shadow in the built-in UI, replacing the per-screen alpha values.
+- If you set `--seamless-surface` to a light colour, set `--seamless-text` too. The default text
+  colour is white and will disappear otherwise.
+- Two decorative tints are deliberately not tokenised: the pulse ring behind the magic-link mail icon
+  and the disc behind the success check. Both are translucent and sit directly under an icon, so an
+  opaque override would hide the icon it is meant to frame.
+- The package ships one palette and no `prefers-color-scheme` rules. If you want the auth UI to follow
+  the system theme, wrap your own overrides in a media query.
+
 ## Backend Expectations
 
 This package assumes a Seamless Auth-compatible backend with the auth adapter mounted at `/auth`.
