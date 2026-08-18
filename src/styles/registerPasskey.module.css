@@ -1,5 +1,5 @@
 .container {
-  color: white;
+  color: var(--seamless-text, white);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -7,9 +7,9 @@
 }
 
 .card {
-  background-color: #1f2937;
+  background-color: var(--seamless-surface, #1f2937);
   border-radius: 1rem;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+  box-shadow: 0 4px 20px var(--seamless-shadow, rgba(0, 0, 0, 0.4));
   padding: 1.5rem;
   width: 100%;
   max-width: 400px;
@@ -21,17 +21,17 @@
   justify-content: center;
   gap: 0.75rem;
   padding: 1.5rem;
-  background-color: #f9fafb;
-  color: #374151;
+  background-color: var(--seamless-surface, #f9fafb);
+  color: var(--seamless-text, #374151);
   border-radius: 0.75rem;
   font-weight: 500;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 2px 8px var(--seamless-shadow, rgba(0, 0, 0, 0.1));
 }
 
 .spinner {
   animation: spin 1s linear infinite;
-  border-top: 2px solid #3b82f6;
-  border-bottom: 2px solid #3b82f6;
+  border-top: 2px solid var(--seamless-accent, #3b82f6);
+  border-bottom: 2px solid var(--seamless-accent, #3b82f6);
   border-left: 2px solid transparent;
   border-right: 2px solid transparent;
   border-radius: 9999px;
@@ -46,11 +46,11 @@
 }
 
 .supported {
-  background-color: #ecfdf5;
-  color: #065f46;
+  background-color: var(--seamless-surface, #ecfdf5);
+  color: var(--seamless-text, #065f46);
   padding: 1.25rem;
   border-radius: 0.75rem;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 2px 12px var(--seamless-shadow, rgba(0, 0, 0, 0.1));
 }
 
 .title {
@@ -66,8 +66,8 @@
 .button {
   width: 100%;
   padding: 0.75rem 1rem;
-  background-color: #059669;
-  color: white;
+  background-color: var(--seamless-accent, #059669);
+  color: var(--seamless-accent-contrast, white);
   border: none;
   border-radius: 0.5rem;
   font-weight: 500;
@@ -76,7 +76,7 @@
 }
 
 .button:hover {
-  background-color: #047857;
+  background-color: var(--seamless-accent-hover, #047857);
 }
 
 .message {
@@ -85,18 +85,18 @@
 }
 
 .success {
-  color: #6ee7b7;
+  color: var(--seamless-success, #6ee7b7);
 }
 
 .error {
-  color: #f87171;
+  color: var(--seamless-danger, #f87171);
 }
 
 .skip {
   margin-top: 1.5rem;
   width: 100%;
   font-size: 0.875rem;
-  color: #60a5fa;
+  color: var(--seamless-accent-soft, #60a5fa);
   text-align: center;
   background: none;
   border: none;

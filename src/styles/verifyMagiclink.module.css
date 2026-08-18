@@ -1,5 +1,5 @@
 .container {
-  color: white;
+  color: var(--seamless-text, white);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -7,12 +7,12 @@
 }
 
 .card {
-  background-color: #1f2937;
+  background-color: var(--seamless-surface, #1f2937);
   width: 100%;
   max-width: 28rem;
   padding: 1.5rem;
   border-radius: 0.5rem;
-  box-shadow: 0 0 10px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 0 10px var(--seamless-shadow, rgba(0, 0, 0, 0.3));
 }
 
 .title {
@@ -20,7 +20,7 @@
   font-weight: bold;
   text-align: center;
   margin-bottom: 1rem;
-  color: white;
+  color: var(--seamless-text, white);
 }
 
 .verificationContent {
@@ -35,8 +35,8 @@
   width: 28px;
   height: 28px;
   border-radius: 50%;
-  border: 3px solid rgba(255, 255, 255, 0.15);
-  border-top-color: #60a5fa;
+  border: 3px solid var(--seamless-border, rgba(255, 255, 255, 0.15));
+  border-top-color: var(--seamless-accent, #60a5fa);
   animation: spin 0.9s linear infinite;
 }
 
@@ -53,12 +53,12 @@
 .checkIcon {
   width: 22px;
   height: 22px;
-  color: #34d399;
+  color: var(--seamless-success, #34d399);
   animation: checkPop 0.25s ease-out;
 }
 
 .successText {
-  color: #34d399;
+  color: var(--seamless-success, #34d399);
   font-size: 0.9rem;
 }
 

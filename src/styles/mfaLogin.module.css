@@ -1,5 +1,5 @@
 .container {
-  color: white;
+  color: var(--seamless-text, white);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -7,9 +7,9 @@
 }
 
 .card {
-  background-color: #1f2937;
+  background-color: var(--seamless-surface, #1f2937);
   border-radius: 1rem;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+  box-shadow: 0 4px 20px var(--seamless-shadow, rgba(0, 0, 0, 0.4));
   padding: 1.5rem;
   width: 100%;
   max-width: 400px;
@@ -22,11 +22,11 @@
   font-size: 1.5rem;
   font-weight: 600;
   text-align: center;
-  color: white;
+  color: var(--seamless-text, white);
 }
 
 .msg {
-  color: #4ade80;
+  color: var(--seamless-success, #4ade80);
   text-align: center;
 }
 
@@ -39,21 +39,21 @@
 .button {
   padding: 0.75rem 1rem;
   border-radius: 0.5rem;
-  border: 1px solid #4b5563;
-  background-color: #374151;
+  border: 1px solid var(--seamless-border, #4b5563);
+  background-color: var(--seamless-surface-raised, #374151);
   transition: background-color 0.2s;
-  color: white;
+  color: var(--seamless-text, white);
   font-weight: 500;
   text-align: left;
 }
 
 .button:hover {
-  background-color: #4b5563;
+  background-color: var(--seamless-surface-hover, #4b5563);
 }
 
 .selected {
-  background-color: #2563eb;
-  border-color: #3b82f6;
+  background-color: var(--seamless-accent, #2563eb);
+  border-color: var(--seamless-accent, #3b82f6);
 }
 
 .codeLabel {
@@ -64,7 +64,7 @@
 }
 
 .countdown {
-  color: #facc15;
+  color: var(--seamless-warning, #facc15);
   font-size: 0.875rem;
 }
 
@@ -72,9 +72,9 @@
   width: 100%;
   padding: 0.75rem 1rem;
   border-radius: 0.5rem;
-  background-color: #374151;
-  border: 1px solid #4b5563;
-  color: white;
+  background-color: var(--seamless-surface-raised, #374151);
+  border: 1px solid var(--seamless-border, #4b5563);
+  color: var(--seamless-text, white);
   font-family: monospace;
   font-size: 1.25rem;
   letter-spacing: 0.2em;
@@ -82,28 +82,28 @@
 
 .input:focus {
   outline: none;
-  border-color: #3b82f6;
-  box-shadow: 0 0 0 2px #3b82f6;
+  border-color: var(--seamless-accent, #3b82f6);
+  box-shadow: 0 0 0 2px var(--seamless-accent, #3b82f6);
 }
 
 .submit {
   padding: 0.75rem 1rem;
   border-radius: 0.5rem;
-  background-color: #2563eb;
-  border: 1px solid #3b82f6;
-  color: white;
+  background-color: var(--seamless-accent, #2563eb);
+  border: 1px solid var(--seamless-accent, #3b82f6);
+  color: var(--seamless-accent-contrast, white);
   font-weight: 500;
   cursor: pointer;
   transition: background-color 0.2s;
 }
 
 .submit:disabled {
-  background-color: #9ca3af;
+  background-color: var(--seamless-disabled, #9ca3af);
   cursor: not-allowed;
 }
 
 .error {
-  color: #f87171;
+  color: var(--seamless-danger, #f87171);
   text-align: center;
   margin-bottom: 0.5rem;
 }
