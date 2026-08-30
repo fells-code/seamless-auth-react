@@ -170,6 +170,7 @@ describe('getOAuthErrorCode', () => {
 
 describe('getPasskeyPolicyErrorCode', () => {
   const policyCodes: PasskeyPolicyErrorCode[] = [
+    'attachment_not_allowed',
     'synced_passkey_not_allowed',
     'authenticator_not_allowed',
     'prf_required',
@@ -190,17 +191,27 @@ describe('getPasskeyPolicyErrorCode', () => {
     expect(getPasskeyPolicyErrorCode(error)).toBe(code);
   });
 
-  // These are WebAuthn codes from other operations: `attachment_not_allowed` is
-  // a 400 from register/start, `prf_output_not_allowed` a 400 from login and
-  // step-up finish. Neither is a registration policy refusal.
-  it.each(['attachment_not_allowed', 'prf_output_not_allowed'])(
-    'ignores %s, which is not a registration policy refusal',
-    code => {
-      const error = new SeamlessAuthError(code, 400, { error: code });
+  // A WebAuthn code from another operation: a 400 from login and step-up finish,
+  // reporting a client that failed to strip PRF output rather than a deployment
+  // refusing an authenticator.
+  it('ignores prf_output_not_allowed, which is not a registration refusal', () => {
+    const error = new SeamlessAuthError('prf_output_not_allowed', 400, {
+      error: 'prf_output_not_allowed',
+    });
 
-      expect(getPasskeyPolicyErrorCode(error)).toBeUndefined();
-    }
-  );
+    expect(getPasskeyPolicyErrorCode(error)).toBeUndefined();
+  });
+
+  // register/start refuses before any ceremony runs, so this arrives as a 400
+  // rather than the 403 the finish-stage refusals use.
+  it('reads attachment_not_allowed from a register/start refusal', async () => {
+    const error = await toSeamlessAuthError(
+      responseWith(400, async () => ({ error: 'attachment_not_allowed' })),
+      'Failed to fetch passkey registration challenge.'
+    );
+
+    expect(getPasskeyPolicyErrorCode(error)).toBe('attachment_not_allowed');
+  });
 
   it('reads a real refusal built from the API response', async () => {
     const error = await toSeamlessAuthError(

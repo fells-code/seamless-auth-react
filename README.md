@@ -554,12 +554,41 @@ switch (detail?.name) {
 `getWebAuthnErrorDetail()` returns `undefined` for any error that did not come from a ceremony, so an
 HTTP failure keeps flowing through `error.message` and `error.body` as usual.
 
+### Choosing the authenticator
+
+By default the browser offers every kind of authenticator the deployment enrols, which is what
+`authenticator_policy.attachment: 'any'` means on the API. Pass `attachment` to narrow the picker to
+one kind, for example to send someone straight to an issued security key rather than leaving them to
+find it in a browser dialog:
+
+```ts
+import { getPasskeyPolicyErrorCode } from '@seamless-auth/react';
+
+const { error } = await authClient.registerPasskey({
+  metadata,
+  attachment: 'cross-platform',
+});
+
+if (getPasskeyPolicyErrorCode(error) === 'attachment_not_allowed') {
+  // This deployment pins the other kind. Fall back to the default path.
+}
+```
+
+`'cross-platform'` is a roaming authenticator such as a USB or NFC security key. `'platform'` is the
+one built into the device, such as Touch ID or Windows Hello. Omit the option to leave the choice to
+the deployment.
+
+This is a request, not an override. A deployment that has pinned
+`authenticator_policy.attachment` to the other kind refuses the registration with
+`attachment_not_allowed`, covered below. The bundled enrolment view offers a "Use a security key
+instead" control that takes this path.
+
 ### Passkey policy refusals
 
-A credential can also be refused after a successful ceremony, by the policy the API is configured
-with. `registerPasskey()` then fails with status `403` and a body whose `error` is a stable code
-rather than a sentence, so rendering `error.message` would put that code in front of a user. Use
-`getPasskeyPolicyErrorCode()` to branch on it:
+A registration can also be refused by the policy the API is configured with. `registerPasskey()`
+then fails with a body whose `error` is a stable code rather than a sentence, so rendering
+`error.message` would put that code in front of a user. Use `getPasskeyPolicyErrorCode()` to branch
+on it:
 
 ```ts
 import { getPasskeyPolicyErrorCode } from '@seamless-auth/react';
@@ -567,6 +596,9 @@ import { getPasskeyPolicyErrorCode } from '@seamless-auth/react';
 const { error } = await authClient.registerPasskey({ token, metadata });
 
 switch (getPasskeyPolicyErrorCode(error)) {
+  case 'attachment_not_allowed':
+    // The requested `attachment` is not the kind this deployment enrols.
+    break;
   case 'synced_passkey_not_allowed':
     // This passkey syncs to iCloud Keychain or Google Password Manager, and
     // this deployment requires a device-bound one such as a security key.
@@ -583,11 +615,15 @@ switch (getPasskeyPolicyErrorCode(error)) {
 }
 ```
 
-| Code                         | When the API sends it                                                                        |
-| ---------------------------- | -------------------------------------------------------------------------------------------- |
-| `synced_passkey_not_allowed` | `authenticator_policy.syncedPasskeys` is `block` and the credential is backup eligible       |
-| `authenticator_not_allowed`  | the credential's AAGUID is on `aaguidDenyList`, or absent from a non-empty `aaguidAllowList` |
-| `prf_required`               | registration required PRF and the credential did not report support for it                   |
+| Code                         | Stage           | Status | When the API sends it                                                                        |
+| ---------------------------- | --------------- | ------ | -------------------------------------------------------------------------------------------- |
+| `attachment_not_allowed`     | register/start  | 400    | the requested `attachment` is not the kind `authenticator_policy.attachment` pins            |
+| `synced_passkey_not_allowed` | register/finish | 403    | `authenticator_policy.syncedPasskeys` is `block` and the credential is backup eligible       |
+| `authenticator_not_allowed`  | register/finish | 403    | the credential's AAGUID is on `aaguidDenyList`, or absent from a non-empty `aaguidAllowList` |
+| `prf_required`               | register/finish | 403    | registration required PRF and the credential did not report support for it                   |
+
+`attachment_not_allowed` is refused before any ceremony runs, so the browser never prompts. The rest
+are refused after a credential exists and can be inspected.
 
 `syncedPasskeys` defaults to `block` on the Seamless Auth API. Passkeys created by iCloud Keychain
 and Google Password Manager are backup eligible, so on a default deployment the most common consumer

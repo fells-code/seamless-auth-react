@@ -86,28 +86,36 @@ export function getOAuthErrorCode(error: unknown): OAuthErrorCode | undefined {
 }
 
 /**
- * Machine-readable codes `POST /webAuthn/register/finish` answers `403` with
- * when a deployment refuses an otherwise valid credential on policy grounds.
+ * Machine-readable codes registration is refused with when a deployment will not
+ * enrol the authenticator on policy grounds.
+ *
+ * `attachment_not_allowed` comes from register/start with a `400`, before any
+ * ceremony runs. The rest come from register/finish with a `403`, once the
+ * credential exists and can be inspected.
  */
 export type PasskeyPolicyErrorCode = Extract<
   WebAuthnErrorCodeShape,
-  'synced_passkey_not_allowed' | 'authenticator_not_allowed' | 'prf_required'
+  | 'attachment_not_allowed'
+  | 'synced_passkey_not_allowed'
+  | 'authenticator_not_allowed'
+  | 'prf_required'
 >;
 
 /*
  * `WebAuthnErrorCode` covers every WebAuthn code the API sends, across all of
- * its operations, so it is deliberately narrowed rather than used whole. The
- * two it leaves out belong to other calls and other statuses:
- * `attachment_not_allowed` is a `400` from register/start, and
- * `prf_output_not_allowed` a `400` from login and step-up finish. Reporting
- * either as a registration policy refusal would be wrong.
+ * its operations, so it is narrowed rather than used whole. The one it leaves
+ * out, `prf_output_not_allowed`, is a `400` from login and step-up finish, and
+ * it reports a client that failed to strip PRF output rather than a deployment
+ * refusing an authenticator. Reporting it as a policy refusal would point an
+ * integrator at their configuration for what is a bug in the caller.
  *
- * `Extract` still ties the three names to the upstream union: if one is renamed
- * or dropped there, it resolves to `never` and the `Record` below stops
- * compiling. As with the OAuth codes, the runtime list stays out of the browser
- * bundle so Zod does not come with it.
+ * `Extract` ties these names to the upstream union: if one is renamed or dropped
+ * there, it resolves to `never` and the `Record` below stops compiling. As with
+ * the OAuth codes, the runtime list stays out of the browser bundle so Zod does
+ * not come with it.
  */
 const PASSKEY_POLICY_ERROR_CODES: Record<PasskeyPolicyErrorCode, true> = {
+  attachment_not_allowed: true,
   synced_passkey_not_allowed: true,
   authenticator_not_allowed: true,
   prf_required: true,
@@ -127,9 +135,10 @@ function readPolicyCode(body: unknown): PasskeyPolicyErrorCode | undefined {
 }
 
 /**
- * Read the passkey policy refusal off a registration error. Returns `undefined`
- * for anything unrecognized, including codes added by a newer API, so callers
- * keep their generic messaging instead of showing a raw code.
+ * Read the passkey policy refusal off a registration error, from either stage of
+ * the ceremony. Returns `undefined` for anything unrecognized, including codes
+ * added by a newer API, so callers keep their generic messaging instead of
+ * showing a raw code.
  *
  * The auth API sends the code as the whole of `error`, which is also what
  * becomes `error.message`. A proxy in front of it may instead derive a

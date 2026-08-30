@@ -107,3 +107,25 @@
   opacity: 0.6;
   cursor: default;
 }
+
+.secondary {
+  margin-top: 0.75rem;
+  width: 100%;
+  padding: 0.75rem 1rem;
+  background: none;
+  color: var(--seamless-accent, #059669);
+  border: 1px solid var(--seamless-accent, #059669);
+  border-radius: 0.5rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.secondary:hover:not(:disabled) {
+  background-color: var(--seamless-accent-muted, rgba(5, 150, 105, 0.1));
+}
+
+.secondary:disabled {
+  opacity: 0.6;
+  cursor: default;
+}

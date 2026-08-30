@@ -12,7 +12,7 @@ import {
   WebAuthnError,
 } from '@simplewebauthn/browser';
 
-import { getWebAuthnErrorDetail } from '../src/client/errors';
+import { getPasskeyPolicyErrorCode, getWebAuthnErrorDetail } from '../src/client/errors';
 
 jest.mock('../src/fetchWithAuth');
 jest.mock('@simplewebauthn/browser', () => ({
@@ -506,6 +506,106 @@ describe('createSeamlessAuthClient', () => {
       data: { credentialId: 'cred', prfCapable: false },
       error: null,
     });
+  });
+
+  it('asks register/start for the requested attachment', async () => {
+    mockFetchWithAuth
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ challenge: 'challenge' }) })
+      .mockResolvedValueOnce({ ok: true });
+    (startRegistration as jest.Mock).mockResolvedValueOnce({ id: 'cred-key' });
+
+    const client = createSeamlessAuthClient({ apiHost: 'https://api.example.com' });
+
+    await client.registerPasskey({
+      metadata: {
+        friendlyName: 'Security Key',
+        platform: 'mac',
+        browser: 'chrome',
+        deviceInfo: 'mac chrome',
+      },
+      attachment: 'cross-platform',
+    });
+
+    expect(mockFetchWithAuth).toHaveBeenNthCalledWith(
+      1,
+      '/webAuthn/register/start?attachment=cross-platform',
+      expect.objectContaining({ method: 'GET' })
+    );
+  });
+
+  // Omitting it has to send nothing rather than a default, so the deployment's
+  // own `authenticator_policy.attachment` stays in charge of the picker.
+  it('sends no attachment parameter when none is requested', async () => {
+    mockFetchWithAuth
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ challenge: 'challenge' }) })
+      .mockResolvedValueOnce({ ok: true });
+    (startRegistration as jest.Mock).mockResolvedValueOnce({ id: 'cred' });
+
+    const client = createSeamlessAuthClient({ apiHost: 'https://api.example.com' });
+
+    await client.registerPasskey({
+      friendlyName: 'My Laptop',
+      platform: 'mac',
+      browser: 'chrome',
+      deviceInfo: 'mac chrome',
+    });
+
+    expect(mockFetchWithAuth).toHaveBeenNthCalledWith(
+      1,
+      '/webAuthn/register/start',
+      expect.objectContaining({ method: 'GET' })
+    );
+  });
+
+  it('combines the attachment with a PRF flag', async () => {
+    mockFetchWithAuth
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ challenge: 'challenge' }) })
+      .mockResolvedValueOnce({ ok: true });
+    (startRegistration as jest.Mock).mockResolvedValueOnce({ id: 'cred' });
+
+    const client = createSeamlessAuthClient({ apiHost: 'https://api.example.com' });
+
+    await client.registerPasskey({
+      metadata: {
+        friendlyName: 'Security Key',
+        platform: 'mac',
+        browser: 'chrome',
+        deviceInfo: 'mac chrome',
+      },
+      requirePrf: true,
+      attachment: 'cross-platform',
+    });
+
+    expect(mockFetchWithAuth).toHaveBeenNthCalledWith(
+      1,
+      '/webAuthn/register/start?requirePrf=true&attachment=cross-platform',
+      expect.objectContaining({ method: 'GET' })
+    );
+  });
+
+  // The refusal happens at register/start, so it must surface as the registration
+  // result rather than being lost before the ceremony is reached.
+  it('surfaces a register/start attachment refusal to the caller', async () => {
+    mockFetchWithAuth.mockResolvedValueOnce({
+      ok: false,
+      status: 400,
+      json: async () => ({ error: 'attachment_not_allowed' }),
+    });
+
+    const client = createSeamlessAuthClient({ apiHost: 'https://api.example.com' });
+
+    const { error } = await client.registerPasskey({
+      metadata: {
+        friendlyName: 'Security Key',
+        platform: 'mac',
+        browser: 'chrome',
+        deviceInfo: 'mac chrome',
+      },
+      attachment: 'platform',
+    });
+
+    expect(getPasskeyPolicyErrorCode(error)).toBe('attachment_not_allowed');
+    expect(startRegistration).not.toHaveBeenCalled();
   });
 
   it('requests PRF-capable registration and reports capability', async () => {

@@ -6,6 +6,7 @@
 
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import RegisterPasskey from '../src/views/PassKeyRegistration';
+import { SeamlessAuthError } from '@/client/errors';
 import { useAuthClient } from '@/hooks/useAuthClient';
 import { useLoginMethods } from '@/hooks/useLoginMethods';
 import { usePasskeySupport } from '@/hooks/usePasskeySupport';
@@ -97,10 +98,13 @@ describe('RegisterPasskey', () => {
 
     await waitFor(() => {
       expect(mockRegisterPasskey).toHaveBeenCalledWith({
-        friendlyName: 'My Device',
-        platform: 'macOS',
-        browser: 'Chrome',
-        deviceInfo: 'MacBook Pro',
+        metadata: {
+          friendlyName: 'My Device',
+          platform: 'macOS',
+          browser: 'Chrome',
+          deviceInfo: 'MacBook Pro',
+        },
+        attachment: undefined,
       });
     });
 
@@ -251,5 +255,79 @@ describe('RegisterPasskey skip control', () => {
 
     expect(await screen.findByText(/requires one to sign in/i)).toBeInTheDocument();
     expect(screen.queryByText(/^Continue$/i)).not.toBeInTheDocument();
+  });
+
+  it('requests a cross-platform authenticator from the security key path', async () => {
+    mockRegisterPasskey.mockResolvedValueOnce({ data: {}, error: null });
+
+    render(<RegisterPasskey />);
+
+    fireEvent.click(await screen.findByText(/Use a security key instead/i));
+    fireEvent.click(await screen.findByText('Confirm'));
+
+    await waitFor(() => {
+      expect(mockRegisterPasskey).toHaveBeenCalledWith({
+        metadata: {
+          friendlyName: 'My Device',
+          platform: 'macOS',
+          browser: 'Chrome',
+          deviceInfo: 'MacBook Pro',
+        },
+        attachment: 'cross-platform',
+      });
+    });
+  });
+
+  // The refusal names something the user can act on, so it has to reach the
+  // screen instead of the generic failure the catch would otherwise show.
+  it('explains a policy refusal instead of showing the raw code', async () => {
+    mockRegisterPasskey.mockResolvedValueOnce({
+      data: null,
+      error: new SeamlessAuthError('synced_passkey_not_allowed', 403, {
+        error: 'synced_passkey_not_allowed',
+      }),
+    });
+
+    render(<RegisterPasskey />);
+
+    fireEvent.click(await screen.findByText(/Register Passkey/i));
+    fireEvent.click(await screen.findByText('Confirm'));
+
+    expect(await screen.findByText(/stays on a single device/i)).toBeInTheDocument();
+    expect(screen.queryByText(/synced_passkey_not_allowed/)).not.toBeInTheDocument();
+  });
+
+  it('falls back to the generic message when a failure carries no policy code', async () => {
+    mockRegisterPasskey.mockResolvedValueOnce({
+      data: null,
+      error: new SeamlessAuthError('Verification failed.', 500),
+    });
+
+    render(<RegisterPasskey />);
+
+    fireEvent.click(await screen.findByText(/Register Passkey/i));
+    fireEvent.click(await screen.findByText('Confirm'));
+
+    expect(await screen.findByText('Error registering passkey.')).toBeInTheDocument();
+  });
+
+  // The attachment the user asked for is refused at register/start, before any
+  // ceremony, so the screen has to explain it rather than appear to hang.
+  it('explains a refused attachment from the security key path', async () => {
+    mockRegisterPasskey.mockResolvedValueOnce({
+      data: null,
+      error: new SeamlessAuthError('attachment_not_allowed', 400, {
+        error: 'attachment_not_allowed',
+      }),
+    });
+
+    render(<RegisterPasskey />);
+
+    fireEvent.click(await screen.findByText(/Use a security key instead/i));
+    fireEvent.click(await screen.findByText('Confirm'));
+
+    expect(
+      await screen.findByText(/does not accept that kind of authenticator/i)
+    ).toBeInTheDocument();
   });
 });
