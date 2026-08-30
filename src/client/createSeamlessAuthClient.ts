@@ -16,6 +16,7 @@ import {
 
 import type {
   AddOrganizationMemberRequest,
+  AuthenticatorAttachmentPolicy,
   CreateOrganizationRequest,
   CredentialUpdateResponse,
   LoginMethod as LoginMethodShape,
@@ -160,10 +161,28 @@ export interface PasskeyRegistrationData {
 /** Response body returned when credential metadata is updated. */
 export type CredentialUpdateResult = CredentialUpdateResponse;
 
+/**
+ * Which kind of authenticator to offer at registration. Omitting it leaves the
+ * choice to the deployment's `authenticator_policy.attachment`, which offers
+ * both kinds by default.
+ *
+ * Derived from the deployment policy type rather than restating its members:
+ * `any` is a standing default a deployment sets, not something a single request
+ * can ask for, so the request type is that policy minus that one member.
+ */
+export type PasskeyAttachment = Exclude<AuthenticatorAttachmentPolicy, 'any'>;
+
 export interface RegisterPasskeyOptions {
   metadata: PasskeyMetadata;
   requestPrf?: boolean;
   requirePrf?: boolean;
+  /**
+   * Narrows the browser picker to one kind of authenticator, for example
+   * `cross-platform` to send a user straight to an issued security key. A
+   * deployment that has pinned a different kind refuses this, so it is a
+   * request rather than an override.
+   */
+  attachment?: PasskeyAttachment;
 }
 
 export type StepUpMethod = StepUpMethodShape;
@@ -331,6 +350,10 @@ function buildRegisterStartPath(input: RegisterPasskeyOptions) {
     query.set('requirePrf', 'true');
   } else if (input.requestPrf) {
     query.set('requestPrf', 'true');
+  }
+
+  if (input.attachment) {
+    query.set('attachment', input.attachment);
   }
 
   const queryString = query.toString();

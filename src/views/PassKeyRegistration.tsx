@@ -5,7 +5,8 @@
  */
 
 import { useAuth } from '@/AuthProvider';
-import { PasskeyMetadata } from '@/client/createSeamlessAuthClient';
+import { PasskeyAttachment, PasskeyMetadata } from '@/client/createSeamlessAuthClient';
+import { getPasskeyPolicyErrorCode, type PasskeyPolicyErrorCode } from '@/client/errors';
 import React, { useState } from 'react';
 import { useAuthClient } from '@/hooks/useAuthClient';
 import { hasNonPasskeyLoginMethod, useLoginMethods } from '@/hooks/useLoginMethods';
@@ -15,6 +16,22 @@ import { useNavigate } from 'react-router-dom';
 import styles from '@/styles/registerPasskey.module.css';
 import { parseUserAgent } from '@/utils';
 import DeviceNameModal from '@/components/DeviceNameModal';
+
+const POLICY_REFUSAL_MESSAGES: Record<PasskeyPolicyErrorCode, string> = {
+  attachment_not_allowed:
+    'This application does not accept that kind of authenticator. Try the other option.',
+  synced_passkey_not_allowed:
+    'This passkey syncs to a password manager, and this application requires one that stays on a single device, such as a security key.',
+  authenticator_not_allowed: 'This application does not accept this authenticator.',
+  prf_required:
+    'This authenticator does not support a feature this application requires.',
+};
+
+function policyRefusalMessage(error: unknown): string | undefined {
+  const code = getPasskeyPolicyErrorCode(error);
+
+  return code ? POLICY_REFUSAL_MESSAGES[code] : undefined;
+}
 
 const PasskeyRegistration: React.FC = () => {
   const { refreshSession } = useAuth();
@@ -32,6 +49,7 @@ const PasskeyRegistration: React.FC = () => {
     browser: string;
     deviceInfo: string;
   } | null>(null);
+  const [pendingAttachment, setPendingAttachment] = useState<PasskeyAttachment>();
 
   // The session already exists by the time this screen renders: the OTP step
   // that led here established it. A passkey is an addition to that session
@@ -47,10 +65,11 @@ const PasskeyRegistration: React.FC = () => {
     navigate('/');
   };
 
-  const openDeviceModal = () => {
+  const openDeviceModal = (attachment?: PasskeyAttachment) => {
     const { platform, browser, deviceInfo } = parseUserAgent();
 
     setPendingMetadata({ platform, browser, deviceInfo });
+    setPendingAttachment(attachment);
     setShowDeviceModal(true);
   };
 
@@ -65,7 +84,10 @@ const PasskeyRegistration: React.FC = () => {
     setStatus('loading');
 
     try {
-      const { error } = await authClient.registerPasskey(metadata);
+      const { error } = await authClient.registerPasskey({
+        metadata,
+        attachment: pendingAttachment,
+      });
 
       if (error) {
         throw error;
@@ -75,13 +97,16 @@ const PasskeyRegistration: React.FC = () => {
       setStatus('success');
       setMessage('Passkey registered successfully.');
       navigate('/');
-    } catch {
+    } catch (error) {
       console.error('Passkey registration failed.');
       setStatus('error');
-      setMessage('Error registering passkey.');
+      // A policy refusal names something the user can act on, for example
+      // reaching for a security key instead. Anything else stays generic.
+      setMessage(policyRefusalMessage(error) ?? 'Error registering passkey.');
     } finally {
       setShowDeviceModal(false);
       setPendingMetadata(null);
+      setPendingAttachment(undefined);
     }
   };
 
@@ -124,11 +149,26 @@ const PasskeyRegistration: React.FC = () => {
               </p>
 
               <button
-                onClick={openDeviceModal}
+                onClick={() => openDeviceModal()}
                 disabled={status === 'loading'}
                 className={styles.button}
               >
                 {status === 'loading' ? 'Registering...' : 'Register Passkey'}
+              </button>
+
+              {/*
+                The default above leaves the choice to the deployment policy,
+                which offers both kinds. This is the deliberate path for someone
+                who has been handed an issued key and should not have to find it
+                in the browser's picker.
+              */}
+              <button
+                type="button"
+                onClick={() => openDeviceModal('cross-platform')}
+                disabled={status === 'loading'}
+                className={styles.secondary}
+              >
+                Use a security key instead
               </button>
 
               {message && (
