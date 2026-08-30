@@ -44,8 +44,10 @@ import {
 } from '@/client/createSeamlessAuthClient';
 import {
   getOAuthErrorCode,
+  getPasskeyPolicyErrorCode,
   getWebAuthnErrorDetail,
   OAuthErrorCode,
+  PasskeyPolicyErrorCode,
   SeamlessAuthError,
   WebAuthnErrorDetail,
 } from '@/client/errors';
@@ -70,6 +72,7 @@ export {
   encodePrfSalt,
   extractPasskeyPrfResult,
   getOAuthErrorCode,
+  getPasskeyPolicyErrorCode,
   getWebAuthnErrorDetail,
   hasNonPasskeyLoginMethod,
   hasScopedRole,
@@ -106,6 +109,7 @@ export type {
   OrganizationsResult,
   PasskeyLoginData,
   PasskeyMetadata,
+  PasskeyPolicyErrorCode,
   PasskeyPrfInput,
   PasskeyPrfResult,
   PasskeyRegistrationData,

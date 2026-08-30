@@ -20,6 +20,7 @@
 - `SeamlessAuthError`, the error type carried on a failed result
 - `getOAuthErrorCode()`, which reads the known OAuth callback failure codes off that error
 - `getWebAuthnErrorDetail()`, which reads the underlying failure of a passkey or step-up ceremony
+- `getPasskeyPolicyErrorCode()`, which reads the code the API refused a passkey registration with
 - types including `AuthContextType`, `Credential`, `User`, `OAuthProvider`, `StepUpStatus`, the `SeamlessAuthResult` wrapper, and the headless client input/result types
 
 ## Installation
@@ -553,6 +554,50 @@ switch (detail?.name) {
 `getWebAuthnErrorDetail()` returns `undefined` for any error that did not come from a ceremony, so an
 HTTP failure keeps flowing through `error.message` and `error.body` as usual.
 
+### Passkey policy refusals
+
+A credential can also be refused after a successful ceremony, by the policy the API is configured
+with. `registerPasskey()` then fails with status `403` and a body whose `error` is a stable code
+rather than a sentence, so rendering `error.message` would put that code in front of a user. Use
+`getPasskeyPolicyErrorCode()` to branch on it:
+
+```ts
+import { getPasskeyPolicyErrorCode } from '@seamless-auth/react';
+
+const { error } = await authClient.registerPasskey({ token, metadata });
+
+switch (getPasskeyPolicyErrorCode(error)) {
+  case 'synced_passkey_not_allowed':
+    // This passkey syncs to iCloud Keychain or Google Password Manager, and
+    // this deployment requires a device-bound one such as a security key.
+    break;
+  case 'authenticator_not_allowed':
+    // This authenticator model is not permitted here.
+    break;
+  case 'prf_required':
+    // Registration asked for PRF and the authenticator does not support it.
+    break;
+  default:
+    // No error, or one without a recognized code. Fall back to error?.message.
+    break;
+}
+```
+
+| Code                         | When the API sends it                                                                        |
+| ---------------------------- | -------------------------------------------------------------------------------------------- |
+| `synced_passkey_not_allowed` | `authenticator_policy.syncedPasskeys` is `block` and the credential is backup eligible       |
+| `authenticator_not_allowed`  | the credential's AAGUID is on `aaguidDenyList`, or absent from a non-empty `aaguidAllowList` |
+| `prf_required`               | registration required PRF and the credential did not report support for it                   |
+
+`syncedPasskeys` defaults to `block` on the Seamless Auth API. Passkeys created by iCloud Keychain
+and Google Password Manager are backup eligible, so on a default deployment the most common consumer
+passkey is refused at registration. If that is not what you want, set
+`authenticator_policy.syncedPasskeys` to `allow` in the API's system config; the SDK cannot relax it
+from the client.
+
+Like `getOAuthErrorCode()`, this returns `undefined` for anything it does not recognize, including
+codes added by a newer API, so an unexpected refusal keeps your generic messaging.
+
 The single exception is `isPasskeySupported`-style capability checks:
 `isPasskeyPrfSupported(): Promise<boolean>` is a local check rather than a request, so it returns a
 plain boolean.
@@ -966,6 +1011,11 @@ The state-changing OTP and magic-link request routes are `POST` (marked above). 
 `GET`, which made them reachable as simple cross-site requests, so an `<img>` tag could trigger SMS or
 email sends to a signed-in user. Using `@seamless-auth/react` with an older adapter that only serves the
 `GET` forms returns a 404 for those requests. See the changelog for the minimum adapter version.
+
+`/webAuthn/register/finish` can refuse a verified credential on policy grounds with a `403` whose
+body is a stable code. `syncedPasskeys` defaults to `block`, which refuses every backup-eligible
+passkey, so this is reachable on a default deployment. See
+[Passkey policy refusals](#passkey-policy-refusals).
 
 ## Notes
 

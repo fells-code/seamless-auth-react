@@ -140,7 +140,7 @@ Runtime exports currently include:
 - `usePasskeySupport`
 - `hasScopedRole` and `roleGrantsAccess`
 - `encodePrfSalt`, `extractPasskeyPrfResult`, and `isPasskeyPrfSupported`
-- `SeamlessAuthError`, `getOAuthErrorCode`, and `getWebAuthnErrorDetail`
+- `SeamlessAuthError`, `getOAuthErrorCode`, `getPasskeyPolicyErrorCode`, and `getWebAuthnErrorDetail`
 
 Every request method on the client and the provider resolves to a
 `SeamlessAuthResult<T>` (`{ data, error }`) and does not throw for HTTP or
@@ -159,7 +159,7 @@ domain models, for example:
 - OAuth types: `OAuthProvider`, `OAuthProvidersResult`, `StartOAuthLoginInput`, `StartOAuthLoginResult`, `FinishOAuthLoginInput`, `OAuthErrorCode`
 - Organization types: `CreateOrganizationInput`, `UpdateOrganizationInput`, `OrganizationMemberInput`, `OrganizationMemberUpdateInput`, `OrganizationsResult`, `OrganizationResult`, `OrganizationMembersResult`, `OrganizationMembershipResult`, `OrganizationSwitchResult`
 - Step-up types: `StepUpMethod`, `StepUpStatus`, `StepUpPrfData`
-- WebAuthn failure detail: `WebAuthnErrorDetail`
+- WebAuthn failure detail: `WebAuthnErrorDetail`, `PasskeyPolicyErrorCode`
 - `SeamlessAuthClient` and `SeamlessAuthClientOptions`
 
 Public API changes should be treated deliberately:
@@ -245,6 +245,21 @@ were state-changing simple cross-site requests (an `<img>` tag could trigger SMS
 or email sends), so both the client and the adapter serve them over `POST` with a
 JSON body to force a CORS preflight. This depends on a matching adapter version;
 do not revert them to `GET` in isolation.
+
+`/webAuthn/register/finish` can refuse a credential that passed verification,
+answering `403` with a body whose `error` is a machine code rather than a
+sentence: `synced_passkey_not_allowed`, `authenticator_not_allowed`, or
+`prf_required`. The adapter forwards that body verbatim, and `extractMessage`
+turns the code into `error.message`, so callers must branch with
+`getPasskeyPolicyErrorCode()` rather than render the message. The API's
+`authenticator_policy.syncedPasskeys` defaults to `block` and every iCloud
+Keychain or Google Password Manager passkey is backup eligible, so this is the
+default path, not an edge case.
+
+`@seamless-auth/types` publishes no union for those codes as of 0.15.0, so
+`PasskeyPolicyErrorCode` in `src/client/errors.ts` is a local copy of the API's
+list. If the types package starts exporting one, switch to it so the
+`Record<Code, true>` check catches upstream drift the way the OAuth one does.
 
 Before documenting new flow behavior, verify the route contract in `seamless-auth-server` or `seamless-auth-api`.
 

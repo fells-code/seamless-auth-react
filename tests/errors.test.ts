@@ -6,6 +6,7 @@
 
 import {
   getOAuthErrorCode,
+  getPasskeyPolicyErrorCode,
   getWebAuthnErrorDetail,
   SeamlessAuthError,
   toSeamlessAuthError,
@@ -163,6 +164,101 @@ describe('getOAuthErrorCode', () => {
     expect(getOAuthErrorCode(new Error('boom'))).toBeUndefined();
     expect(getOAuthErrorCode({ body: { code: 'oauth_missing_email' } })).toBeUndefined();
     expect(getOAuthErrorCode(null)).toBeUndefined();
+  });
+});
+
+describe('getPasskeyPolicyErrorCode', () => {
+  const policyCodes = [
+    'synced_passkey_not_allowed',
+    'authenticator_not_allowed',
+    'prf_required',
+  ];
+
+  it.each(policyCodes)('returns the known code %s', code => {
+    const error = new SeamlessAuthError(code, 403, { error: code });
+
+    expect(getPasskeyPolicyErrorCode(error)).toBe(code);
+  });
+
+  it.each(policyCodes)('returns the known code %s nested under details', code => {
+    const error = new SeamlessAuthError('Registration refused', 403, {
+      error: 'Registration refused',
+      details: { error: code },
+    });
+
+    expect(getPasskeyPolicyErrorCode(error)).toBe(code);
+  });
+
+  it('reads a real refusal built from the API response', async () => {
+    const error = await toSeamlessAuthError(
+      responseWith(403, async () => ({ error: 'synced_passkey_not_allowed' })),
+      'Failed to register passkey'
+    );
+
+    expect(getPasskeyPolicyErrorCode(error)).toBe('synced_passkey_not_allowed');
+  });
+
+  it('prefers the top-level code over the nested one', () => {
+    const error = new SeamlessAuthError('nope', 403, {
+      error: 'prf_required',
+      details: { error: 'synced_passkey_not_allowed' },
+    });
+
+    expect(getPasskeyPolicyErrorCode(error)).toBe('prf_required');
+  });
+
+  it('ignores a code the SDK does not know', () => {
+    expect(
+      getPasskeyPolicyErrorCode(
+        new SeamlessAuthError('nope', 403, { error: 'passkey_something_new' })
+      )
+    ).toBeUndefined();
+    expect(
+      getPasskeyPolicyErrorCode(
+        new SeamlessAuthError('nope', 403, {
+          details: { error: 'passkey_something_new' },
+        })
+      )
+    ).toBeUndefined();
+  });
+
+  it('returns undefined for a generic verification failure', () => {
+    expect(
+      getPasskeyPolicyErrorCode(
+        new SeamlessAuthError('Registration failed verification', 403, {
+          error: 'Registration failed verification',
+        })
+      )
+    ).toBeUndefined();
+  });
+
+  it('returns undefined for a missing or non-object body', () => {
+    expect(getPasskeyPolicyErrorCode(new SeamlessAuthError('nope', 403))).toBeUndefined();
+    expect(
+      getPasskeyPolicyErrorCode(new SeamlessAuthError('nope', 403, null))
+    ).toBeUndefined();
+    expect(
+      getPasskeyPolicyErrorCode(new SeamlessAuthError('nope', 403, 'prf_required'))
+    ).toBeUndefined();
+  });
+
+  it('returns undefined for a non-object details', () => {
+    expect(
+      getPasskeyPolicyErrorCode(
+        new SeamlessAuthError('nope', 403, { details: 'prf_required' })
+      )
+    ).toBeUndefined();
+    expect(
+      getPasskeyPolicyErrorCode(new SeamlessAuthError('nope', 403, { details: null }))
+    ).toBeUndefined();
+  });
+
+  it('returns undefined for anything that is not a SeamlessAuthError', () => {
+    expect(getPasskeyPolicyErrorCode(new Error('boom'))).toBeUndefined();
+    expect(
+      getPasskeyPolicyErrorCode({ body: { error: 'prf_required' } })
+    ).toBeUndefined();
+    expect(getPasskeyPolicyErrorCode(null)).toBeUndefined();
   });
 });
 
