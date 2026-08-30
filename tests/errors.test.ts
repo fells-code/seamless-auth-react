@@ -8,6 +8,7 @@ import {
   getOAuthErrorCode,
   getPasskeyPolicyErrorCode,
   getWebAuthnErrorDetail,
+  type PasskeyPolicyErrorCode,
   SeamlessAuthError,
   toSeamlessAuthError,
 } from '@/client/errors';
@@ -168,7 +169,7 @@ describe('getOAuthErrorCode', () => {
 });
 
 describe('getPasskeyPolicyErrorCode', () => {
-  const policyCodes = [
+  const policyCodes: PasskeyPolicyErrorCode[] = [
     'synced_passkey_not_allowed',
     'authenticator_not_allowed',
     'prf_required',
@@ -188,6 +189,18 @@ describe('getPasskeyPolicyErrorCode', () => {
 
     expect(getPasskeyPolicyErrorCode(error)).toBe(code);
   });
+
+  // These are WebAuthn codes from other operations: `attachment_not_allowed` is
+  // a 400 from register/start, `prf_output_not_allowed` a 400 from login and
+  // step-up finish. Neither is a registration policy refusal.
+  it.each(['attachment_not_allowed', 'prf_output_not_allowed'])(
+    'ignores %s, which is not a registration policy refusal',
+    code => {
+      const error = new SeamlessAuthError(code, 400, { error: code });
+
+      expect(getPasskeyPolicyErrorCode(error)).toBeUndefined();
+    }
+  );
 
   it('reads a real refusal built from the API response', async () => {
     const error = await toSeamlessAuthError(

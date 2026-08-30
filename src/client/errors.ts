@@ -4,7 +4,10 @@
  * See LICENSE file in the project root for full license information
  */
 
-import type { OAuthErrorCode as OAuthErrorCodeShape } from '@seamless-auth/types';
+import type {
+  OAuthErrorCode as OAuthErrorCodeShape,
+  WebAuthnErrorCode as WebAuthnErrorCodeShape,
+} from '@seamless-auth/types';
 
 /**
  * Error carrying the auth server's response detail, so callers can map known
@@ -86,17 +89,23 @@ export function getOAuthErrorCode(error: unknown): OAuthErrorCode | undefined {
  * Machine-readable codes `POST /webAuthn/register/finish` answers `403` with
  * when a deployment refuses an otherwise valid credential on policy grounds.
  */
-export type PasskeyPolicyErrorCode =
-  | 'synced_passkey_not_allowed'
-  | 'authenticator_not_allowed'
-  | 'prf_required';
+export type PasskeyPolicyErrorCode = Extract<
+  WebAuthnErrorCodeShape,
+  'synced_passkey_not_allowed' | 'authenticator_not_allowed' | 'prf_required'
+>;
 
 /*
- * Unlike the OAuth codes, `@seamless-auth/types` publishes no union for these
- * (checked against 0.15.0), so this list is a copy of the API's rather than a
- * check against it and will not fail to compile if the API adds a code. Drift
- * therefore degrades to generic messaging instead of breaking; the `Record`
- * still keeps the list and the union in step with each other.
+ * `WebAuthnErrorCode` covers every WebAuthn code the API sends, across all of
+ * its operations, so it is deliberately narrowed rather than used whole. The
+ * two it leaves out belong to other calls and other statuses:
+ * `attachment_not_allowed` is a `400` from register/start, and
+ * `prf_output_not_allowed` a `400` from login and step-up finish. Reporting
+ * either as a registration policy refusal would be wrong.
+ *
+ * `Extract` still ties the three names to the upstream union: if one is renamed
+ * or dropped there, it resolves to `never` and the `Record` below stops
+ * compiling. As with the OAuth codes, the runtime list stays out of the browser
+ * bundle so Zod does not come with it.
  */
 const PASSKEY_POLICY_ERROR_CODES: Record<PasskeyPolicyErrorCode, true> = {
   synced_passkey_not_allowed: true,
