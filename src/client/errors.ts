@@ -83,6 +83,69 @@ export function getOAuthErrorCode(error: unknown): OAuthErrorCode | undefined {
 }
 
 /**
+ * Machine-readable codes `POST /webAuthn/register/finish` answers `403` with
+ * when a deployment refuses an otherwise valid credential on policy grounds.
+ */
+export type PasskeyPolicyErrorCode =
+  | 'synced_passkey_not_allowed'
+  | 'authenticator_not_allowed'
+  | 'prf_required';
+
+/*
+ * Unlike the OAuth codes, `@seamless-auth/types` publishes no union for these
+ * (checked against 0.15.0), so this list is a copy of the API's rather than a
+ * check against it and will not fail to compile if the API adds a code. Drift
+ * therefore degrades to generic messaging instead of breaking; the `Record`
+ * still keeps the list and the union in step with each other.
+ */
+const PASSKEY_POLICY_ERROR_CODES: Record<PasskeyPolicyErrorCode, true> = {
+  synced_passkey_not_allowed: true,
+  authenticator_not_allowed: true,
+  prf_required: true,
+};
+
+function readPolicyCode(body: unknown): PasskeyPolicyErrorCode | undefined {
+  if (typeof body !== 'object' || body === null) {
+    return undefined;
+  }
+
+  const code = (body as { error?: unknown }).error;
+
+  return typeof code === 'string' &&
+    Object.prototype.hasOwnProperty.call(PASSKEY_POLICY_ERROR_CODES, code)
+    ? (code as PasskeyPolicyErrorCode)
+    : undefined;
+}
+
+/**
+ * Read the passkey policy refusal off a registration error. Returns `undefined`
+ * for anything unrecognized, including codes added by a newer API, so callers
+ * keep their generic messaging instead of showing a raw code.
+ *
+ * The auth API sends the code as the whole of `error`, which is also what
+ * becomes `error.message`. A proxy in front of it may instead derive a
+ * human-readable `error` and keep the upstream body under `details`, so an
+ * unrecognized top-level value falls through to the nested one rather than
+ * ending the lookup.
+ */
+export function getPasskeyPolicyErrorCode(
+  error: unknown
+): PasskeyPolicyErrorCode | undefined {
+  if (!(error instanceof SeamlessAuthError)) {
+    return undefined;
+  }
+
+  if (typeof error.body !== 'object' || error.body === null) {
+    return undefined;
+  }
+
+  return (
+    readPolicyCode(error.body) ??
+    readPolicyCode((error.body as { details?: unknown }).details)
+  );
+}
+
+/**
  * Detail recovered from a failed WebAuthn ceremony.
  *
  * `name` is the `DOMException` name, which is what distinguishes the cases a
