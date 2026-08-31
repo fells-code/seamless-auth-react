@@ -243,7 +243,13 @@ export interface SeamlessAuthClient {
   verifyLoginEmailOtp: (
     verificationToken: string
   ) => Promise<SeamlessAuthResult<MessageResult>>;
-  requestMagicLink: () => Promise<SeamlessAuthResult<MessageResult>>;
+  /**
+   * @param redirectUri Where the emailed link should land. The deployment validates
+   * it against its configured origins and refuses anything else, so a tenant serving
+   * a web app and a mobile app can send each to its own destination. Omit it to keep
+   * the deployment's single destination.
+   */
+  requestMagicLink: (redirectUri?: string) => Promise<SeamlessAuthResult<MessageResult>>;
   checkMagicLink: () => Promise<SeamlessAuthResult<MessageResult>>;
   verifyMagicLink: (token: string) => Promise<SeamlessAuthResult<MessageResult>>;
   listOAuthProviders: () => Promise<SeamlessAuthResult<OAuthProvidersResult>>;
@@ -575,12 +581,15 @@ export const createSeamlessAuthClient = (
         'Failed to verify the email code.'
       ),
 
-    // Sends an empty JSON body on purpose. The adapter ignores it, but it makes
-    // fetchWithAuth declare a JSON content type, which forces a CORS preflight.
-    // A bodyless POST is still a simple request and stays reachable cross-site.
-    requestMagicLink: () =>
+    // The body is sent even when it is empty, so fetchWithAuth declares a JSON
+    // content type and the request takes a CORS preflight. A bodyless POST is a
+    // simple request and stays reachable cross-site.
+    requestMagicLink: redirectUri =>
       requestResult<MessageResult>(
-        fetchWithAuth(`/magic-link`, { method: 'POST', body: JSON.stringify({}) }),
+        fetchWithAuth(`/magic-link`, {
+          method: 'POST',
+          body: JSON.stringify(redirectUri ? { redirectUri } : {}),
+        }),
         'Failed to send the magic link.'
       ),
 

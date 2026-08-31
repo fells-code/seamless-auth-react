@@ -200,6 +200,44 @@ describe('createSeamlessAuthClient', () => {
     });
   });
 
+  it('sends a requested destination for the magic link', async () => {
+    mockFetchWithAuth.mockResolvedValue({
+      ok: true,
+      json: async () => ({ message: 'Success' }),
+    });
+
+    const client = createSeamlessAuthClient({
+      apiHost: 'https://api.example.com',
+    });
+
+    expect(
+      (await client.requestMagicLink('https://app.example.com/magic')).error
+    ).toBeNull();
+
+    expect(mockFetchWithAuth).toHaveBeenCalledWith('/magic-link', {
+      method: 'POST',
+      body: JSON.stringify({ redirectUri: 'https://app.example.com/magic' }),
+    });
+  });
+
+  // The deployment owns the allowlist, so a refusal is reported rather than
+  // pre-empted here. Guessing at it in the client would mean two allowlists.
+  it('reports a destination the deployment refuses', async () => {
+    mockFetchWithAuth.mockResolvedValue({
+      ok: false,
+      status: 400,
+      json: async () => ({ error: 'Redirect URI is not allowed' }),
+    });
+
+    const client = createSeamlessAuthClient({
+      apiHost: 'https://api.example.com',
+    });
+
+    const { error } = await client.requestMagicLink('https://evil.example/steal');
+
+    expect(error).not.toBeNull();
+  });
+
   it('keeps an untrusted magic-link token inside its own path segment', async () => {
     mockFetchWithAuth.mockResolvedValue({
       ok: true,
