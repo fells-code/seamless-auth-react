@@ -44,17 +44,6 @@ jest.mock('@/utils', () => ({
   }),
 }));
 
-// Mock modal so we control confirm manually
-jest.mock('@/components/DeviceNameModal', () => (props: any) => {
-  if (!props.isOpen) return null;
-  return (
-    <div>
-      <button onClick={() => props.onConfirm('My Device')}>Confirm</button>
-      <button onClick={props.onCancel}>Cancel</button>
-    </div>
-  );
-});
-
 beforeEach(() => {
   jest.clearAllMocks();
   (useAuthClient as jest.Mock).mockReturnValue({
@@ -76,15 +65,6 @@ describe('RegisterPasskey', () => {
     expect(await screen.findByText(/Secure Your Account/i)).toBeInTheDocument();
   });
 
-  it('opens modal when clicking register', async () => {
-    render(<RegisterPasskey />);
-
-    const btn = await screen.findByText(/Register Passkey/i);
-    fireEvent.click(btn);
-
-    expect(await screen.findByText('Confirm')).toBeInTheDocument();
-  });
-
   it('handles successful registration flow', async () => {
     mockRegisterPasskey.mockResolvedValueOnce({
       data: { credentialId: 'cred', prfCapable: false },
@@ -94,12 +74,11 @@ describe('RegisterPasskey', () => {
     render(<RegisterPasskey />);
 
     fireEvent.click(await screen.findByText(/Register Passkey/i));
-    fireEvent.click(await screen.findByText('Confirm'));
 
     await waitFor(() => {
       expect(mockRegisterPasskey).toHaveBeenCalledWith({
         metadata: {
-          friendlyName: 'My Device',
+          friendlyName: 'MacBook Pro',
           platform: 'macOS',
           browser: 'Chrome',
           deviceInfo: 'MacBook Pro',
@@ -112,6 +91,21 @@ describe('RegisterPasskey', () => {
     expect(mockNavigate).toHaveBeenCalledWith('/');
   });
 
+  // The button used to open a form asking for a name. Registration now goes
+  // straight to the browser prompt, so nothing may stand between the two.
+  it('asks for no name before starting the ceremony', async () => {
+    mockRegisterPasskey.mockResolvedValueOnce({ data: {}, error: null });
+
+    render(<RegisterPasskey />);
+
+    fireEvent.click(await screen.findByText(/Register Passkey/i));
+
+    expect(screen.queryByRole('textbox')).not.toBeInTheDocument();
+    await waitFor(() => {
+      expect(mockRegisterPasskey).toHaveBeenCalled();
+    });
+  });
+
   it('handles challenge failure', async () => {
     mockRegisterPasskey.mockResolvedValueOnce({
       data: null,
@@ -121,7 +115,6 @@ describe('RegisterPasskey', () => {
     render(<RegisterPasskey />);
 
     fireEvent.click(await screen.findByText(/Register Passkey/i));
-    fireEvent.click(await screen.findByText('Confirm'));
 
     await waitFor(() => {
       expect(screen.getByText(/Error registering passkey/i)).toBeInTheDocument();
@@ -137,7 +130,6 @@ describe('RegisterPasskey', () => {
     render(<RegisterPasskey />);
 
     fireEvent.click(await screen.findByText(/Register Passkey/i));
-    fireEvent.click(await screen.findByText('Confirm'));
 
     await waitFor(() => {
       expect(screen.getByText(/Error registering passkey/i)).toBeInTheDocument();
@@ -153,20 +145,10 @@ describe('RegisterPasskey', () => {
     render(<RegisterPasskey />);
 
     fireEvent.click(await screen.findByText(/Register Passkey/i));
-    fireEvent.click(await screen.findByText('Confirm'));
 
     await waitFor(() => {
       expect(screen.getByText(/Error registering passkey/i)).toBeInTheDocument();
     });
-  });
-
-  it('handles canceling modal', async () => {
-    render(<RegisterPasskey />);
-
-    fireEvent.click(await screen.findByText(/Register Passkey/i));
-    fireEvent.click(await screen.findByText('Cancel'));
-
-    expect(screen.queryByText('Confirm')).not.toBeInTheDocument();
   });
 
   it('renders unsupported state when passkeys are unavailable', () => {
@@ -263,12 +245,11 @@ describe('RegisterPasskey skip control', () => {
     render(<RegisterPasskey />);
 
     fireEvent.click(await screen.findByText(/Use a security key instead/i));
-    fireEvent.click(await screen.findByText('Confirm'));
 
     await waitFor(() => {
       expect(mockRegisterPasskey).toHaveBeenCalledWith({
         metadata: {
-          friendlyName: 'My Device',
+          friendlyName: 'MacBook Pro',
           platform: 'macOS',
           browser: 'Chrome',
           deviceInfo: 'MacBook Pro',
@@ -291,7 +272,6 @@ describe('RegisterPasskey skip control', () => {
     render(<RegisterPasskey />);
 
     fireEvent.click(await screen.findByText(/Register Passkey/i));
-    fireEvent.click(await screen.findByText('Confirm'));
 
     expect(await screen.findByText(/stays on a single device/i)).toBeInTheDocument();
     expect(screen.queryByText(/synced_passkey_not_allowed/)).not.toBeInTheDocument();
@@ -306,7 +286,6 @@ describe('RegisterPasskey skip control', () => {
     render(<RegisterPasskey />);
 
     fireEvent.click(await screen.findByText(/Register Passkey/i));
-    fireEvent.click(await screen.findByText('Confirm'));
 
     expect(await screen.findByText('Error registering passkey.')).toBeInTheDocument();
   });
@@ -324,7 +303,6 @@ describe('RegisterPasskey skip control', () => {
     render(<RegisterPasskey />);
 
     fireEvent.click(await screen.findByText(/Use a security key instead/i));
-    fireEvent.click(await screen.findByText('Confirm'));
 
     expect(
       await screen.findByText(/does not accept that kind of authenticator/i)
