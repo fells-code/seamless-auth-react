@@ -1,5 +1,76 @@
 # @seamless-auth/react
 
+## 0.10.0
+
+### Minor Changes
+
+- 17a657d: Let a caller choose where a magic link lands.
+
+  `requestMagicLink` takes an optional `redirectUri`. A deployment serving both a web
+  app and a mobile app previously had one destination for every magic link, so a link
+  had to arrive in one or the other.
+
+  The value goes in the request body the client already sends. The deployment validates
+  it against its configured origins and refuses anything else, so this cannot be used to
+  point a link on the tenant's domain somewhere it should not go, and a refusal comes
+  back as an ordinary error result.
+
+  Omit it and nothing changes: the same empty body is sent, so the destination stays the
+  deployment's own and no caller has to do anything.
+
+  Needs a `@seamless-auth/server` adapter that forwards the field and an auth API that
+  understands it. Against older versions the value is dropped and the link keeps the
+  deployment's destination, which is the behaviour today.
+
+- 4199d52: Add `getPasskeyPolicyErrorCode()`, which reads the code a refused passkey
+  registration carries (`attachment_not_allowed`, `synced_passkey_not_allowed`,
+  `authenticator_not_allowed`, or `prf_required`) so an app can explain the
+  refusal instead of rendering the raw code from `error.message`. Unrecognized
+  codes return `undefined`, so a refusal from a newer API keeps your generic
+  messaging.
+
+  The `PasskeyPolicyErrorCode` union is derived from `WebAuthnErrorCode` in
+  `@seamless-auth/types`, so the codes this recognizes cannot drift from the ones
+  the API sends.
+
+  This matters on a default deployment: the API's
+  `authenticator_policy.syncedPasskeys` defaults to `block`, and passkeys created
+  by iCloud Keychain or Google Password Manager are backup eligible, so the most
+  common consumer passkey is refused at registration.
+
+- 8690cb0: Drop the naming step from the bundled passkey enrolment view.
+
+  Choosing "Register Passkey" (or "Use a security key instead") opened a modal asking for a
+  friendly name, and the browser's own passkey prompt only appeared once that form was
+  submitted. A user who came to the screen to press one button was handed a text field
+  first, at the point in the flow where they had the least idea what to type.
+
+  Registration now starts on the click. The credential still carries a `friendlyName`, and
+  the view fills it with the device the passkey was enrolled on (`mac • chrome`), which is
+  what the naming prompt suggested people write anyway. Renaming stays available through
+  `updateCredential`.
+
+  Nothing in the public API moves: `PasskeyMetadata.friendlyName` is unchanged and callers
+  building their own enrolment screen keep setting it themselves. Only the bundled
+  `/register-passkey` view changes, so an adopter relying on that screen to collect a name
+  needs their own screen for it.
+
+- fa27861: `registerPasskey()` accepts an `attachment`, so a caller can ask for a roaming
+  authenticator (`cross-platform`, a USB or NFC security key) or the one built
+  into the device (`platform`) instead of leaving the choice to the browser's
+  picker. The bundled enrolment view offers a "Use a security key instead" control
+  that takes this path, and explains a policy refusal rather than showing a
+  generic failure.
+
+  Omitting the option sends no query parameter, so the deployment's
+  `authenticator_policy.attachment` stays in charge and current behaviour is
+  unchanged. It is a request rather than an override: a deployment that pins the
+  other kind refuses the registration with `attachment_not_allowed`, which
+  `getPasskeyPolicyErrorCode()` reads.
+
+  `PasskeyAttachment` is exported, and is derived from the deployment policy type
+  in `@seamless-auth/types` rather than restating its members.
+
 ## 0.9.0
 
 ### Minor Changes
