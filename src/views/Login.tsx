@@ -48,13 +48,31 @@ const Login: React.FC = () => {
     setIdentifier(value);
   };
 
-  const canSubmit = (): boolean | undefined => {
-    if (mode === 'login' && identifier) {
+  const canSubmit = (): boolean => {
+    if (mode === 'login') {
       return isValidEmail(identifier) || isValidPhoneNumber(identifier);
     }
 
     // Registration only needs a valid email. A phone can be added later.
     return isValidEmail(email);
+  };
+
+  // A disabled button is skipped by screen readers and explains nothing to
+  // anyone else, so the reason it is refusing lives in a live region instead.
+  const submitHint = (): string => {
+    if (mode === 'login') {
+      if (!identifier) return 'Enter your email or phone number to continue.';
+
+      return canSubmit()
+        ? 'Ready to continue.'
+        : 'This does not look like a complete email or phone number yet.';
+    }
+
+    if (!email) return 'Enter your email address to continue.';
+
+    return canSubmit()
+      ? 'Ready to continue.'
+      : 'This does not look like a complete email address yet.';
   };
 
   const register = async () => {
@@ -237,9 +255,17 @@ const Login: React.FC = () => {
                 {emailError && <p className={styles.error}>{emailError}</p>}
               </div>
             )}
-            <button type="submit" className={styles.button} disabled={!canSubmit()}>
+            <button
+              type="submit"
+              className={styles.button}
+              disabled={!canSubmit()}
+              aria-describedby="seamless-submit-hint"
+            >
               {mode === 'login' ? 'Login' : 'Register'}
             </button>
+            <p id="seamless-submit-hint" role="status" className={styles.submitHint}>
+              {submitHint()}
+            </p>
             {formErrors && <p className={styles.error}>{formErrors}</p>}
             <button
               type="button"
