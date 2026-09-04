@@ -28,4 +28,19 @@ describe('useAuthClient', () => {
     });
     expect(result.current).toBe(client);
   });
+
+  it('passes the magic link destination through to the client', () => {
+    (useAuth as jest.Mock).mockReturnValue({
+      apiHost: 'https://api.example.com',
+      magicLinkRedirectUri: 'https://app.example.com/magic',
+    });
+    (createSeamlessAuthClient as jest.Mock).mockReturnValue({});
+
+    renderHook(() => useAuthClient());
+
+    expect(createSeamlessAuthClient).toHaveBeenCalledWith({
+      apiHost: 'https://api.example.com',
+      magicLinkRedirectUri: 'https://app.example.com/magic',
+    });
+  });
 });

@@ -64,6 +64,12 @@ import {
 
 export interface SeamlessAuthClientOptions {
   apiHost: string;
+  /**
+   * Default destination for `requestMagicLink()`. Every send from this client
+   * uses it unless a call passes its own, which keeps a resend on the same
+   * destination as the send it repeats. Omit it to keep the deployment's.
+   */
+  magicLinkRedirectUri?: string;
 }
 
 export interface LoginInput {
@@ -246,8 +252,8 @@ export interface SeamlessAuthClient {
   /**
    * @param redirectUri Where the emailed link should land. The deployment validates
    * it against its configured origins and refuses anything else, so a tenant serving
-   * a web app and a mobile app can send each to its own destination. Omit it to keep
-   * the deployment's single destination.
+   * a web app and a mobile app can send each to its own destination. Omit it to fall
+   * back to the client's `magicLinkRedirectUri`, then to the deployment's own.
    */
   requestMagicLink: (redirectUri?: string) => Promise<SeamlessAuthResult<MessageResult>>;
   checkMagicLink: () => Promise<SeamlessAuthResult<MessageResult>>;
@@ -584,14 +590,17 @@ export const createSeamlessAuthClient = (
     // The body is sent even when it is empty, so fetchWithAuth declares a JSON
     // content type and the request takes a CORS preflight. A bodyless POST is a
     // simple request and stays reachable cross-site.
-    requestMagicLink: redirectUri =>
-      requestResult<MessageResult>(
+    requestMagicLink: redirectUri => {
+      const destination = redirectUri ?? opts.magicLinkRedirectUri;
+
+      return requestResult<MessageResult>(
         fetchWithAuth(`/magic-link`, {
           method: 'POST',
-          body: JSON.stringify(redirectUri ? { redirectUri } : {}),
+          body: JSON.stringify(destination ? { redirectUri: destination } : {}),
         }),
         'Failed to send the magic link.'
-      ),
+      );
+    },
 
     checkMagicLink: () =>
       requestResult<MessageResult>(
