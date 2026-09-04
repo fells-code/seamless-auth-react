@@ -10,13 +10,14 @@ import { useAuth } from '@/AuthProvider';
 import { createSeamlessAuthClient } from '@/client/createSeamlessAuthClient';
 
 export const useAuthClient = () => {
-  const { apiHost } = useAuth();
+  const { apiHost, magicLinkRedirectUri } = useAuth();
 
   return useMemo(
     () =>
       createSeamlessAuthClient({
         apiHost,
+        magicLinkRedirectUri,
       }),
-    [apiHost]
+    [apiHost, magicLinkRedirectUri]
   );
 };

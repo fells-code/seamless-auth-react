@@ -40,6 +40,7 @@ export interface AuthContextType {
   hasRole: (role: string) => boolean | undefined;
   hasScopedRole: (role: string | string[]) => boolean | undefined;
   apiHost: string;
+  magicLinkRedirectUri?: string;
   markSignedIn: () => void;
   hasSignedInBefore: boolean;
   credentials: Credential[];
@@ -90,12 +91,18 @@ interface AuthProviderProps {
   children: ReactNode;
   apiHost: string;
   autoDetectPreviousSignin?: boolean;
+  /**
+   * Where a magic link sent by the bundled screens should land. Both the first
+   * send and a resend read it from here, so the two cannot drift apart.
+   */
+  magicLinkRedirectUri?: string;
 }
 
 export const AuthProvider: React.FC<AuthProviderProps> = ({
   children,
   apiHost,
   autoDetectPreviousSignin = true,
+  magicLinkRedirectUri,
 }) => {
   const session = useMemo(
     () =>
@@ -131,8 +138,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({
   }, [session]);
 
   const value = useMemo(
-    () => ({ ...state, ...session.actions, apiHost }),
-    [state, session, apiHost]
+    () => ({ ...state, ...session.actions, apiHost, magicLinkRedirectUri }),
+    [state, session, apiHost, magicLinkRedirectUri]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

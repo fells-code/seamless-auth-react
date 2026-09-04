@@ -178,6 +178,25 @@ async function completeLogin() {
 
 To disable this auto-detection entirely, pass `autoDetectPreviousSignin={false}` to `AuthProvider`.
 
+### Magic link destination
+
+By default a magic link lands wherever the deployment is configured to send it. A deployment serving
+more than one front end can override that per application with `magicLinkRedirectUri`:
+
+```tsx
+<AuthProvider apiHost={apiHost} magicLinkRedirectUri="https://app.example.com/auth/magic">
+  <AuthRoutes />
+</AuthProvider>
+```
+
+Every magic link the bundled screens send uses it, including the resend on the "check your email"
+screen, so a resent link always lands where the first one did. The deployment validates the value
+against its configured origins and refuses anything else, which comes back as an ordinary error
+result.
+
+Custom UIs get the same default through `useAuthClient()`, and can still override a single send with
+`requestMagicLink(uri)`.
+
 ### Scoped roles
 
 `hasRole(role)` remains an exact role check. Use `hasScopedRole(role)` for colon-separated scoped
