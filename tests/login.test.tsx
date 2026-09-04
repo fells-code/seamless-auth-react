@@ -274,6 +274,76 @@ describe('Login', () => {
     });
   });
 
+  test('submit hint names the field to fill while the button is disabled', async () => {
+    (isValidEmail as jest.Mock).mockImplementation((value: string) =>
+      value.includes('@')
+    );
+
+    render(<Login />);
+
+    expect(await screen.findByRole('status')).toHaveTextContent(
+      'Enter your email or phone number to continue.'
+    );
+    expect(screen.getByRole('button', { name: /^login$/i })).toBeDisabled();
+  });
+
+  test('submit hint reports an incomplete entry as the user types', async () => {
+    (isValidEmail as jest.Mock).mockImplementation((value: string) =>
+      value.includes('@')
+    );
+
+    render(<Login />);
+
+    fireEvent.change(screen.getByPlaceholderText(/email or phone number/i), {
+      target: { value: 'nope' },
+    });
+
+    expect(await screen.findByRole('status')).toHaveTextContent(
+      'This does not look like a complete email or phone number yet.'
+    );
+    expect(screen.getByRole('button', { name: /^login$/i })).toBeDisabled();
+  });
+
+  test('submit hint confirms readiness once the button enables', async () => {
+    (isValidEmail as jest.Mock).mockImplementation((value: string) =>
+      value.includes('@')
+    );
+
+    render(<Login />);
+
+    fireEvent.change(screen.getByPlaceholderText(/email or phone number/i), {
+      target: { value: 'test@example.com' },
+    });
+
+    expect(await screen.findByRole('status')).toHaveTextContent('Ready to continue.');
+    expect(screen.getByRole('button', { name: /^login$/i })).toBeEnabled();
+  });
+
+  test('a valid register email does not enable submit after switching to login', async () => {
+    (isValidEmail as jest.Mock).mockImplementation((value: string) =>
+      value.includes('@')
+    );
+
+    render(<Login />);
+
+    fireEvent.click(screen.getByText(/don't have an account/i));
+    fireEvent.change(screen.getByLabelText(/email address/i), {
+      target: { value: 'test@example.com' },
+    });
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /register/i })).toBeEnabled();
+    });
+
+    fireEvent.click(screen.getByText(/already have an account/i));
+
+    // The email typed in register mode is not the identifier login submits.
+    expect(screen.getByRole('button', { name: /^login$/i })).toBeDisabled();
+    expect(await screen.findByRole('status')).toHaveTextContent(
+      'Enter your email or phone number to continue.'
+    );
+  });
+
   test('register mode submits with only an email', async () => {
     (isValidEmail as jest.Mock).mockReturnValue(true);
 

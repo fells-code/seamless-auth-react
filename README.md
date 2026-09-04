@@ -971,7 +971,6 @@ There is no provider prop or JavaScript API for this. Setting the variables is t
 | `--seamless-border`          | Input, button, and panel borders                                       | `#4b5563`, `#d1d5db`                          |
 | `--seamless-text`            | Headings and body text                                                 | `white`                                       |
 | `--seamless-text-muted`      | Labels, helper text, secondary copy                                    | `#9ca3af`, `#d1d5db`                          |
-| `--seamless-disabled`        | Background of disabled submit buttons                                  | `#9ca3af`                                     |
 | `--seamless-danger`          | Error messages                                                         | `#f87171`                                     |
 | `--seamless-success`         | Success messages and the verified check icon                           | `#34d399`                                     |
 | `--seamless-warning`         | OTP countdown and resend timers                                        | `#facc15`                                     |
@@ -990,6 +989,10 @@ There is no provider prop or JavaScript API for this. Setting the variables is t
 - Two decorative tints are deliberately not tokenised: the pulse ring behind the magic-link mail icon
   and the disc behind the success check. Both are translucent and sit directly under an icon, so an
   opaque override would hide the icon it is meant to frame.
+- Disabled buttons are not a separate colour. They are the enabled button at reduced opacity, so the
+  label and its background always come from the same accent pair you set and the contrast between
+  them cannot invert when the theme changes. `--seamless-disabled` used to set a standalone grey fill
+  and no longer does anything; remove it from your overrides.
 - The package ships one palette and no `prefers-color-scheme` rules. If you want the auth UI to follow
   the system theme, wrap your own overrides in a media query.
 
