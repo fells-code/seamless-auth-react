@@ -1,5 +1,84 @@
 # @seamless-auth/react
 
+## 0.11.0
+
+### Minor Changes
+
+- bd26c22: Read the `returnTo` an OAuth sign-in asked for, and land on it.
+
+  `startOAuthLogin` has taken a `returnTo` since OAuth landed here, and nothing ever read one
+  back. The auth server validated it against the configured origins and signed it into the
+  state, but `finishOAuthLogin` was typed as a bare `MessageResult`, so the whole callback body
+  was discarded and an adopter had no way to learn where the flow had been asked to end up.
+
+  `finishOAuthLogin` now resolves to `FinishOAuthLoginResult`, the completed OAuth response
+  minus its session material, for the same reason `LoginStartResult` drops it: sessions are
+  carried by cookies, so there is no reason to hand an adopter raw tokens. The new field on it
+  is `returnTo`, absent when the caller asked for nothing.
+
+  The bundled `OAuthCallback` view lands there instead of always going to `/`. This is the same
+  gap the magic link redirect closed in 0.10.0: the headless client could reach the feature and
+  an application using `AuthRoutes` could not, which is the audience least likely to be wiring
+  up its own client.
+
+  The view only follows a destination on its own origin. That is not the guard against an open
+  redirect, which the auth server already applied before signing the state; it is that these
+  views route with react-router, which cannot leave the application. An adopter that wants to
+  send someone to another origin reads `returnTo` off the result and navigates itself.
+
+  Requires `@seamless-auth/types` 0.20.0, which carries the response field and holds both
+  `returnTo` fields to a scheme that can be a link destination.
+
+- 74f17d2: Let the bundled screens choose where a magic link lands.
+
+  `requestMagicLink(redirectUri)` arrived in 0.10.0, but only the headless client
+  path could reach it. An application using `AuthRoutes` had no way to set one, so
+  the deployment-wide destination was the only option for the audience least likely
+  to be wiring up its own client.
+
+  `AuthProvider` now takes `magicLinkRedirectUri`, and `useAuthClient()` hands it to
+  the client as the default for every send. `SeamlessAuthClientOptions` carries the
+  same field, so a directly constructed client can do this too.
+
+  The destination lives on the client rather than at each call site on purpose. The
+  sign-in screen and the resend on the "check your email" screen both send with no
+  argument, so they cannot disagree about where the link goes. A resend that landed
+  somewhere other than the link it repeats would be a confusing failure and an easy
+  one to miss in review.
+
+  Nothing changes if you omit it: the same empty body is sent and the deployment's
+  own destination still applies. An explicit `requestMagicLink(uri)` still wins over
+  the configured default.
+
+- eb10397: Stop painting the disabled submit button as a filled grey primary.
+
+  On the sign-in and MFA screens the submit button was disabled until its field
+  validated, and while disabled it was filled with `--seamless-disabled` while the
+  label kept `--seamless-accent-contrast`. Those two colours were chosen in
+  different places, so no value a themed app could supply worked in both a light
+  and a dark theme: lighten the fill and the label washed out, darken it and the
+  label went near-black on dark. The result read as a primary button that had
+  broken rather than a control waiting on input.
+
+  The disabled state is now the enabled button at reduced opacity. Label and
+  background stay on the accent pair the app already tuned, so their contrast
+  cannot invert with the theme, and the control reads as inactive instead of
+  broken. This matches how the magic-link and passkey screens already draw their
+  disabled buttons.
+
+  `--seamless-disabled` is no longer read anywhere and has been dropped from the
+  token table. If you set it, remove it; every other token behaves as before.
+
+  The sign-in screen now also says why the button is refusing, in a live region
+  below it that reports whether the field is empty, incomplete, or ready. A
+  disabled button is not focusable and is passed over by screen readers, so the
+  refusal was previously silent for the people least able to guess the reason.
+
+  Fixing that surfaced a related bug: a valid email typed in registration left the
+  Login button enabled after switching to sign-in, even with the identifier field
+  empty, because the submit check fell through to the registration field. Each
+  mode now checks only its own field.
+
 ## 0.10.0
 
 ### Minor Changes
