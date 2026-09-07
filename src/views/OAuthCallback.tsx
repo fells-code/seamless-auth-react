@@ -14,6 +14,30 @@ import styles from '@/styles/verifyMagiclink.module.css';
 
 const GENERIC_ERROR = 'We could not complete sign-in. Please try again.';
 
+/**
+ * The in-app path a `returnTo` names, or null.
+ *
+ * The auth server validated the destination against its configured origins before
+ * signing it into the state, so this is not the guard against an open redirect. It is
+ * a narrower question: these bundled views route with react-router, which can only
+ * move within this application, so a destination on another origin is not somewhere
+ * this component can send anyone. An adopter that wants to leave the app reads
+ * `returnTo` off the client result and navigates itself.
+ */
+function inAppPath(returnTo: string | undefined): string | null {
+  if (!returnTo) return null;
+
+  try {
+    const target = new URL(returnTo, window.location.origin);
+
+    if (target.origin !== window.location.origin) return null;
+
+    return `${target.pathname}${target.search}${target.hash}`;
+  } catch {
+    return null;
+  }
+}
+
 const CODE_ERRORS: Record<OAuthErrorCode, string> = {
   oauth_missing_email:
     'Your provider account did not share an email address. Add an email to that account and make it visible, then try again.',
@@ -43,16 +67,18 @@ const OAuthCallback: React.FC = () => {
       return;
     }
 
-    void finishOAuthLogin({ providerId, code, state }).then(({ error: finishError }) => {
-      if (finishError) {
-        const code = getOAuthErrorCode(finishError);
-        setError(code ? CODE_ERRORS[code] : GENERIC_ERROR);
-        return;
-      }
+    void finishOAuthLogin({ providerId, code, state }).then(
+      ({ data, error: finishError }) => {
+        if (finishError) {
+          const code = getOAuthErrorCode(finishError);
+          setError(code ? CODE_ERRORS[code] : GENERIC_ERROR);
+          return;
+        }
 
-      sessionStorage.removeItem(OAUTH_PROVIDER_STORAGE_KEY);
-      navigate('/');
-    });
+        sessionStorage.removeItem(OAUTH_PROVIDER_STORAGE_KEY);
+        navigate(inAppPath(data?.returnTo) ?? '/');
+      }
+    );
   }, [finishOAuthLogin, navigate, searchParams]);
 
   return (
