@@ -644,11 +644,11 @@ switch (getPasskeyPolicyErrorCode(error)) {
 `attachment_not_allowed` is refused before any ceremony runs, so the browser never prompts. The rest
 are refused after a credential exists and can be inspected.
 
-`syncedPasskeys` defaults to `block` on the Seamless Auth API. Passkeys created by iCloud Keychain
-and Google Password Manager are backup eligible, so on a default deployment the most common consumer
-passkey is refused at registration. If that is not what you want, set
-`authenticator_policy.syncedPasskeys` to `allow` in the API's system config; the SDK cannot relax it
-from the client.
+`syncedPasskeys` defaults to `allow` on the Seamless Auth API, so a default deployment enrols the
+passkeys iCloud Keychain and Google Password Manager create. A deployment that issues its own
+authenticators can set `authenticator_policy.syncedPasskeys` to `block` in the API's system config,
+and every backup-eligible passkey is then refused at registration. Handle the code: the SDK cannot
+tell from the client which way the API is configured.
 
 Like `getOAuthErrorCode()`, this returns `undefined` for anything it does not recognize, including
 codes added by a newer API, so an unexpected refusal keeps your generic messaging.
@@ -1071,8 +1071,8 @@ email sends to a signed-in user. Using `@seamless-auth/react` with an older adap
 `GET` forms returns a 404 for those requests. See the changelog for the minimum adapter version.
 
 `/webAuthn/register/finish` can refuse a verified credential on policy grounds with a `403` whose
-body is a stable code. `syncedPasskeys` defaults to `block`, which refuses every backup-eligible
-passkey, so this is reachable on a default deployment. See
+body is a stable code. `syncedPasskeys` defaults to `allow`, but a deployment that sets `block`
+refuses every backup-eligible passkey, so handle the code rather than assuming the default. See
 [Passkey policy refusals](#passkey-policy-refusals).
 
 ## Notes
