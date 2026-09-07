@@ -24,6 +24,7 @@ import type {
   LogoutScope as LogoutScopeShape,
   MeResponse,
   MessageResponse,
+  OAuthLoginSuccessResponse,
   OAuthProvidersResponse,
   OrganizationEnvelopeResponse,
   OrganizationListResponse,
@@ -150,6 +151,21 @@ export interface FinishOAuthLoginInput {
   state: string;
 }
 
+/**
+ * The completed OAuth response minus its session material, for the same reason
+ * `LoginStartResult` drops it: sessions are carried by cookies.
+ *
+ * What this does surface is `returnTo`, the destination the caller asked for when it
+ * started the flow. It comes back out of the state the auth server signed, so it is
+ * the value that was validated against the configured origins at the start and not
+ * one introduced at the callback. Absent when the caller asked for nothing, so treat
+ * that as "use my own default" rather than as a failure.
+ */
+export type FinishOAuthLoginResult = Omit<
+  OAuthLoginSuccessResponse,
+  'token' | 'refreshToken' | 'sub'
+>;
+
 /** Response body for endpoints that only acknowledge the request. */
 export type MessageResult = MessageResponse;
 
@@ -265,7 +281,7 @@ export interface SeamlessAuthClient {
   ) => Promise<SeamlessAuthResult<StartOAuthLoginResult>>;
   finishOAuthLogin: (
     input: FinishOAuthLoginInput
-  ) => Promise<SeamlessAuthResult<MessageResult>>;
+  ) => Promise<SeamlessAuthResult<FinishOAuthLoginResult>>;
   registerPasskey: (
     input: PasskeyMetadata | RegisterPasskeyOptions
   ) => Promise<SeamlessAuthResult<PasskeyRegistrationData>>;
@@ -644,7 +660,7 @@ export const createSeamlessAuthClient = (
       ),
 
     finishOAuthLogin: input =>
-      requestResult<MessageResult>(
+      requestResult<FinishOAuthLoginResult>(
         fetchWithAuth(`/oauth/${encodeURIComponent(input.providerId)}/callback`, {
           method: 'POST',
           body: JSON.stringify({

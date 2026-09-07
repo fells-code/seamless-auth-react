@@ -8,6 +8,7 @@ import {
   createSeamlessAuthClient,
   CurrentUserResult,
   FinishOAuthLoginInput,
+  FinishOAuthLoginResult,
   LoginStartResult,
   MessageResult,
   OAuthProvidersResult,
@@ -59,7 +60,7 @@ export interface AuthSessionActions {
   ) => Promise<SeamlessAuthResult<StartOAuthLoginResult>>;
   finishOAuthLogin: (
     input: FinishOAuthLoginInput
-  ) => Promise<SeamlessAuthResult<MessageResult>>;
+  ) => Promise<SeamlessAuthResult<FinishOAuthLoginResult>>;
   refreshStepUpStatus: () => Promise<SeamlessAuthResult<StepUpStatus>>;
   verifyStepUpWithPasskey: () => Promise<SeamlessAuthResult<StepUpStatus>>;
   verifyStepUpWithPasskeyPrf: (

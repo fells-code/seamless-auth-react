@@ -7,6 +7,7 @@
 import {
   CurrentUserResult,
   FinishOAuthLoginInput,
+  FinishOAuthLoginResult,
   LoginStartResult,
   MessageResult,
   OAuthProvidersResult,
@@ -55,7 +56,7 @@ export interface AuthContextType {
   ) => Promise<SeamlessAuthResult<StartOAuthLoginResult>>;
   finishOAuthLogin: (
     input: FinishOAuthLoginInput
-  ) => Promise<SeamlessAuthResult<MessageResult>>;
+  ) => Promise<SeamlessAuthResult<FinishOAuthLoginResult>>;
   stepUpStatus: StepUpStatus | null;
   updateCredential: (credential: Credential) => Promise<SeamlessAuthResult<Credential>>;
   deleteCredential: (credentialId: string) => Promise<SeamlessAuthResult<MessageResult>>;
