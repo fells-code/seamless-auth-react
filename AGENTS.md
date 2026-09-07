@@ -252,9 +252,10 @@ sentence: `synced_passkey_not_allowed`, `authenticator_not_allowed`, or
 `prf_required`. The adapter forwards that body verbatim, and `extractMessage`
 turns the code into `error.message`, so callers must branch with
 `getPasskeyPolicyErrorCode()` rather than render the message. The API's
-`authenticator_policy.syncedPasskeys` defaults to `block` and every iCloud
-Keychain or Google Password Manager passkey is backup eligible, so this is the
-default path, not an edge case.
+`authenticator_policy.syncedPasskeys` defaults to `allow`, so a stock deployment
+enrols these, but a deployment that sets `block` refuses every iCloud Keychain
+and Google Password Manager passkey. The SDK cannot tell which way it is
+configured, so treat the refusal as reachable rather than exceptional.
 
 `@seamless-auth/types` publishes no union for those codes as of 0.15.0, so
 `PasskeyPolicyErrorCode` in `src/client/errors.ts` is a local copy of the API's
