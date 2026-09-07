@@ -256,10 +256,19 @@ turns the code into `error.message`, so callers must branch with
 Keychain or Google Password Manager passkey is backup eligible, so this is the
 default path, not an edge case.
 
-`@seamless-auth/types` publishes no union for those codes as of 0.15.0, so
-`PasskeyPolicyErrorCode` in `src/client/errors.ts` is a local copy of the API's
-list. If the types package starts exporting one, switch to it so the
-`Record<Code, true>` check catches upstream drift the way the OAuth one does.
+`@seamless-auth/types` 0.16.0 publishes `WebAuthnErrorCode`, which covers every
+machine code the API sends for WebAuthn across all of its operations, so
+`PasskeyPolicyErrorCode` in `src/client/errors.ts` is derived from it rather than
+kept as a local list. It is that union minus `prf_output_not_allowed`, a `400`
+from login and step-up finish that reports a caller which failed to strip PRF
+output, not a deployment refusing an authenticator.
+
+Derive it by subtraction, not by listing the codes you want. A code added
+upstream then lands in `PasskeyPolicyErrorCode`, and the
+`Record<PasskeyPolicyErrorCode, true>` map stops compiling until someone either
+handles it or excludes it deliberately. Listing the wanted names would drop a new
+code on the floor and leave the map compiling, which is the silent drift the
+union exists to prevent.
 
 Before documenting new flow behavior, verify the route contract in `seamless-auth-server` or `seamless-auth-api`.
 

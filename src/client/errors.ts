@@ -93,12 +93,9 @@ export function getOAuthErrorCode(error: unknown): OAuthErrorCode | undefined {
  * ceremony runs. The rest come from register/finish with a `403`, once the
  * credential exists and can be inspected.
  */
-export type PasskeyPolicyErrorCode = Extract<
+export type PasskeyPolicyErrorCode = Exclude<
   WebAuthnErrorCodeShape,
-  | 'attachment_not_allowed'
-  | 'synced_passkey_not_allowed'
-  | 'authenticator_not_allowed'
-  | 'prf_required'
+  'prf_output_not_allowed'
 >;
 
 /*
@@ -109,10 +106,12 @@ export type PasskeyPolicyErrorCode = Extract<
  * refusing an authenticator. Reporting it as a policy refusal would point an
  * integrator at their configuration for what is a bug in the caller.
  *
- * `Extract` ties these names to the upstream union: if one is renamed or dropped
- * there, it resolves to `never` and the `Record` below stops compiling. As with
- * the OAuth codes, the runtime list stays out of the browser bundle so Zod does
- * not come with it.
+ * Subtracting that one name, rather than listing the four that are wanted, is
+ * what makes upstream additions visible: a code added to `WebAuthnErrorCode`
+ * lands in this type, and the `Record` below then fails to compile until it is
+ * either handled here or excluded on purpose. Listing the wanted names instead
+ * would silently ignore it. As with the OAuth codes, the runtime list stays out
+ * of the browser bundle so Zod does not come with it.
  */
 const PASSKEY_POLICY_ERROR_CODES: Record<PasskeyPolicyErrorCode, true> = {
   attachment_not_allowed: true,
