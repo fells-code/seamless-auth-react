@@ -14,6 +14,9 @@ import {
   OAuthProvidersResult,
   OrganizationSwitchResult,
   PasskeyLoginData,
+  PasskeyMetadata,
+  PasskeyRegistrationData,
+  RegisterPasskeyOptions,
   StartOAuthLoginInput,
   StartOAuthLoginResult,
   StepUpPrfData,
@@ -45,6 +48,9 @@ export interface AuthSessionActions {
     passkeyAvailable: boolean
   ) => Promise<SeamlessAuthResult<LoginStartResult>>;
   handlePasskeyLogin: () => Promise<SeamlessAuthResult<PasskeyLoginData>>;
+  registerPasskey: (
+    input: PasskeyMetadata | RegisterPasskeyOptions
+  ) => Promise<SeamlessAuthResult<PasskeyRegistrationData>>;
   refreshSession: () => Promise<SeamlessAuthResult<CurrentUserResult>>;
   logout: () => Promise<SeamlessAuthResult<MessageResult>>;
   logoutAllSessions: () => Promise<SeamlessAuthResult<MessageResult>>;
@@ -228,6 +234,12 @@ export function createAuthSession(options: AuthSessionOptions): AuthSession {
       client.login({ identifier, passkeyAvailable }),
 
     handlePasskeyLogin: () => refreshAfter(() => client.loginWithPasskey()),
+
+    // Enrollment takes the signed-in session, so this belongs beside the other
+    // credential actions rather than only on the client. Refreshing afterwards is what
+    // puts the new passkey in `credentials`, which is how a settings screen renders it
+    // without a reload.
+    registerPasskey: input => refreshAfter(() => client.registerPasskey(input)),
 
     refreshSession,
     logout,

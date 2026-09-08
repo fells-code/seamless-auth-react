@@ -163,6 +163,19 @@ export function getPasskeyPolicyErrorCode(
 }
 
 /**
+ * Whether a failure means nobody is signed in.
+ *
+ * Enrollment takes the signed-in session, so a `401` there is an expired or missing
+ * one rather than anything about the authenticator, and the two need different
+ * messages: one asks the user to sign in again, the other to reach for a different
+ * key. Raised locally, a ceremony failure carries `NETWORK_ERROR_STATUS`, so this
+ * matches on the response status alone.
+ */
+export function isUnauthenticated(error: unknown): boolean {
+  return error instanceof SeamlessAuthError && error.status === 401;
+}
+
+/**
  * Detail recovered from a failed WebAuthn ceremony.
  *
  * `name` is the `DOMException` name, which is what distinguishes the cases a
