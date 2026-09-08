@@ -7,8 +7,14 @@
 import { createAuthSession } from '../src/session/createAuthSession';
 import { createMemoryStorage, SessionStoragePort } from '../src/session/storage';
 import { createFetchWithAuth } from '../src/fetchWithAuth';
+import { startRegistration } from '@simplewebauthn/browser';
 
 jest.mock('../src/fetchWithAuth');
+
+jest.mock('@simplewebauthn/browser', () => ({
+  ...jest.requireActual('@simplewebauthn/browser'),
+  startRegistration: jest.fn(),
+}));
 
 const mockFetchWithAuth = jest.fn();
 
@@ -17,6 +23,13 @@ const mockFetchWithAuth = jest.fn();
 const apiHost = 'https://api.example.com';
 
 const user = { id: '1', email: 'test@example.com', phone: '', roles: ['admin'] };
+
+const metadata = {
+  friendlyName: 'Second device',
+  platform: 'macOS',
+  browser: 'Chrome',
+  deviceInfo: 'MacBook Pro',
+};
 
 const okResponse = (body: unknown = {}) =>
   ({ ok: true, json: async () => body }) as unknown as Response;
@@ -283,6 +296,42 @@ describe('createAuthSession', () => {
       await session.actions.deleteCredential('cred-1');
 
       expect(session.getState().credentials).toEqual([]);
+    });
+
+    // Enrollment takes the signed-in session, so a settings screen can add a passkey
+    // without leaving the account. Refreshing is what puts it in `credentials`.
+    it('adds an enrolled passkey to state', async () => {
+      const session = await loadWithCredential();
+
+      (startRegistration as jest.Mock).mockResolvedValueOnce({ id: 'cred-2' });
+      mockFetchWithAuth
+        .mockResolvedValueOnce(okResponse({ challenge: 'challenge' }))
+        .mockResolvedValueOnce(okResponse({ message: 'Credential registered' }))
+        .mockResolvedValueOnce(
+          okResponse({
+            user,
+            credentials: [{ id: 'cred-1' }, { id: 'cred-2' }],
+          })
+        );
+
+      const { data, error } = await session.actions.registerPasskey(metadata);
+
+      expect(error).toBeNull();
+      expect(data).toMatchObject({ credentialId: 'cred-2' });
+      expect(session.getState().credentials).toHaveLength(2);
+    });
+
+    it('leaves state alone when enrollment fails', async () => {
+      const session = await loadWithCredential();
+
+      mockFetchWithAuth.mockResolvedValueOnce(
+        failedResponse(401, { error: 'unauthorized' })
+      );
+
+      const { error } = await session.actions.registerPasskey(metadata);
+
+      expect(error).toMatchObject({ status: 401 });
+      expect(session.getState().credentials).toHaveLength(1);
     });
   });
 

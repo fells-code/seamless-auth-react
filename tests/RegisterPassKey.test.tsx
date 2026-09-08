@@ -121,6 +121,26 @@ describe('RegisterPasskey', () => {
     });
   });
 
+  // Enrollment takes the signed-in session, so a 401 here is the session rather
+  // than anything about the authenticator, and it used to read as the generic
+  // failure that tells the user to try again with the same expired session.
+  it('tells the user to sign in again on a 401', async () => {
+    mockRegisterPasskey.mockResolvedValueOnce({
+      data: null,
+      error: new SeamlessAuthError('unauthorized', 401, { error: 'unauthorized' }),
+    });
+
+    render(<RegisterPasskey />);
+
+    fireEvent.click(await screen.findByText(/Register Passkey/i));
+
+    await waitFor(() => {
+      expect(screen.getByText(/Your session expired/i)).toBeInTheDocument();
+    });
+
+    expect(screen.queryByText(/Error registering passkey/i)).not.toBeInTheDocument();
+  });
+
   it('handles WebAuthnError', async () => {
     mockRegisterPasskey.mockResolvedValueOnce({
       data: null,

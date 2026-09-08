@@ -612,7 +612,7 @@ on it:
 ```ts
 import { getPasskeyPolicyErrorCode } from '@seamless-auth/react';
 
-const { error } = await authClient.registerPasskey({ token, metadata });
+const { error } = await authClient.registerPasskey({ metadata });
 
 switch (getPasskeyPolicyErrorCode(error)) {
   case 'attachment_not_allowed':
@@ -760,6 +760,10 @@ function CustomRegistration() {
 }
 ```
 
+Enrolment takes the signed-in session, so it comes after the step that establishes one.
+Verifying the email OTP signs the user in, which is why the bundled flow offers a passkey
+on the screen after it rather than before.
+
 To offer a passkey right after registering, call `registerPasskey()` before `refreshSession()`:
 
 ```ts
@@ -772,6 +776,40 @@ const { data, error } = await authClient.registerPasskey({
 
 if (!error) {
   console.log(data.credentialId, data.prfCapable);
+}
+```
+
+### Adding a passkey from a settings screen
+
+The same call adds a passkey to an account that already has one, or gives one to a user
+who declined at signup. Use it from `useAuth()` rather than the client directly: that
+version refreshes the session afterwards, so `credentials` includes the new passkey
+without a reload.
+
+```tsx
+function AddPasskey() {
+  const { registerPasskey, credentials } = useAuth();
+
+  const add = async () => {
+    const { error } = await registerPasskey({
+      friendlyName: 'My laptop',
+      platform: 'macOS',
+      browser: 'Chrome',
+      deviceInfo: navigator.userAgent,
+    });
+
+    if (error) {
+      // A 401 means the session expired rather than anything about the
+      // authenticator. `isUnauthenticated(error)` tells the two apart.
+    }
+  };
+
+  return (
+    <>
+      <p>{credentials.length} passkeys</p>
+      <button onClick={add}>Add a passkey</button>
+    </>
+  );
 }
 ```
 

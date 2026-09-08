@@ -6,7 +6,11 @@
 
 import { useAuth } from '@/AuthProvider';
 import { PasskeyAttachment, PasskeyMetadata } from '@/client/createSeamlessAuthClient';
-import { getPasskeyPolicyErrorCode, type PasskeyPolicyErrorCode } from '@/client/errors';
+import {
+  getPasskeyPolicyErrorCode,
+  isUnauthenticated,
+  type PasskeyPolicyErrorCode,
+} from '@/client/errors';
 import React, { useState } from 'react';
 import { useAuthClient } from '@/hooks/useAuthClient';
 import { hasNonPasskeyLoginMethod, useLoginMethods } from '@/hooks/useLoginMethods';
@@ -86,8 +90,16 @@ const PasskeyRegistration: React.FC = () => {
       console.error('Passkey registration failed.');
       setStatus('error');
       // A policy refusal names something the user can act on, for example
-      // reaching for a security key instead. Anything else stays generic.
-      setMessage(policyRefusalMessage(error) ?? 'Error registering passkey.');
+      // reaching for a security key instead. A 401 is the session, not the
+      // authenticator: enrollment takes the signed-in one, so the answer is to
+      // sign in again rather than to try a different key. Anything else stays
+      // generic.
+      setMessage(
+        policyRefusalMessage(error) ??
+          (isUnauthenticated(error)
+            ? 'Your session expired before the passkey was saved. Sign in again to add one.'
+            : 'Error registering passkey.')
+      );
     }
   };
 

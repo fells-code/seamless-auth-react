@@ -13,6 +13,9 @@ import {
   OAuthProvidersResult,
   OrganizationSwitchResult,
   PasskeyLoginData,
+  PasskeyMetadata,
+  PasskeyRegistrationData,
+  RegisterPasskeyOptions,
   StartOAuthLoginInput,
   StartOAuthLoginResult,
   StepUpPrfData,
@@ -65,6 +68,9 @@ export interface AuthContextType {
     passkeyAvailable: boolean
   ) => Promise<SeamlessAuthResult<LoginStartResult>>;
   handlePasskeyLogin: () => Promise<SeamlessAuthResult<PasskeyLoginData>>;
+  registerPasskey: (
+    input: PasskeyMetadata | RegisterPasskeyOptions
+  ) => Promise<SeamlessAuthResult<PasskeyRegistrationData>>;
   refreshStepUpStatus: () => Promise<SeamlessAuthResult<StepUpStatus>>;
   verifyStepUpWithPasskey: () => Promise<SeamlessAuthResult<StepUpStatus>>;
   verifyStepUpWithPasskeyPrf: (
