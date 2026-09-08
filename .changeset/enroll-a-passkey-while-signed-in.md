@@ -11,7 +11,9 @@ be listed and deleted but never added. The context version refreshes the session
 afterwards, so a settings screen renders the new passkey without a reload.
 
 Enrollment now requires a signed-in session, which is a coordinated change with
-`seamless-auth-api` and the server adapters. The signup flow already satisfies it, because
+`seamless-auth-api` and the server adapters. Upgrade all three together: the auth API and
+the adapter have no safe release order between them, and enrollment answers `401` until
+both land. The signup flow already satisfies it, because
 verifying the email OTP issues a session before the passkey screen is reached, so nothing
 in the bundled views moves. An application that called `registerPasskey()` before
 verifying an address has to move that call after it.
