@@ -5,17 +5,18 @@
   "type": "module",
   "workspaces": [
     "packages/client",
-    "packages/react"
+    "packages/react",
+    "packages/react-native"
   ],
   "engines": {
     "node": ">=24.0.0 <25.0.0",
     "npm": ">=9.0.0 <13.0.0"
   },
   "scripts": {
-    "build": "npm run build -w @seamless-auth/client && npm run build -w @seamless-auth/react",
+    "build": "npm run build -w @seamless-auth/client && npm run build -w @seamless-auth/react && npm run build -w @seamless-auth/react-native",
     "test": "jest",
     "coverage": "npm test -- --coverage",
-    "typecheck": "npm run typecheck -w @seamless-auth/client && npm run typecheck -w @seamless-auth/react",
+    "typecheck": "npm run typecheck -w @seamless-auth/client && npm run typecheck -w @seamless-auth/react && npm run typecheck -w @seamless-auth/react-native",
     "lint": "eslint ./packages",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
