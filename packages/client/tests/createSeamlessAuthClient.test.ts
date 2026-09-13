@@ -5,7 +5,7 @@
  */
 
 import { createSeamlessAuthClient } from '../src/client/createSeamlessAuthClient';
-import { createFetchWithAuth } from '../src/fetchWithAuth';
+import { createFetchTransport, createFetchWithAuth } from '../src/fetchWithAuth';
 import {
   startAuthentication,
   startRegistration,
@@ -56,6 +56,12 @@ jest.mock('@simplewebauthn/browser', () => ({
 const mockFetchWithAuth = jest.fn();
 
 (createFetchWithAuth as jest.Mock).mockReturnValue(mockFetchWithAuth);
+(createFetchTransport as jest.Mock).mockImplementation(() => ({
+  fetch: mockFetchWithAuth,
+  authorizedFetch: jest.fn(),
+  mode: 'cookie',
+  clearTokens: jest.fn(),
+}));
 
 describe('createSeamlessAuthClient', () => {
   beforeEach(() => {
@@ -64,6 +70,39 @@ describe('createSeamlessAuthClient', () => {
     (startAuthentication as jest.Mock).mockReset();
     (startRegistration as jest.Mock).mockReset();
     (createFetchWithAuth as jest.Mock).mockReturnValue(mockFetchWithAuth);
+    (createFetchTransport as jest.Mock).mockImplementation(() => ({
+      fetch: mockFetchWithAuth,
+      authorizedFetch: jest.fn(),
+      mode: 'cookie',
+      clearTokens: jest.fn(),
+    }));
+  });
+
+  it('authorizedFetch resolves a path on apiHost and passes a full URL through', async () => {
+    const authorizedFetch = jest.fn().mockResolvedValue({ ok: true });
+    (createFetchTransport as jest.Mock).mockImplementation(() => ({
+      fetch: mockFetchWithAuth,
+      authorizedFetch,
+      mode: 'bearer',
+      clearTokens: jest.fn(),
+    }));
+    const client = createSeamlessAuthClient({ apiHost: 'https://api.example.com/' });
+
+    await client.authorizedFetch('/api/plan', { method: 'GET' });
+    await client.authorizedFetch('https://other.example.com/x');
+
+    expect(authorizedFetch).toHaveBeenNthCalledWith(
+      1,
+      'https://api.example.com/api/plan',
+      {
+        method: 'GET',
+      }
+    );
+    expect(authorizedFetch).toHaveBeenNthCalledWith(
+      2,
+      'https://other.example.com/x',
+      undefined
+    );
   });
 
   it('forwards login requests through the shared auth fetch helper', async () => {
