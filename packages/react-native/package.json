@@ -1,6 +1,6 @@
 {
   "name": "@seamless-auth/react-native",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "description": "Headless React Native binding for Seamless Auth: provider, hooks, and the native ports for passkeys, secure token storage, and in-app browser OAuth.",
   "type": "module",
   "exports": {
@@ -45,7 +45,7 @@
     "react": "^18.0.0 || ^19.0.0"
   },
   "dependencies": {
-    "@seamless-auth/client": "^0.0.0",
+    "@seamless-auth/client": "^0.1.0",
     "@seamless-auth/types": "^0.20.0"
   },
   "sideEffects": false
