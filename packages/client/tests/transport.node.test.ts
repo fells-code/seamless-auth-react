@@ -457,6 +457,23 @@ describe('bearer transport', () => {
     });
   });
 
+  it('authorizedFetch treats a URL under the adapter mount as an adapter call', async () => {
+    const storage = createMemoryTokenStorage();
+    await storage.set({ accessToken: 'access-1', refreshToken: 'refresh-1' });
+    const { calls, fetchImpl } = scriptedFetch(() => jsonResponse(200, { sessions: [] }));
+
+    const response = await bearer(fetchImpl, storage).authorizedFetch(`${API}/auth/sessions`, {
+      method: 'GET',
+    });
+
+    expect(response.status).toBe(200);
+    expect(calls[0].url).toBe(`${API}/auth/sessions`);
+    expect(headersOf(calls[0])).toEqual({
+      Authorization: 'Bearer access-1',
+      [AUTH_TRANSPORT_HEADER]: 'bearer',
+    });
+  });
+
   it('authorizedFetch refreshes once on a 401 and retries', async () => {
     const storage = createMemoryTokenStorage();
     await storage.set({ accessToken: 'access-old', refreshToken: 'refresh-old' });
