@@ -6,7 +6,7 @@
 
 import { createAuthSession } from '../src/session/createAuthSession';
 import { createMemoryStorage, SessionStoragePort } from '../src/session/storage';
-import { createFetchWithAuth } from '../src/fetchWithAuth';
+import { createFetchTransport, createFetchWithAuth } from '../src/fetchWithAuth';
 import { startRegistration } from '@simplewebauthn/browser';
 
 jest.mock('../src/fetchWithAuth');
@@ -19,6 +19,12 @@ jest.mock('@simplewebauthn/browser', () => ({
 const mockFetchWithAuth = jest.fn();
 
 (createFetchWithAuth as jest.Mock).mockReturnValue(mockFetchWithAuth);
+(createFetchTransport as jest.Mock).mockImplementation(() => ({
+  fetch: mockFetchWithAuth,
+  authorizedFetch: jest.fn(),
+  mode: 'cookie',
+  clearTokens: jest.fn(),
+}));
 
 const apiHost = 'https://api.example.com';
 
@@ -44,6 +50,12 @@ describe('createAuthSession', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     (createFetchWithAuth as jest.Mock).mockReturnValue(mockFetchWithAuth);
+    (createFetchTransport as jest.Mock).mockImplementation(() => ({
+      fetch: mockFetchWithAuth,
+      authorizedFetch: jest.fn(),
+      mode: 'cookie',
+      clearTokens: jest.fn(),
+    }));
   });
 
   it('starts signed out and loading, before anything is requested', () => {
@@ -348,6 +360,56 @@ describe('createAuthSession', () => {
       expect(session.actions.hasRole('admin')).toBe(true);
       expect(session.actions.hasRole('owner')).toBe(false);
       expect(session.actions.hasScopedRole('admin:read')).toBe(true);
+    });
+  });
+
+  describe('client ownership', () => {
+    it('exposes the client it drives so a binding can hand out the same instance', () => {
+      const session = buildSession();
+
+      expect(typeof session.client.login).toBe('function');
+      expect(session.client).toBe(session.client);
+    });
+
+    it('drives an injected client instead of building one', async () => {
+      const getCurrentUser = jest.fn().mockResolvedValue({
+        data: { user, credentials: [] },
+        error: null,
+      });
+      const client = { getCurrentUser } as never;
+
+      const session = createAuthSession({
+        apiHost,
+        client,
+        storage: createMemoryStorage(),
+      });
+      await session.actions.refreshSession();
+
+      expect(session.client).toBe(client);
+      expect(getCurrentUser).toHaveBeenCalledTimes(1);
+      expect(session.getState().user).toEqual(user);
+    });
+
+    it('passes client options through when it builds the client itself', async () => {
+      const session = createAuthSession({
+        apiHost,
+        magicLinkRedirectUri: 'https://app.example.com/magic',
+        transport: { basePath: '/identity' },
+        storage: createMemoryStorage(),
+      });
+
+      mockFetchWithAuth.mockResolvedValueOnce(okResponse({ message: 'sent' }));
+      await session.client.requestMagicLink();
+
+      expect(createFetchTransport).toHaveBeenCalledWith(
+        expect.objectContaining({ authHost: apiHost, basePath: '/identity' })
+      );
+      expect(mockFetchWithAuth).toHaveBeenCalledWith(
+        '/magic-link',
+        expect.objectContaining({
+          body: JSON.stringify({ redirectUri: 'https://app.example.com/magic' }),
+        })
+      );
     });
   });
 });

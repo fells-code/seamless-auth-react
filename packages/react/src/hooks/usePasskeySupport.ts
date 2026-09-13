@@ -6,9 +6,10 @@
 
 import { useEffect, useState } from 'react';
 
-import { isPasskeySupported } from '@/utils';
+import { useAuth } from '@/AuthProvider';
 
 export const usePasskeySupport = () => {
+  const { ports } = useAuth();
   const [passkeySupported, setPasskeySupported] = useState(false);
   const [loading, setLoading] = useState(true);
 
@@ -17,7 +18,9 @@ export const usePasskeySupport = () => {
 
     const checkSupport = async () => {
       try {
-        const supported = await isPasskeySupported();
+        const supported =
+          ports.passkeys.isSupported() &&
+          (await ports.passkeys.isPlatformAuthenticatorAvailable());
         if (active) {
           setPasskeySupported(supported);
         }
@@ -37,7 +40,7 @@ export const usePasskeySupport = () => {
     return () => {
       active = false;
     };
-  }, []);
+  }, [ports.passkeys]);
 
   return { passkeySupported, loading };
 };

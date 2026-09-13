@@ -4,20 +4,13 @@
  * See LICENSE file in the project root for full license information
  */
 
-import { useMemo } from 'react';
-
 import { useAuth } from '@/AuthProvider';
-import { createSeamlessAuthClient } from '@seamless-auth/client';
 
+/**
+ * The client behind the provider's session. The same instance the store
+ * drives, not a second one: in bearer transport the client holds the sign-in
+ * in flight, and a second client would not see it.
+ */
 export const useAuthClient = () => {
-  const { apiHost, magicLinkRedirectUri } = useAuth();
-
-  return useMemo(
-    () =>
-      createSeamlessAuthClient({
-        apiHost,
-        magicLinkRedirectUri,
-      }),
-    [apiHost, magicLinkRedirectUri]
-  );
+  return useAuth().client;
 };

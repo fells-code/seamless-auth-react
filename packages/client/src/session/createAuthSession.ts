@@ -17,6 +17,8 @@ import {
   PasskeyMetadata,
   PasskeyRegistrationData,
   RegisterPasskeyOptions,
+  SeamlessAuthClient,
+  SeamlessAuthClientOptions,
   StartOAuthLoginInput,
   StartOAuthLoginResult,
   StepUpPrfData,
@@ -89,11 +91,19 @@ export interface AuthSession {
   getState: () => AuthSessionState;
   subscribe: (listener: () => void) => () => void;
   actions: AuthSessionActions;
+  /**
+   * The client the store drives. Bindings hand this same instance to custom
+   * UI rather than building a second one: in bearer transport the client
+   * holds the sign-in in flight, and two clients would not see each other's.
+   */
+  client: SeamlessAuthClient;
   destroy: () => void;
 }
 
-export interface AuthSessionOptions {
+export interface AuthSessionOptions extends Omit<SeamlessAuthClientOptions, 'apiHost'> {
   apiHost: string;
+  /** A ready-made client. When given, the other client options are ignored. */
+  client?: SeamlessAuthClient;
   storage?: SessionStoragePort;
   /**
    * When false, a previous sign-in is still recorded but never surfaced, so a UI
@@ -112,9 +122,16 @@ const SIGNED_OUT = {
 } satisfies Partial<AuthSessionState>;
 
 export function createAuthSession(options: AuthSessionOptions): AuthSession {
-  const { apiHost, detectPreviousSignIn = true } = options;
-  const client = createSeamlessAuthClient({ apiHost });
-  const storage = options.storage ?? createDefaultStorage();
+  const {
+    apiHost,
+    detectPreviousSignIn = true,
+    client: providedClient,
+    storage: providedStorage,
+    ...clientOptions
+  } = options;
+  const client =
+    providedClient ?? createSeamlessAuthClient({ ...clientOptions, apiHost });
+  const storage = providedStorage ?? createDefaultStorage();
   const listeners = new Set<() => void>();
 
   let destroyed = false;
@@ -364,6 +381,7 @@ export function createAuthSession(options: AuthSessionOptions): AuthSession {
       };
     },
     actions,
+    client,
     destroy: () => {
       destroyed = true;
       listeners.clear();

@@ -4,7 +4,7 @@
  * See LICENSE file in the project root for full license information
  */
 
-import { AuthContextType, AuthProvider, useAuth } from '@/AuthProvider';
+import { AuthContextType, AuthPorts, AuthProvider, useAuth } from '@/AuthProvider';
 import { AuthRoutes } from '@/AuthRoutes';
 import {
   createSeamlessAuthClient,
@@ -63,6 +63,7 @@ import {
   PasskeyPrfResult,
 } from '@seamless-auth/client';
 import { useAuthClient } from '@/hooks/useAuthClient';
+import { useAuthorizedFetch } from '@/hooks/useAuthorizedFetch';
 import { hasNonPasskeyLoginMethod, useLoginMethods } from '@/hooks/useLoginMethods';
 import { usePasskeySupport } from '@/hooks/usePasskeySupport';
 import { hasScopedRole, roleGrantsAccess } from '@seamless-auth/client';
@@ -71,6 +72,14 @@ import {
   Organization,
   OrganizationMembership,
   User,
+} from '@seamless-auth/client';
+import type {
+  OAuthRedirectOutcome,
+  OAuthRedirectPort,
+  PasskeyPort,
+  StoredTokens,
+  TokenStoragePort,
+  TransportOptions,
 } from '@seamless-auth/client';
 
 export {
@@ -90,12 +99,14 @@ export {
   SeamlessAuthError,
   useAuth,
   useAuthClient,
+  useAuthorizedFetch,
   useLoginMethods,
   usePasskeySupport,
 };
 export type {
   CredentialUpdateResult,
   AuthContextType,
+  AuthPorts,
   Credential,
   CreateOrganizationInput,
   CurrentUserResult,
@@ -108,6 +119,8 @@ export type {
   OAuthErrorCode,
   OAuthProvider,
   OAuthProvidersResult,
+  OAuthRedirectOutcome,
+  OAuthRedirectPort,
   Organization,
   OrganizationMemberInput,
   OrganizationMembership,
@@ -121,6 +134,7 @@ export type {
   PasskeyAttachment,
   PasskeyMetadata,
   PasskeyPolicyErrorCode,
+  PasskeyPort,
   PasskeyPrfInput,
   PasskeyPrfResult,
   PasskeyRegistrationData,
@@ -135,8 +149,11 @@ export type {
   StepUpMethod,
   StepUpStatus,
   StepUpPrfData,
+  StoredTokens,
+  TokenStoragePort,
   TotpEnrollmentStartResult,
   TotpStatus,
+  TransportOptions,
   UpdateOrganizationInput,
   User,
   WebAuthnErrorDetail,

@@ -4,14 +4,11 @@
  * See LICENSE file in the project root for full license information
  */
 
-import {
-  startAuthentication,
-  startRegistration,
-  type AuthenticationResponseJSON,
-  type PublicKeyCredentialCreationOptionsJSON,
-  type PublicKeyCredentialRequestOptionsJSON,
-  type RegistrationResponseJSON,
-  WebAuthnError,
+import type {
+  AuthenticationResponseJSON,
+  PublicKeyCredentialCreationOptionsJSON,
+  PublicKeyCredentialRequestOptionsJSON,
+  RegistrationResponseJSON,
 } from '@simplewebauthn/browser';
 
 import type {
@@ -43,7 +40,10 @@ import type {
   UpdateOrganizationRequest,
 } from '@seamless-auth/types';
 
-import { createFetchWithAuth } from '../fetchWithAuth';
+import { createFetchTransport } from '../fetchWithAuth';
+import { createBrowserPasskeyPort } from '../ports/browserPasskeys';
+import { isPasskeyCeremonyError, type PasskeyPort } from '../ports/passkeys';
+import type { TransportOptions } from '../transport';
 import { getWebAuthnErrorDetail } from './errors';
 import {
   NETWORK_ERROR_STATUS,
@@ -56,7 +56,6 @@ import {
   createPrfRequestBody,
   extractPasskeyPrfResult,
   getRegistrationPrfCapable,
-  isPasskeyPrfSupported,
   PasskeyPrfInput,
   PasskeyPrfResult,
   preparePrfRequestOptions,
@@ -71,6 +70,14 @@ export interface SeamlessAuthClientOptions {
    * destination as the send it repeats. Omit it to keep the deployment's.
    */
   magicLinkRedirectUri?: string;
+  /**
+   * How the session travels. Defaults to cookie transport, the browser
+   * contract. A native binding sets `mode: 'bearer'` and supplies a
+   * `tokenStorage` backed by the platform keystore.
+   */
+  transport?: Omit<TransportOptions, 'apiHost'>;
+  /** Who runs the passkey ceremonies. Defaults to the browser. */
+  passkeys?: PasskeyPort;
 }
 
 export interface LoginInput {
@@ -237,9 +244,17 @@ export interface LogoutOptions {
  * Every request resolves to a `SeamlessAuthResult`: check `error` first, then
  * read `data`. Nothing here throws for an HTTP or transport failure.
  * `isPasskeyPrfSupported` is the one exception, since it is a local capability
- * check rather than a request.
+ * check rather than a request, and `authorizedFetch` returns the raw `Response`
+ * because the body is the application's, not this client's.
  */
 export interface SeamlessAuthClient {
+  /**
+   * A request to the application's own API, carrying the session the way the
+   * transport does: cookies in cookie transport, the access token (refreshed
+   * once on a 401) in bearer transport. `input` is a full URL or a path on
+   * `apiHost`.
+   */
+  authorizedFetch: (input: string | URL, init?: RequestInit) => Promise<Response>;
   getCurrentUser: () => Promise<SeamlessAuthResult<CurrentUserResult>>;
   login: (input: LoginInput) => Promise<SeamlessAuthResult<LoginStartResult>>;
   loginWithPasskey: (
@@ -422,11 +437,22 @@ function webAuthnFailure<T>(
 export const createSeamlessAuthClient = (
   opts: SeamlessAuthClientOptions
 ): SeamlessAuthClient => {
-  const fetchWithAuth = createFetchWithAuth({
+  const transport = createFetchTransport({
+    ...opts.transport,
     authHost: opts.apiHost,
   });
+  const fetchWithAuth = transport.fetch;
+  const passkeys = opts.passkeys ?? createBrowserPasskeyPort();
+
+  const host = opts.apiHost.replace(/\/+$/, '');
 
   return {
+    authorizedFetch: (input, init) =>
+      transport.authorizedFetch(
+        typeof input === 'string' && input.startsWith('/') ? `${host}${input}` : input,
+        init
+      ),
+
     getCurrentUser: () =>
       requestResult<CurrentUserResult>(
         fetchWithAuth(`users/me`, { method: 'GET' }),
@@ -458,9 +484,7 @@ export const createSeamlessAuthClient = (
       let assertionResponse: AuthenticationResponseJSON;
 
       try {
-        const credential = (await startAuthentication({
-          optionsJSON: preparePrfRequestOptions(started.data),
-        })) as AuthenticationResponseJSON;
+        const credential = await passkeys.get(preparePrfRequestOptions(started.data));
         prf = extractPasskeyPrfResult(credential);
         assertionResponse = stripPrfResultsFromAssertion(credential);
       } catch (error) {
@@ -685,9 +709,9 @@ export const createSeamlessAuthClient = (
       let attestationResponse: RegistrationResponseJSON;
 
       try {
-        attestationResponse = await startRegistration({ optionsJSON: challenge.data });
+        attestationResponse = await passkeys.create(challenge.data);
       } catch (error) {
-        if (error instanceof WebAuthnError) {
+        if (isPasskeyCeremonyError(error)) {
           // The authenticator name is the useful detail here, for example
           // InvalidStateError when the passkey already exists.
           return resultError(error.name, NETWORK_ERROR_STATUS, undefined, error);
@@ -720,7 +744,7 @@ export const createSeamlessAuthClient = (
       return resultOf({ credentialId: attestationResponse.id, prfCapable });
     },
 
-    isPasskeyPrfSupported,
+    isPasskeyPrfSupported: async () => passkeys.isSupported(),
 
     getStepUpStatus: () =>
       requestResult<StepUpStatus>(
@@ -741,9 +765,7 @@ export const createSeamlessAuthClient = (
       let assertionResponse: AuthenticationResponseJSON;
 
       try {
-        const credential = (await startAuthentication({
-          optionsJSON: preparePrfRequestOptions(started.data),
-        })) as AuthenticationResponseJSON;
+        const credential = await passkeys.get(preparePrfRequestOptions(started.data));
         assertionResponse = stripPrfResultsFromAssertion(credential);
       } catch (error) {
         return webAuthnFailure(
@@ -784,9 +806,7 @@ export const createSeamlessAuthClient = (
       let assertionResponse: AuthenticationResponseJSON;
 
       try {
-        const credential = (await startAuthentication({
-          optionsJSON: preparePrfRequestOptions(started.data),
-        })) as AuthenticationResponseJSON;
+        const credential = await passkeys.get(preparePrfRequestOptions(started.data));
         prf = extractPasskeyPrfResult(credential);
         assertionResponse = stripPrfResultsFromAssertion(credential);
       } catch (error) {

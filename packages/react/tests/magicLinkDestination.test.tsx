@@ -9,11 +9,17 @@ import { render, screen, fireEvent, act } from '@testing-library/react';
 import Login from '@/views/Login';
 import MagicLinkSent from '@/components/MagicLinkSent';
 import { useAuth } from '@/AuthProvider';
-import { createFetchWithAuth } from '../../client/src/fetchWithAuth';
+import {
+  createFetchTransport,
+  createFetchWithAuth,
+} from '../../client/src/fetchWithAuth';
+import { createSeamlessAuthClient } from '@seamless-auth/client';
 import { useNavigate, useLocation } from 'react-router-dom';
 
 // `useAuthClient` and the client itself stay real here: the whole point is that
 // the destination survives the trip from provider config into the request body.
+// The provider is mocked, so the client it would have built is built here from
+// the same config.
 jest.mock('@/AuthProvider');
 jest.mock('../../client/src/fetchWithAuth');
 jest.mock('@/utils', () => ({
@@ -32,6 +38,29 @@ jest.mock('@/components/AuthFallbackOptions', () => (props: any) => (
 
 const REDIRECT_URI = 'https://app.example.com/auth/magic';
 
+const noPasskeys = {
+  isSupported: () => false,
+  isPlatformAuthenticatorAvailable: async () => false,
+  create: jest.fn(),
+  get: jest.fn(),
+};
+
+const authContext = (magicLinkRedirectUri: string | undefined) => ({
+  apiHost: 'https://api.example.com',
+  magicLinkRedirectUri,
+  client: createSeamlessAuthClient({
+    apiHost: 'https://api.example.com',
+    magicLinkRedirectUri,
+    passkeys: noPasskeys,
+  }),
+  ports: { passkeys: noPasskeys },
+  hasSignedInBefore: true,
+  refreshSession: jest.fn(),
+  listOAuthProviders: jest.fn().mockResolvedValue({ providers: [] }),
+  login: jest.fn().mockResolvedValue({ data: {}, error: null }),
+  handlePasskeyLogin: jest.fn().mockResolvedValue(false),
+});
+
 const mockFetchWithAuth = jest.fn();
 
 /** The body of every POST the client made to /magic-link, in order. */
@@ -43,6 +72,12 @@ const magicLinkBodies = (): string[] =>
 describe('magic link destination in the bundled views', () => {
   beforeEach(() => {
     (createFetchWithAuth as jest.Mock).mockReturnValue(mockFetchWithAuth);
+    (createFetchTransport as jest.Mock).mockImplementation(() => ({
+      fetch: mockFetchWithAuth,
+      authorizedFetch: jest.fn(),
+      mode: 'cookie',
+      clearTokens: jest.fn(),
+    }));
     mockFetchWithAuth.mockResolvedValue({
       ok: true,
       json: async () => ({ message: 'Success' }),
@@ -53,15 +88,7 @@ describe('magic link destination in the bundled views', () => {
       state: { identifier: 'test@example.com' },
     });
 
-    (useAuth as jest.Mock).mockReturnValue({
-      apiHost: 'https://api.example.com',
-      magicLinkRedirectUri: REDIRECT_URI,
-      hasSignedInBefore: true,
-      refreshSession: jest.fn(),
-      listOAuthProviders: jest.fn().mockResolvedValue({ providers: [] }),
-      login: jest.fn().mockResolvedValue({ data: {}, error: null }),
-      handlePasskeyLogin: jest.fn().mockResolvedValue(false),
-    });
+    (useAuth as jest.Mock).mockReturnValue(authContext(REDIRECT_URI));
   });
 
   afterEach(() => {
@@ -121,10 +148,7 @@ describe('magic link destination in the bundled views', () => {
   });
 
   it('falls back to the deployment destination when none is configured', async () => {
-    (useAuth as jest.Mock).mockReturnValue({
-      ...(useAuth as jest.Mock)(),
-      magicLinkRedirectUri: undefined,
-    });
+    (useAuth as jest.Mock).mockReturnValue(authContext(undefined));
 
     await sendFromLogin();
     await resendFromMagicLinkSent();

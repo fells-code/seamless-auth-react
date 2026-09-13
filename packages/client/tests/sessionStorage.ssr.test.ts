@@ -11,6 +11,12 @@ import { createDefaultStorage } from '@/session/storage';
 
 jest.mock('@/fetchWithAuth', () => ({
   createFetchWithAuth: () => jest.fn(),
+  createFetchTransport: () => ({
+    fetch: jest.fn(),
+    authorizedFetch: jest.fn(),
+    mode: 'cookie',
+    clearTokens: jest.fn(),
+  }),
 }));
 
 // Runs under the node environment, where `localStorage` genuinely does not

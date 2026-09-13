@@ -37,9 +37,43 @@ than redeclaring shapes.
 
 ## Transport
 
-Today the client speaks the cookie contract: requests go to `${apiHost}/auth/*`
-with `credentials: 'include'` and the server adapter holds the tokens. A bearer
-transport for native clients is the next change to this package.
+`createSeamlessAuthClient` takes a `transport` option:
+
+- cookie transport, the default: requests go to `${apiHost}/auth/*` with
+  `credentials: 'include'` and the server adapter holds the tokens. The browser
+  contract.
+- bearer transport (`{ mode: 'bearer', tokenStorage }`): the client holds the auth
+  API's own tokens. Every request carries `x-seamless-auth-transport: bearer`;
+  pre-auth routes carry the ephemeral token `/login` or `/registration/register`
+  returned (kept in memory only), signed-in routes carry the access token; the
+  pair a sign-in returns is written through the `TokenStoragePort`; a 401 on a
+  signed-in route triggers one `POST /refresh` and one retry, with at most one
+  refresh in flight. The native contract.
+
+Which routes take which token is one table, `ROUTE_RULES` in `src/transport.ts`,
+mirroring the server adapter's own map.
+
+`client.authorizedFetch(input, init)` is a fetch for the application's own API
+that carries the session the same way: cookies in cookie transport, the access
+token with one refresh-and-retry on a 401 in bearer transport. It never reads
+tokens out of the response, since that body is the application's.
+
+## Ports
+
+- `PasskeyPort`: who runs the WebAuthn ceremonies. `createBrowserPasskeyPort()`
+  (SimpleWebAuthn) is the default. A port throws `PasskeyCeremonyError` (or an
+  error with a DOMException `name` and a string `code`) when the authenticator
+  refuses, which the client turns into the same result a browser failure gives.
+- `TokenStoragePort`: where a bearer session lives. `createMemoryTokenStorage()`
+  is the default and does not survive a restart; a native binding supplies one
+  over the platform keystore.
+- `OAuthRedirectPort`: how the provider is opened. `createBrowserOAuthRedirect()`
+  navigates the page; a native port opens an in-app browser session and resolves
+  with the callback's `code` and `state`.
+
+`createAuthSession` accepts the same client options, or a ready-made `client`,
+and exposes the client it drives as `session.client` so a binding hands out one
+instance rather than two.
 
 ## License
 

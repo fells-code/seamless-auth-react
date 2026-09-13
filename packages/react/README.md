@@ -197,6 +197,47 @@ result.
 Custom UIs get the same default through `useAuthClient()`, and can still override a single send with
 `requestMagicLink(uri)`.
 
+### Platform ports and transport
+
+Everything that differs between a browser and another platform sits behind a port on
+`AuthProvider`. A web application configures nothing; the browser implementations are the
+defaults. A binding for another platform (React Native is the first) supplies its own:
+
+```tsx
+<AuthProvider
+  apiHost={apiHost}
+  transport={{ mode: 'bearer', tokenStorage: keystoreTokenStorage }}
+  ports={{ passkeys: nativePasskeys, oauthRedirect: inAppBrowserRedirect }}
+>
+  <App />
+</AuthProvider>
+```
+
+- `transport` selects how the session travels. Cookie transport, the default, is the browser
+  contract: the server adapter holds the tokens in `httpOnly` cookies and the client never sees
+  them. Bearer transport is the native contract: the client holds the auth API's own tokens,
+  presents the one a route needs in `Authorization`, stores the pair a sign-in returns through
+  `tokenStorage`, and refreshes once through `POST /auth/refresh` when a request answers 401. At
+  most one refresh is in flight at a time, because the auth API treats a replayed refresh token as
+  theft and revokes the chain.
+- `ports.passkeys` runs the WebAuthn ceremonies (`create`, `get`, and the two support checks).
+  `usePasskeySupport()` and every passkey flow go through it.
+- `ports.oauthRedirect` opens the provider. The browser navigates away and the callback route
+  finishes the login; a port that receives the callback itself (an in-app browser session)
+  resolves with the `code` and `state`, and the built-in buttons finish the login on the spot.
+
+`useAuthClient()` returns the same client instance the provider's session drives. In bearer
+transport that matters: the client holds the sign-in in flight, and a second client would not see it.
+
+`useAuthorizedFetch()` (or `client.authorizedFetch`) is a fetch for your own API that carries the
+session the way the transport does: `credentials: 'include'` in cookie transport, the access token
+with one refresh-and-retry on a 401 in bearer transport. A path resolves on `apiHost`.
+
+```ts
+const authorizedFetch = useAuthorizedFetch();
+const plan = await authorizedFetch('/api/plan/mine').then(r => r.json());
+```
+
 ### Scoped roles
 
 `hasRole(role)` remains an exact role check. Use `hasScopedRole(role)` for colon-separated scoped
@@ -1059,8 +1100,10 @@ This package assumes a Seamless Auth-compatible backend with the auth adapter mo
 
 - Requests target `${apiHost}/auth/...`
 - `apiHost` may be provided with or without a trailing slash
-- Requests are sent with `credentials: 'include'`
+- In cookie transport (the default) requests are sent with `credentials: 'include'`; in bearer
+  transport they carry `x-seamless-auth-transport: bearer` and an `Authorization` header instead
 - `AuthProvider` validates the current session by calling `/users/me` on load
+- Bearer transport additionally uses `POST /refresh`
 
 The built-in flows assume compatible endpoints for:
 

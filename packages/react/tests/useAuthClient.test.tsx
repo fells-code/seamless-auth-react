@@ -7,40 +7,22 @@
 import { renderHook } from '@testing-library/react';
 
 import { useAuth } from '@/AuthProvider';
-import { createSeamlessAuthClient } from '../../client/src/client/createSeamlessAuthClient';
 import { useAuthClient } from '@/hooks/useAuthClient';
 
 jest.mock('@/AuthProvider');
-jest.mock('../../client/src/client/createSeamlessAuthClient');
 
 describe('useAuthClient', () => {
-  it('creates a client from the current auth config', () => {
+  it('returns the client the provider session already drives', () => {
     const client = { login: jest.fn() };
     (useAuth as jest.Mock).mockReturnValue({
       apiHost: 'https://api.example.com',
+      client,
     });
-    (createSeamlessAuthClient as jest.Mock).mockReturnValue(client);
 
     const { result } = renderHook(() => useAuthClient());
 
-    expect(createSeamlessAuthClient).toHaveBeenCalledWith({
-      apiHost: 'https://api.example.com',
-    });
+    // The same instance, not a copy: in bearer transport the client holds the
+    // sign-in in flight, and a second client would not see it.
     expect(result.current).toBe(client);
-  });
-
-  it('passes the magic link destination through to the client', () => {
-    (useAuth as jest.Mock).mockReturnValue({
-      apiHost: 'https://api.example.com',
-      magicLinkRedirectUri: 'https://app.example.com/magic',
-    });
-    (createSeamlessAuthClient as jest.Mock).mockReturnValue({});
-
-    renderHook(() => useAuthClient());
-
-    expect(createSeamlessAuthClient).toHaveBeenCalledWith({
-      apiHost: 'https://api.example.com',
-      magicLinkRedirectUri: 'https://app.example.com/magic',
-    });
   });
 });
