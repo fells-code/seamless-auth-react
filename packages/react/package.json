@@ -1,0 +1,56 @@
+{
+  "name": "@seamless-auth/react",
+  "version": "0.12.0",
+  "description": "A drop-in authentication solution for modern React applications.",
+  "type": "module",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist",
+    "README.md",
+    "CHANGELOG.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=24.0.0 <25.0.0",
+    "npm": ">=9.0.0 <13.0.0"
+  },
+  "scripts": {
+    "build": "node ../../scripts/clean-dist.mjs && rollup -c && tsc-alias -p tsconfig.build.json",
+    "typecheck": "tsc --noEmit -p tsconfig.dev.json",
+    "check-npm-build": "npm pack --dry-run"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/fells-code/seamless-auth-react.git",
+    "directory": "packages/react"
+  },
+  "author": "Fells Code, LLC",
+  "license": "AGPL-3.0-only",
+  "bugs": {
+    "url": "https://github.com/fells-code/seamless-auth-react/issues"
+  },
+  "homepage": "https://github.com/fells-code/seamless-auth-react#readme",
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/",
+    "provenance": true
+  },
+  "peerDependencies": {
+    "react": "^18.0.0 || ^19.0.0",
+    "react-dom": "^18.0.0 || ^19.0.0",
+    "react-router-dom": "^6.4.0 || ^7.15.1"
+  },
+  "dependencies": {
+    "@seamless-auth/client": "^0.0.0",
+    "@seamless-auth/types": "^0.20.0",
+    "@simplewebauthn/browser": "^13.1.0",
+    "libphonenumber-js": "^1.12.7"
+  },
+  "sideEffects": false
+}
