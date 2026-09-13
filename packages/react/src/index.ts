@@ -63,6 +63,7 @@ import {
   PasskeyPrfResult,
 } from '@seamless-auth/client';
 import { useAuthClient } from '@/hooks/useAuthClient';
+import { useAuthorizedFetch } from '@/hooks/useAuthorizedFetch';
 import { hasNonPasskeyLoginMethod, useLoginMethods } from '@/hooks/useLoginMethods';
 import { usePasskeySupport } from '@/hooks/usePasskeySupport';
 import { hasScopedRole, roleGrantsAccess } from '@seamless-auth/client';
@@ -98,6 +99,7 @@ export {
   SeamlessAuthError,
   useAuth,
   useAuthClient,
+  useAuthorizedFetch,
   useLoginMethods,
   usePasskeySupport,
 };

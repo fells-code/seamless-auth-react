@@ -9,7 +9,10 @@ import { render, screen, fireEvent, act } from '@testing-library/react';
 import Login from '@/views/Login';
 import MagicLinkSent from '@/components/MagicLinkSent';
 import { useAuth } from '@/AuthProvider';
-import { createFetchWithAuth } from '../../client/src/fetchWithAuth';
+import {
+  createFetchTransport,
+  createFetchWithAuth,
+} from '../../client/src/fetchWithAuth';
 import { createSeamlessAuthClient } from '@seamless-auth/client';
 import { useNavigate, useLocation } from 'react-router-dom';
 
@@ -69,6 +72,12 @@ const magicLinkBodies = (): string[] =>
 describe('magic link destination in the bundled views', () => {
   beforeEach(() => {
     (createFetchWithAuth as jest.Mock).mockReturnValue(mockFetchWithAuth);
+    (createFetchTransport as jest.Mock).mockImplementation(() => ({
+      fetch: mockFetchWithAuth,
+      authorizedFetch: jest.fn(),
+      mode: 'cookie',
+      clearTokens: jest.fn(),
+    }));
     mockFetchWithAuth.mockResolvedValue({
       ok: true,
       json: async () => ({ message: 'Success' }),

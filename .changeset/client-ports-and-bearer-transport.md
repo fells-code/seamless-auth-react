@@ -28,6 +28,10 @@ defaults. A web application configures nothing and behaves exactly as before.
   `createBrowserOAuthRedirect()` is the default; a port that receives the callback itself resolves
   with `code` and `state`, and the buttons finish the login on the spot.
 - `TokenStoragePort` with `createMemoryTokenStorage()`.
+- `client.authorizedFetch(input, init)` and `useAuthorizedFetch()`: a fetch for the application's
+  own API that carries the session the way the transport does (cookies, or the access token with
+  one refresh-and-retry on a 401). A path resolves on `apiHost`. This is what a native app uses to
+  call routes behind `requireAuth`.
 - `createAuthSession` accepts the client options (or a ready-made `client`) and exposes the client
   it drives as `session.client`. `useAuthClient()` returns that same instance rather than building a
   second one, which bearer transport needs: the client holds the sign-in in flight.

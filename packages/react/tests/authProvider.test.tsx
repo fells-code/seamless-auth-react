@@ -7,7 +7,10 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import React, { StrictMode } from 'react';
 import { AuthProvider, useAuth } from '../src/AuthProvider';
-import { createFetchWithAuth } from '../../client/src/fetchWithAuth';
+import {
+  createFetchTransport,
+  createFetchWithAuth,
+} from '../../client/src/fetchWithAuth';
 
 jest.mock('../../client/src/fetchWithAuth');
 
@@ -15,6 +18,12 @@ jest.mock('../../client/src/fetchWithAuth');
 const mockFetchWithAuthImpl = jest.fn();
 // make createFetchWithAuth return our mock function
 (createFetchWithAuth as jest.Mock).mockReturnValue(mockFetchWithAuthImpl);
+(createFetchTransport as jest.Mock).mockImplementation(() => ({
+  fetch: mockFetchWithAuthImpl,
+  authorizedFetch: jest.fn(),
+  mode: 'cookie',
+  clearTokens: jest.fn(),
+}));
 
 const Consumer = () => {
   const auth = useAuth();
@@ -534,7 +543,7 @@ describe('AuthProvider', () => {
         );
       });
 
-      expect(createFetchWithAuth).toHaveBeenCalledWith(
+      expect(createFetchTransport).toHaveBeenCalledWith(
         expect.objectContaining({ authHost: apiHost, mode: 'bearer', tokenStorage })
       );
       expect((ports as { passkeys: unknown }).passkeys).toBe(passkeys);
@@ -577,7 +586,7 @@ describe('AuthProvider', () => {
       });
 
       // One session, so one client, so one session read on mount.
-      expect(createFetchWithAuth).toHaveBeenCalledTimes(1);
+      expect(createFetchTransport).toHaveBeenCalledTimes(1);
       expect(mockFetchWithAuthImpl).toHaveBeenCalledTimes(1);
     });
   });
