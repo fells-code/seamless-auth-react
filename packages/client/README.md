@@ -53,6 +53,11 @@ than redeclaring shapes.
 Which routes take which token is one table, `ROUTE_RULES` in `src/transport.ts`,
 mirroring the server adapter's own map.
 
+`client.authorizedFetch(input, init)` is a fetch for the application's own API
+that carries the session the same way: cookies in cookie transport, the access
+token with one refresh-and-retry on a 401 in bearer transport. It never reads
+tokens out of the response, since that body is the application's.
+
 ## Ports
 
 - `PasskeyPort`: who runs the WebAuthn ceremonies. `createBrowserPasskeyPort()`

@@ -94,6 +94,23 @@ describe('cookie transport', () => {
     expect(transport.mode).toBe('cookie');
   });
 
+  it('authorizedFetch sends credentials to any URL untouched', async () => {
+    const { calls, fetchImpl } = scriptedFetch(() => jsonResponse(200, {}));
+    const transport = createTransport({ apiHost: API, fetch: fetchImpl });
+
+    await transport.authorizedFetch(`${API}/api/plan`, { method: 'GET' });
+    await transport.authorizedFetch(new URL('https://other.example.com/x'), {
+      method: 'POST',
+      body: '{}',
+    });
+
+    expect(calls[0].url).toBe(`${API}/api/plan`);
+    expect(calls[0].init.credentials).toBe('include');
+    expect(headersOf(calls[0])).toEqual({});
+    expect(calls[1].url).toBe('https://other.example.com/x');
+    expect(headersOf(calls[1])).toEqual({ 'Content-Type': 'application/json' });
+  });
+
   it('never touches token storage', async () => {
     const storage: TokenStoragePort = {
       get: jest.fn(async () => null),
@@ -394,6 +411,62 @@ describe('bearer transport', () => {
 
     expect(await storage.get()).toBeNull();
     expect(headersOf(calls[0]).Authorization).toBeUndefined();
+  });
+
+  it('authorizedFetch carries the access token to any URL without the transport header', async () => {
+    const storage = createMemoryTokenStorage();
+    await storage.set({ accessToken: 'access-1', refreshToken: 'refresh-1' });
+    const { calls, fetchImpl } = scriptedFetch(() => jsonResponse(200, { plan: [] }));
+
+    const response = await bearer(fetchImpl, storage).authorizedFetch(`${API}/api/plan`, {
+      method: 'GET',
+    });
+
+    expect(response.status).toBe(200);
+    expect(calls[0].url).toBe(`${API}/api/plan`);
+    expect(calls[0].init.credentials).toBeUndefined();
+    expect(headersOf(calls[0])).toEqual({ Authorization: 'Bearer access-1' });
+  });
+
+  it('authorizedFetch refreshes once on a 401 and retries', async () => {
+    const storage = createMemoryTokenStorage();
+    await storage.set({ accessToken: 'access-old', refreshToken: 'refresh-old' });
+    const { calls, fetchImpl } = scriptedFetch(call => {
+      if (call.url.endsWith('/auth/refresh')) {
+        return jsonResponse(200, { token: 'access-new', refreshToken: 'refresh-new' });
+      }
+      return headersOf(call).Authorization === 'Bearer access-new'
+        ? jsonResponse(200, { ok: true })
+        : jsonResponse(401, { message: 'Unauthorized' });
+    });
+
+    const response = await bearer(fetchImpl, storage).authorizedFetch(`${API}/api/plan`);
+
+    expect(response.status).toBe(200);
+    expect(calls.map(c => c.url)).toEqual([
+      `${API}/api/plan`,
+      `${API}/auth/refresh`,
+      `${API}/api/plan`,
+    ]);
+    expect(await storage.get()).toEqual({
+      accessToken: 'access-new',
+      refreshToken: 'refresh-new',
+    });
+  });
+
+  it('authorizedFetch never captures tokens from an application response', async () => {
+    const storage = createMemoryTokenStorage();
+    await storage.set({ accessToken: 'access-1', refreshToken: 'refresh-1' });
+    const { fetchImpl } = scriptedFetch(() =>
+      jsonResponse(200, { token: 'not-ours', refreshToken: 'not-ours-either' })
+    );
+
+    await bearer(fetchImpl, storage).authorizedFetch(`${API}/api/thing`);
+
+    expect(await storage.get()).toEqual({
+      accessToken: 'access-1',
+      refreshToken: 'refresh-1',
+    });
   });
 
   it('tolerates a non-JSON success body on a session route', async () => {

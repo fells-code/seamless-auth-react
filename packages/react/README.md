@@ -229,6 +229,15 @@ defaults. A binding for another platform (React Native is the first) supplies it
 `useAuthClient()` returns the same client instance the provider's session drives. In bearer
 transport that matters: the client holds the sign-in in flight, and a second client would not see it.
 
+`useAuthorizedFetch()` (or `client.authorizedFetch`) is a fetch for your own API that carries the
+session the way the transport does: `credentials: 'include'` in cookie transport, the access token
+with one refresh-and-retry on a 401 in bearer transport. A path resolves on `apiHost`.
+
+```ts
+const authorizedFetch = useAuthorizedFetch();
+const plan = await authorizedFetch('/api/plan/mine').then(r => r.json());
+```
+
 ### Scoped roles
 
 `hasRole(role)` remains an exact role check. Use `hasScopedRole(role)` for colon-separated scoped

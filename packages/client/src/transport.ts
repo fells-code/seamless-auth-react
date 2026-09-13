@@ -37,7 +37,14 @@ export interface TransportOptions {
 export type FetchWithAuth = (input: string, init?: RequestInit) => Promise<Response>;
 
 export interface Transport {
+  /** A request to the server adapter's auth routes, by path under the mount. */
   fetch: FetchWithAuth;
+  /**
+   * A request to any URL, carrying the session the way this transport does:
+   * cookies in cookie transport, the access token (refreshed once on a 401) in
+   * bearer transport. For an application's own API behind `requireAuth`.
+   */
+  authorizedFetch: (input: string | URL, init?: RequestInit) => Promise<Response>;
   mode: AuthTransportMode;
   /** Forgets the held session without calling the server. Bearer transport only; a no-op otherwise. */
   clearTokens(): Promise<void>;
@@ -151,6 +158,8 @@ export function createTransport(options: TransportOptions): Transport {
           buildUrl(options.apiHost, basePath, normalizePath(input)),
           withHeaders({ ...init, credentials: 'include' }, {})
         ),
+      authorizedFetch: (input, init) =>
+        fetchImpl(String(input), withHeaders({ ...init, credentials: 'include' }, {})),
       clearTokens: async () => undefined,
     };
   }
@@ -271,19 +280,39 @@ export function createTransport(options: TransportOptions): Transport {
   }
 
   async function send(
-    path: string,
+    url: string,
     init: RequestInit | undefined,
-    identity: RequestIdentity
+    identity: RequestIdentity,
+    markTransport: boolean
   ) {
     const authorization = await authorizationFor(identity);
 
     return fetchImpl(
-      buildUrl(options.apiHost, basePath, path),
+      url,
       withHeaders(init, {
-        [AUTH_TRANSPORT_HEADER]: 'bearer',
+        ...(markTransport ? { [AUTH_TRANSPORT_HEADER]: 'bearer' } : {}),
         ...(authorization ? { Authorization: authorization } : {}),
       })
     );
+  }
+
+  // An expired access token is the one 401 this layer can do something about.
+  // Retried once; a second 401 is the caller's to handle.
+  async function sendWithRefresh(
+    url: string,
+    init: RequestInit | undefined,
+    identity: RequestIdentity,
+    markTransport: boolean
+  ) {
+    let response = await send(url, init, identity, markTransport);
+
+    if (response.status === 401 && identity === 'access' && (await readTokens())) {
+      if (await refreshOnce()) {
+        response = await send(url, init, identity, markTransport);
+      }
+    }
+
+    return response;
   }
 
   return {
@@ -293,15 +322,12 @@ export function createTransport(options: TransportOptions): Transport {
       const path = normalizePath(input);
       const rule = resolveRouteRule(path);
 
-      let response = await send(path, init, rule.identity);
-
-      // An expired access token is the one 401 this layer can do something
-      // about. Retried once; a second 401 is the caller's to handle.
-      if (response.status === 401 && rule.identity === 'access' && (await readTokens())) {
-        if (await refreshOnce()) {
-          response = await send(path, init, rule.identity);
-        }
-      }
+      const response = await sendWithRefresh(
+        buildUrl(options.apiHost, basePath, path),
+        init,
+        rule.identity,
+        true
+      );
 
       if (response.ok && rule.effect) {
         await applyEffect(rule.effect, response);
@@ -309,5 +335,9 @@ export function createTransport(options: TransportOptions): Transport {
 
       return response;
     },
+    // The transport header is the adapter's; an application's own API only
+    // needs the bearer token, which requireAuth reads.
+    authorizedFetch: (input, init) =>
+      sendWithRefresh(String(input), init, 'access', false),
   };
 }

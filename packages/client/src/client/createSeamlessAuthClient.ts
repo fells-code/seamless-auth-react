@@ -40,7 +40,7 @@ import type {
   UpdateOrganizationRequest,
 } from '@seamless-auth/types';
 
-import { createFetchWithAuth } from '../fetchWithAuth';
+import { createFetchTransport } from '../fetchWithAuth';
 import { createBrowserPasskeyPort } from '../ports/browserPasskeys';
 import { isPasskeyCeremonyError, type PasskeyPort } from '../ports/passkeys';
 import type { TransportOptions } from '../transport';
@@ -244,9 +244,17 @@ export interface LogoutOptions {
  * Every request resolves to a `SeamlessAuthResult`: check `error` first, then
  * read `data`. Nothing here throws for an HTTP or transport failure.
  * `isPasskeyPrfSupported` is the one exception, since it is a local capability
- * check rather than a request.
+ * check rather than a request, and `authorizedFetch` returns the raw `Response`
+ * because the body is the application's, not this client's.
  */
 export interface SeamlessAuthClient {
+  /**
+   * A request to the application's own API, carrying the session the way the
+   * transport does: cookies in cookie transport, the access token (refreshed
+   * once on a 401) in bearer transport. `input` is a full URL or a path on
+   * `apiHost`.
+   */
+  authorizedFetch: (input: string | URL, init?: RequestInit) => Promise<Response>;
   getCurrentUser: () => Promise<SeamlessAuthResult<CurrentUserResult>>;
   login: (input: LoginInput) => Promise<SeamlessAuthResult<LoginStartResult>>;
   loginWithPasskey: (
@@ -429,13 +437,22 @@ function webAuthnFailure<T>(
 export const createSeamlessAuthClient = (
   opts: SeamlessAuthClientOptions
 ): SeamlessAuthClient => {
-  const fetchWithAuth = createFetchWithAuth({
+  const transport = createFetchTransport({
     ...opts.transport,
     authHost: opts.apiHost,
   });
+  const fetchWithAuth = transport.fetch;
   const passkeys = opts.passkeys ?? createBrowserPasskeyPort();
 
+  const host = opts.apiHost.replace(/\/+$/, '');
+
   return {
+    authorizedFetch: (input, init) =>
+      transport.authorizedFetch(
+        typeof input === 'string' && input.startsWith('/') ? `${host}${input}` : input,
+        init
+      ),
+
     getCurrentUser: () =>
       requestResult<CurrentUserResult>(
         fetchWithAuth(`users/me`, { method: 'GET' }),

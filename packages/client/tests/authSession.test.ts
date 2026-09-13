@@ -6,7 +6,7 @@
 
 import { createAuthSession } from '../src/session/createAuthSession';
 import { createMemoryStorage, SessionStoragePort } from '../src/session/storage';
-import { createFetchWithAuth } from '../src/fetchWithAuth';
+import { createFetchTransport, createFetchWithAuth } from '../src/fetchWithAuth';
 import { startRegistration } from '@simplewebauthn/browser';
 
 jest.mock('../src/fetchWithAuth');
@@ -19,6 +19,12 @@ jest.mock('@simplewebauthn/browser', () => ({
 const mockFetchWithAuth = jest.fn();
 
 (createFetchWithAuth as jest.Mock).mockReturnValue(mockFetchWithAuth);
+(createFetchTransport as jest.Mock).mockImplementation(() => ({
+  fetch: mockFetchWithAuth,
+  authorizedFetch: jest.fn(),
+  mode: 'cookie',
+  clearTokens: jest.fn(),
+}));
 
 const apiHost = 'https://api.example.com';
 
@@ -44,6 +50,12 @@ describe('createAuthSession', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     (createFetchWithAuth as jest.Mock).mockReturnValue(mockFetchWithAuth);
+    (createFetchTransport as jest.Mock).mockImplementation(() => ({
+      fetch: mockFetchWithAuth,
+      authorizedFetch: jest.fn(),
+      mode: 'cookie',
+      clearTokens: jest.fn(),
+    }));
   });
 
   it('starts signed out and loading, before anything is requested', () => {
@@ -389,7 +401,7 @@ describe('createAuthSession', () => {
       mockFetchWithAuth.mockResolvedValueOnce(okResponse({ message: 'sent' }));
       await session.client.requestMagicLink();
 
-      expect(createFetchWithAuth).toHaveBeenCalledWith(
+      expect(createFetchTransport).toHaveBeenCalledWith(
         expect.objectContaining({ authHost: apiHost, basePath: '/identity' })
       );
       expect(mockFetchWithAuth).toHaveBeenCalledWith(
