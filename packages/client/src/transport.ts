@@ -111,6 +111,31 @@ function buildUrl(apiHost: string, basePath: string, path: string): string {
   return `${host}${mount}${path}`;
 }
 
+/**
+ * The caller's headers as a plain object, whatever shape they came in.
+ *
+ * A `Headers` instance or an entries array cannot be spread: spreading a
+ * `Headers` copies its internals (React Native's polyfill keeps a `map`
+ * field), and the resulting nested object makes the native fetch on Expo
+ * refuse the whole request.
+ */
+function plainHeaders(headers: HeadersInit | undefined): Record<string, string> {
+  if (!headers) return {};
+  if (Array.isArray(headers)) {
+    return Object.fromEntries(headers);
+  }
+  // Duck-typed rather than `instanceof Headers`, so a polyfilled instance
+  // from another realm is flattened too.
+  if (typeof (headers as Headers).forEach === 'function') {
+    const out: Record<string, string> = {};
+    (headers as Headers).forEach((value, key) => {
+      out[key] = value;
+    });
+    return out;
+  }
+  return { ...(headers as Record<string, string>) };
+}
+
 function withHeaders(
   init: RequestInit | undefined,
   extra: Record<string, string>
@@ -119,14 +144,21 @@ function withHeaders(
   // proxies reject a bodyless GET that advertises a request content type.
   const hasBody = init?.body != null;
 
-  return {
-    ...init,
-    headers: {
-      ...(hasBody ? { 'Content-Type': 'application/json' } : {}),
-      ...extra,
-      ...init?.headers,
-    },
+  const headers: Record<string, string> = {
+    ...(hasBody ? { 'Content-Type': 'application/json' } : {}),
+    ...extra,
   };
+  // Header names are case-insensitive, and a `Headers` instance lower-cases
+  // them, so the caller's `content-type` replaces the default `Content-Type`
+  // rather than travelling beside it.
+  for (const [name, value] of Object.entries(plainHeaders(init?.headers))) {
+    for (const existing of Object.keys(headers)) {
+      if (existing.toLowerCase() === name.toLowerCase()) delete headers[existing];
+    }
+    headers[name] = value;
+  }
+
+  return { ...init, headers };
 }
 
 interface SessionBody {
