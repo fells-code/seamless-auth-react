@@ -91,7 +91,8 @@ function SignIn() {
 ```
 
 `useAuthorizedFetch()` is a fetch for your own API that carries the access
-token and refreshes it once on a 401; a path resolves on `apiHost`:
+token and refreshes it once on a 401; a path resolves on `apiHost`, and a path
+under the adapter's mount (`/auth/sessions`) is sent as an adapter call:
 
 ```ts
 const authorizedFetch = useAuthorizedFetch();

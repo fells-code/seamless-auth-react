@@ -347,29 +347,40 @@ export function createTransport(options: TransportOptions): Transport {
     return response;
   }
 
+  const mount = `${buildUrl(options.apiHost, basePath, '')}/`;
+
+  const fetchUnderMount: FetchWithAuth = async (input, init) => {
+    const path = normalizePath(input);
+    const rule = resolveRouteRule(path);
+
+    const response = await sendWithRefresh(
+      buildUrl(options.apiHost, basePath, path),
+      init,
+      rule.identity,
+      true
+    );
+
+    if (response.ok && rule.effect) {
+      await applyEffect(rule.effect, response);
+    }
+
+    return response;
+  };
+
   return {
     mode,
     clearTokens,
-    fetch: async (input, init) => {
-      const path = normalizePath(input);
-      const rule = resolveRouteRule(path);
-
-      const response = await sendWithRefresh(
-        buildUrl(options.apiHost, basePath, path),
-        init,
-        rule.identity,
-        true
-      );
-
-      if (response.ok && rule.effect) {
-        await applyEffect(rule.effect, response);
-      }
-
-      return response;
-    },
+    fetch: fetchUnderMount,
     // The transport header is the adapter's; an application's own API only
-    // needs the bearer token, which requireAuth reads.
-    authorizedFetch: (input, init) =>
-      sendWithRefresh(String(input), init, 'access', false),
+    // needs the bearer token, which requireAuth reads. A URL under the
+    // adapter's own mount (its session list, a passthrough it adds) is the
+    // adapter's, though, and without the header it would answer in cookie
+    // mode, so it takes the same road as the client's own calls.
+    authorizedFetch: (input, init) => {
+      const url = String(input);
+      return url.startsWith(mount)
+        ? fetchUnderMount(url.slice(mount.length - 1), init)
+        : sendWithRefresh(url, init, 'access', false);
+    },
   };
 }
