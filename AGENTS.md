@@ -101,15 +101,15 @@ Important implication:
 ## Wire Types
 
 Request and response shapes come from `@seamless-auth/types`, which is generated
-from the auth API's schemas. `src/types.ts` and the type declarations in
-`src/client/createSeamlessAuthClient.ts` alias that package rather than
-redeclaring shapes.
+from the auth API's schemas. `packages/client/src/types.ts` and the type
+declarations in `packages/client/src/client/createSeamlessAuthClient.ts` alias
+that package rather than redeclaring shapes.
 
 Rules for this dependency:
 
 - types only. Import with `import type` so the package's Zod dependency never
   reaches the browser bundle. There is a `Record<OAuthErrorCode, true>` in
-  `src/client/errors.ts` that exists for exactly this reason: it is a
+  `packages/client/src/client/errors.ts` that exists for exactly this reason: it is a
   compile-time membership check standing in for the upstream runtime list.
 - keep the SDK's own export names. Adopters import `Credential` from this
   package, so alias upstream shapes to local names instead of re-exporting
@@ -127,8 +127,10 @@ not wire contracts.
 
 ## Current Public API
 
-`src/index.ts` is the authoritative export list. Treat the enumeration below as a
-summary and re-check `src/index.ts` before relying on it.
+`packages/react/src/index.ts` is the authoritative export list for
+`@seamless-auth/react`, and `packages/client/src/index.ts` for
+`@seamless-auth/client`. Treat the enumeration below as a summary and re-check
+those files before relying on it.
 
 Runtime exports currently include:
 
@@ -164,13 +166,22 @@ domain models, for example:
 
 Public API changes should be treated deliberately:
 
-- if something is not exported from `src/index.ts`, it is not public
+- if something is not exported from a package's `src/index.ts`, it is not public
 - once something is exported, it should be supportable and documented
 - built-in UI should consume public primitives whenever practical instead of reaching into private helpers
 
 ## Current Architecture
 
-The current package is organized around a shared SDK core with optional UI layered on top:
+This repository is an npm workspace with two published packages:
+
+- `packages/client`, published as `@seamless-auth/client`: the framework-agnostic
+  core every binding shares. No React, no router, no DOM types beyond what
+  `fetch` and WebAuthn JSON need. Lint-enforced (`no-restricted-imports` in
+  `eslint.config.mjs`).
+- `packages/react`, published as `@seamless-auth/react`: the React binding,
+  hooks, and the optional prebuilt screens. Depends on `@seamless-auth/client`.
+
+`@seamless-auth/client`:
 
 - `src/session/createAuthSession.ts`
   - framework-agnostic session store: `getState`, `subscribe`, `actions`, `destroy`
@@ -179,12 +190,22 @@ The current package is organized around a shared SDK core with optional UI layer
 - `src/session/storage.ts`
   - `SessionStoragePort` plus browser, memory, and default implementations
   - the store's only browser dependency, which is what keeps it SSR safe
-- `src/AuthProvider.tsx`
-  - React binding over the session store, via `useSyncExternalStore`
-  - exposes the main provider context and holds no session state of its own
 - `src/client/createSeamlessAuthClient.ts`
   - shared headless auth client
   - contains the backend request choreography for login, registration, OTP, magic-link, passkey flows, and credential mutations
+- `src/client/errors.ts`, `src/client/result.ts`, `src/client/webauthnPrf.ts`, `src/client/webauthnSupport.ts`
+- `src/fetchWithAuth.ts`
+  - `/auth` request construction
+- `src/scopedRoles.ts`
+  - role matching, kept byte-for-byte with `@seamless-auth/types/role/matching`
+- `src/types.ts`
+  - aliases of the wire contract in `@seamless-auth/types`, not hand-written shapes
+
+`@seamless-auth/react`:
+
+- `src/AuthProvider.tsx`
+  - React binding over the session store, via `useSyncExternalStore`
+  - exposes the main provider context and holds no session state of its own
 - `src/hooks/useAuthClient.ts`
   - creates a memoized client from provider configuration
 - `src/hooks/usePasskeySupport.ts`
@@ -192,25 +213,28 @@ The current package is organized around a shared SDK core with optional UI layer
 - `src/AuthRoutes.tsx`
   - bundles the prebuilt auth route flow
 - `src/views/*`
-  - bundled route screens that now consume the public provider/client layer
+  - bundled route screens that consume the public provider/client layer
 - `src/components/*`
   - reusable UI pieces for those bundled screens
-- `src/fetchWithAuth.ts`
-  - `/auth` request construction
-- `src/types.ts`
-  - aliases of the wire contract in `@seamless-auth/types`, not hand-written shapes
-- `tests/*`
-  - Jest + Testing Library coverage for provider, client, hooks, and views
+- `src/utils.ts`
+  - browser-only helpers (`parseUserAgent`) and validators the screens use
+
+Tests live in each package's `tests/` directory and run as two Jest projects
+from the root (`npm test`). The React project maps `@seamless-auth/client` to the
+client package's source, so a change in the core is exercised by the React suite
+without a build in between. `packages/react/tsconfig.json` carries the same path
+mapping for type-checking; `tsconfig.build.json` drops it so the emitted
+declarations reference the package by name.
 
 Important architectural reality:
 
 - the internal-only auth context path is gone
-- built-in screens now use public primitives instead of hidden refresh helpers
-- the session state machine lives in `src/session`, not in the provider. It is
-  lint-enforced framework agnostic, so keep React and router imports out of it.
-  This is phase 1 of #64: the store stays in this repo and unexported until a
-  second binding exists to validate its API
-- remaining work is mostly docs, examples, and incremental polish rather than major extraction plumbing
+- built-in screens use public primitives instead of hidden refresh helpers
+- the session state machine lives in `@seamless-auth/client`, not in the
+  provider. Keep React, router, and React Native imports out of that package
+- this is phase 3 of #64: the workspace conversion. Ports for a native binding
+  (transport, token storage, passkeys, OAuth redirect) and the
+  `@seamless-auth/react-native` package follow as separate changes
 
 ## Backend Endpoints Assumed By The SDK
 
@@ -259,7 +283,7 @@ configured, so treat the refusal as reachable rather than exceptional.
 
 `@seamless-auth/types` 0.16.0 publishes `WebAuthnErrorCode`, which covers every
 machine code the API sends for WebAuthn across all of its operations, so
-`PasskeyPolicyErrorCode` in `src/client/errors.ts` is derived from it rather than
+`PasskeyPolicyErrorCode` in `packages/client/src/client/errors.ts` is derived from it rather than
 kept as a local list. It is that union minus `prf_output_not_allowed`, a `400`
 from login and step-up finish that reports a caller which failed to strip PRF
 output, not a deployment refusing an authenticator.
@@ -293,9 +317,9 @@ That means future work should usually build on the current public surface rather
 Bias toward these patterns:
 
 - add reusable behavior to the headless client first, then expose it through React hooks or provider helpers as needed
-- keep the session store in `src/session` as the source of truth for auth/session state, and keep `AuthProvider` a thin binding over it
+- keep the session store in `packages/client/src/session` as the source of truth for auth/session state, and keep `AuthProvider` a thin binding over it
 - use `refreshSession()` when custom flows need to synchronize provider state after a successful auth step
-- export types intentionally from `src/index.ts`
+- export types intentionally from each package's `src/index.ts`
 - keep built-in views thin and aligned with public APIs
 - update README and adjacent docs when the supported contract changes
 

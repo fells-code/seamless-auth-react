@@ -56,15 +56,9 @@ export default [
     },
   },
   {
-    // The client layer stays framework agnostic so it can be extracted into a
-    // shared package for non-React adapters. See #64.
-    files: [
-      'src/client/**/*.ts',
-      'src/session/**/*.ts',
-      'src/fetchWithAuth.ts',
-      'src/scopedRoles.ts',
-      'src/types.ts',
-    ],
+    // @seamless-auth/client is the framework-agnostic core every binding shares,
+    // so nothing React (or from a binding) may enter it. See #64.
+    files: ['packages/client/src/**/*.ts'],
     rules: {
       'no-restricted-imports': [
         'error',
@@ -78,25 +72,19 @@ export default [
                 'react-dom/*',
                 'react-router',
                 'react-router-dom',
+                'react-native',
+                'react-native/*',
               ],
               message:
-                'The client layer must stay framework agnostic. Keep React and router imports in the binding layer. See #64.',
+                'The client core must stay framework agnostic. Keep React and router imports in a binding package. See #64.',
             },
             {
               group: [
-                '@/AuthProvider',
-                '@/AuthRoutes',
-                '@/hooks/*',
-                '@/views/*',
-                '@/components/*',
-                '**/AuthProvider',
-                '**/AuthRoutes',
-                '**/hooks/*',
-                '**/views/*',
-                '**/components/*',
+                '@seamless-auth/react',
+                '@seamless-auth/react-native',
+                '../react/*',
               ],
-              message:
-                'The client layer must not import from the React binding layer. See #64.',
+              message: 'The client core must not import from a binding package. See #64.',
             },
           ],
         },
@@ -104,6 +92,6 @@ export default [
     },
   },
   {
-    ignores: ['dist/', 'coverage/', 'node_modules/'],
+    ignores: ['**/dist/', '**/coverage/', '**/node_modules/'],
   },
 ];
