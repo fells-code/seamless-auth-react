@@ -428,6 +428,52 @@ describe('bearer transport', () => {
     expect(headersOf(calls[0])).toEqual({ Authorization: 'Bearer access-1' });
   });
 
+  it('authorizedFetch flattens Headers instances and entry arrays into plain headers', async () => {
+    const storage = createMemoryTokenStorage();
+    await storage.set({ accessToken: 'access-1', refreshToken: 'refresh-1' });
+    const { calls, fetchImpl } = scriptedFetch(() => jsonResponse(200, {}));
+    const transport = bearer(fetchImpl, storage);
+
+    const asInstance = new Headers();
+    asInstance.set('Content-Type', 'application/json');
+    await transport.authorizedFetch(`${API}/api/plan`, {
+      method: 'POST',
+      body: '{}',
+      headers: asInstance,
+    });
+    await transport.authorizedFetch(`${API}/api/plan`, {
+      headers: [['X-Trace', 'abc']],
+    });
+
+    // Spreading a Headers instance would have produced an object with no
+    // usable keys (or a nested `map` on React Native) and lost the header.
+    expect(headersOf(calls[0])).toEqual({
+      Authorization: 'Bearer access-1',
+      'content-type': 'application/json',
+    });
+    expect(headersOf(calls[1])).toEqual({
+      Authorization: 'Bearer access-1',
+      'X-Trace': 'abc',
+    });
+  });
+
+  it('authorizedFetch treats a URL under the adapter mount as an adapter call', async () => {
+    const storage = createMemoryTokenStorage();
+    await storage.set({ accessToken: 'access-1', refreshToken: 'refresh-1' });
+    const { calls, fetchImpl } = scriptedFetch(() => jsonResponse(200, { sessions: [] }));
+
+    const response = await bearer(fetchImpl, storage).authorizedFetch(`${API}/auth/sessions`, {
+      method: 'GET',
+    });
+
+    expect(response.status).toBe(200);
+    expect(calls[0].url).toBe(`${API}/auth/sessions`);
+    expect(headersOf(calls[0])).toEqual({
+      Authorization: 'Bearer access-1',
+      [AUTH_TRANSPORT_HEADER]: 'bearer',
+    });
+  });
+
   it('authorizedFetch refreshes once on a 401 and retries', async () => {
     const storage = createMemoryTokenStorage();
     await storage.set({ accessToken: 'access-old', refreshToken: 'refresh-old' });

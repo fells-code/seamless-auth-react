@@ -3,15 +3,16 @@
 This repository is an npm workspace that publishes the client-side packages for
 [Seamless Auth](https://github.com/fells-code/seamless-auth-api):
 
-| Package                                              | What it is                                                                                               |
-| ---------------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
-| [`@seamless-auth/client`](packages/client/README.md) | Framework-agnostic core: the headless auth client, session store, result and error types.                |
-| [`@seamless-auth/react`](packages/react/README.md)   | React binding: `AuthProvider`, hooks, and optional prebuilt auth screens. Depends on the client package. |
+| Package                                                          | What it is                                                                                                                           |
+| ---------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| [`@seamless-auth/client`](packages/client/README.md)             | Framework-agnostic core: the headless auth client, session store, result and error types.                                            |
+| [`@seamless-auth/react`](packages/react/README.md)               | React binding: `AuthProvider`, hooks, and optional prebuilt auth screens. Depends on the client package.                             |
+| [`@seamless-auth/react-native`](packages/react-native/README.md) | Headless React Native binding: provider, hooks, and the native ports for passkeys, keystore token storage, and in-app browser OAuth. |
 
 Most React applications only install `@seamless-auth/react`; it brings the client
-core with it. The client package exists so that other bindings (React Native
-next) share one implementation of the auth flows and session state instead of
-re-implementing them.
+core with it. The client package exists so that the bindings share one
+implementation of the auth flows and session state instead of re-implementing
+them; `@seamless-auth/react-native` is the second binding over it.
 
 ## Working in this repository
 
