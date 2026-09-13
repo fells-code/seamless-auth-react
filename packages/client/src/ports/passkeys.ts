@@ -11,6 +11,15 @@ import type {
   RegistrationResponseJSON,
 } from '@simplewebauthn/browser';
 
+// Re-exported so a binding can type its port without depending on the
+// browser package itself.
+export type {
+  AuthenticationResponseJSON,
+  PublicKeyCredentialCreationOptionsJSON,
+  PublicKeyCredentialRequestOptionsJSON,
+  RegistrationResponseJSON,
+};
+
 /**
  * The passkey ceremonies, as the platform runs them.
  *
