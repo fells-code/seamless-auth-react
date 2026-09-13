@@ -1,6 +1,6 @@
 {
   "name": "@seamless-auth/client",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "description": "Framework-agnostic client core for Seamless Auth: the HTTP client, session store, and result types the framework bindings share.",
   "type": "module",
   "exports": {
