@@ -22,11 +22,19 @@ const renderInRouter = (basename?: string) =>
 describe('OAuthProviderButtons', () => {
   const listOAuthProviders = jest.fn();
   const startOAuthLogin = jest.fn();
+  const finishOAuthLogin = jest.fn();
+  const open = jest.fn();
 
   beforeEach(() => {
     jest.clearAllMocks();
     window.sessionStorage.clear();
-    (useAuth as jest.Mock).mockReturnValue({ listOAuthProviders, startOAuthLogin });
+    open.mockResolvedValue({ type: 'navigated' });
+    (useAuth as jest.Mock).mockReturnValue({
+      listOAuthProviders,
+      startOAuthLogin,
+      finishOAuthLogin,
+      ports: { oauthRedirect: { open } },
+    });
   });
 
   test('renders nothing when no providers are configured', async () => {
@@ -81,6 +89,56 @@ describe('OAuthProviderButtons', () => {
       expect(startOAuthLogin).toHaveBeenCalledWith({
         providerId: 'mock',
         redirectUri: `${window.location.origin}/app/oauth/callback`,
+      })
+    );
+  });
+
+  test('opens the provider through the redirect port', async () => {
+    listOAuthProviders.mockResolvedValue({
+      data: { providers: [{ id: 'mock', name: 'Mock OIDC', scopes: [] }] },
+      error: null,
+    });
+    startOAuthLogin.mockResolvedValue({
+      data: { authorizationUrl: 'http://idp.test/authorize' },
+      error: null,
+    });
+
+    renderInRouter();
+    fireEvent.click(
+      await screen.findByRole('button', { name: /Continue with Mock OIDC/ })
+    );
+
+    await waitFor(() =>
+      expect(open).toHaveBeenCalledWith(
+        'http://idp.test/authorize',
+        `${window.location.origin}/oauth/callback`
+      )
+    );
+    expect(finishOAuthLogin).not.toHaveBeenCalled();
+  });
+
+  test('finishes the login itself when the port hands the callback back', async () => {
+    listOAuthProviders.mockResolvedValue({
+      data: { providers: [{ id: 'mock', name: 'Mock OIDC', scopes: [] }] },
+      error: null,
+    });
+    startOAuthLogin.mockResolvedValue({
+      data: { authorizationUrl: 'http://idp.test/authorize' },
+      error: null,
+    });
+    open.mockResolvedValue({ type: 'callback', code: 'c-1', state: 's-1' });
+    finishOAuthLogin.mockResolvedValue({ data: {}, error: null });
+
+    renderInRouter();
+    fireEvent.click(
+      await screen.findByRole('button', { name: /Continue with Mock OIDC/ })
+    );
+
+    await waitFor(() =>
+      expect(finishOAuthLogin).toHaveBeenCalledWith({
+        providerId: 'mock',
+        code: 'c-1',
+        state: 's-1',
       })
     );
   });

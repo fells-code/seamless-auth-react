@@ -50,7 +50,7 @@ export default [
     // Jest only reads the `@jest-environment` pragma from the first comment in a
     // file, so these suites carry it alongside the license text in one block.
     // The license header is still present, it just is not a byte-for-byte match.
-    files: ['**/*.ssr.test.ts', '**/*.ssr.test.tsx'],
+    files: ['**/*.ssr.test.ts', '**/*.ssr.test.tsx', '**/*.node.test.ts'],
     rules: {
       'license-header/header': 'off',
     },

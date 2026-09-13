@@ -23,7 +23,15 @@ import {
 } from '@seamless-auth/client';
 import type { SeamlessAuthResult } from '@seamless-auth/client';
 import { PasskeyPrfInput } from '@seamless-auth/client';
-import { createAuthSession } from '@seamless-auth/client';
+import {
+  createAuthSession,
+  createBrowserOAuthRedirect,
+  createBrowserPasskeyPort,
+  type OAuthRedirectPort,
+  type PasskeyPort,
+  type SeamlessAuthClient,
+  type TransportOptions,
+} from '@seamless-auth/client';
 import { Credential, Organization, User } from '@seamless-auth/client';
 import React, {
   createContext,
@@ -78,6 +86,19 @@ export interface AuthContextType {
   ) => Promise<SeamlessAuthResult<StepUpPrfData>>;
   verifyStepUpWithTotp: (code: string) => Promise<SeamlessAuthResult<StepUpStatus>>;
   loading: boolean;
+  /** The client behind the session. `useAuthClient()` returns this same instance. */
+  client: SeamlessAuthClient;
+  /** The platform ports the built-in screens and hooks go through. */
+  ports: AuthPorts;
+}
+
+/**
+ * What a binding plugs in for its platform. The browser defaults cover a web
+ * application; a native binding supplies its own.
+ */
+export interface AuthPorts {
+  passkeys: PasskeyPort;
+  oauthRedirect: OAuthRedirectPort;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -103,6 +124,13 @@ interface AuthProviderProps {
    * send and a resend read it from here, so the two cannot drift apart.
    */
   magicLinkRedirectUri?: string;
+  /**
+   * How the session travels to the server adapter. Defaults to cookie
+   * transport, which is what a browser application wants.
+   */
+  transport?: Omit<TransportOptions, 'apiHost'>;
+  /** Platform ports. Each one left out falls back to the browser's. */
+  ports?: Partial<AuthPorts>;
 }
 
 export const AuthProvider: React.FC<AuthProviderProps> = ({
@@ -110,14 +138,43 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({
   apiHost,
   autoDetectPreviousSignin = true,
   magicLinkRedirectUri,
+  transport,
+  ports: providedPorts,
 }) => {
+  // Memoised on what is inside the objects, not on the objects. Callers write
+  // these props inline, and a fresh session per render would sign the user out
+  // on every paint.
+  const ports = useMemo<AuthPorts>(
+    () => ({
+      passkeys: providedPorts?.passkeys ?? createBrowserPasskeyPort(),
+      oauthRedirect: providedPorts?.oauthRedirect ?? createBrowserOAuthRedirect(),
+    }),
+    [providedPorts?.passkeys, providedPorts?.oauthRedirect]
+  );
+
+  const { mode, basePath, tokenStorage, fetch: fetchImpl } = transport ?? {};
+  const stableTransport = useMemo(
+    () => (transport ? { mode, basePath, tokenStorage, fetch: fetchImpl } : undefined),
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- `transport` itself is deliberately not a dependency
+    [mode, basePath, tokenStorage, fetchImpl]
+  );
+
   const session = useMemo(
     () =>
       createAuthSession({
         apiHost,
+        magicLinkRedirectUri,
+        transport: stableTransport,
+        passkeys: ports.passkeys,
         detectPreviousSignIn: autoDetectPreviousSignin,
       }),
-    [apiHost, autoDetectPreviousSignin]
+    [
+      apiHost,
+      magicLinkRedirectUri,
+      stableTransport,
+      ports.passkeys,
+      autoDetectPreviousSignin,
+    ]
   );
 
   // The store is the source of truth; React only reads snapshots from it. The
@@ -145,8 +202,15 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({
   }, [session]);
 
   const value = useMemo(
-    () => ({ ...state, ...session.actions, apiHost, magicLinkRedirectUri }),
-    [state, session, apiHost, magicLinkRedirectUri]
+    () => ({
+      ...state,
+      ...session.actions,
+      apiHost,
+      magicLinkRedirectUri,
+      client: session.client,
+      ports,
+    }),
+    [state, session, apiHost, magicLinkRedirectUri, ports]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

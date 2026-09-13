@@ -4,35 +4,29 @@
  * See LICENSE file in the project root for full license information
  */
 
-interface FetchWithAuthOptions {
+import {
+  createTransport,
+  type FetchWithAuth,
+  type Transport,
+  type TransportOptions,
+} from './transport';
+
+export interface FetchWithAuthOptions extends Omit<TransportOptions, 'apiHost'> {
   authHost?: string;
 }
 
-export const createFetchWithAuth = (opts: FetchWithAuthOptions) => {
-  const { authHost } = opts;
+/**
+ * The fetch every client method goes through.
+ *
+ * Kept as the seam the client is built on (and tests replace) while the work
+ * moved into `createTransport`: cookie transport is what this always did, and
+ * bearer transport is the same call with `mode: 'bearer'`.
+ */
+export const createFetchWithAuth = (opts: FetchWithAuthOptions): FetchWithAuth => {
+  return createFetchTransport(opts).fetch;
+};
 
-  return async function fetchWithAuth(
-    input: string,
-    init?: RequestInit
-  ): Promise<Response> {
-    const host = authHost?.replace(/\/+$/, '') ?? '';
-    const path = input.startsWith('/') ? input : `/${input}`;
-
-    const url = `${host}/auth${path}`;
-
-    // Only declare a JSON content type when a body is actually sent. Some
-    // proxies reject a bodyless GET that advertises a request content type.
-    const hasBody = init?.body != null;
-
-    const requestInit: RequestInit = {
-      ...init,
-      credentials: 'include',
-      headers: {
-        ...(hasBody ? { 'Content-Type': 'application/json' } : {}),
-        ...init?.headers,
-      },
-    };
-
-    return fetch(url, requestInit);
-  };
+export const createFetchTransport = (opts: FetchWithAuthOptions): Transport => {
+  const { authHost, ...transport } = opts;
+  return createTransport({ ...transport, apiHost: authHost ?? '' });
 };
