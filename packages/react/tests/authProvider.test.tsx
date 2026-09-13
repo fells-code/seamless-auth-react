@@ -5,7 +5,7 @@
  */
 
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { StrictMode } from 'react';
+import React, { StrictMode } from 'react';
 import { AuthProvider, useAuth } from '../src/AuthProvider';
 import { createFetchWithAuth } from '../../client/src/fetchWithAuth';
 
@@ -469,6 +469,119 @@ describe('AuthProvider', () => {
   // store, so a provider that tore the store down on cleanup came back holding a
   // store that refused every update and never left `loading`. The templates ship
   // StrictMode, so this is the default path for a new app, not an edge case.
+  describe('ports and transport', () => {
+    const signedIn = () =>
+      ({
+        ok: true,
+        json: async () => ({
+          user: { id: '1', email: 'test@example.com', phone: '', roles: [] },
+          credentials: [],
+        }),
+      }) as any;
+
+    it('hands the same client to useAuthClient that the session drives', async () => {
+      mockFetchWithAuthImpl.mockResolvedValue(signedIn());
+      const seen: unknown[] = [];
+
+      const Probe = () => {
+        const auth = useAuth();
+        seen.push(auth.client);
+        return null;
+      };
+
+      await act(async () => {
+        render(
+          <AuthProvider apiHost={apiHost}>
+            <Probe />
+          </AuthProvider>
+        );
+      });
+
+      expect(seen.length).toBeGreaterThan(0);
+      expect(new Set(seen).size).toBe(1);
+      expect(typeof (seen[0] as { login: unknown }).login).toBe('function');
+    });
+
+    it('passes transport and passkey ports through to the client', async () => {
+      mockFetchWithAuthImpl.mockResolvedValue(signedIn());
+      const tokenStorage = {
+        get: jest.fn(async () => null),
+        set: jest.fn(async () => undefined),
+        remove: jest.fn(async () => undefined),
+      };
+      const passkeys = {
+        isSupported: () => true,
+        isPlatformAuthenticatorAvailable: async () => true,
+        create: jest.fn(),
+        get: jest.fn(),
+      };
+      let ports: unknown;
+
+      const Probe = () => {
+        ports = useAuth().ports;
+        return null;
+      };
+
+      await act(async () => {
+        render(
+          <AuthProvider
+            apiHost={apiHost}
+            transport={{ mode: 'bearer', tokenStorage }}
+            ports={{ passkeys }}
+          >
+            <Probe />
+          </AuthProvider>
+        );
+      });
+
+      expect(createFetchWithAuth).toHaveBeenCalledWith(
+        expect.objectContaining({ authHost: apiHost, mode: 'bearer', tokenStorage })
+      );
+      expect((ports as { passkeys: unknown }).passkeys).toBe(passkeys);
+    });
+
+    it('keeps one session across re-renders that pass fresh but equal prop objects', async () => {
+      mockFetchWithAuthImpl.mockResolvedValue(signedIn());
+      const tokenStorage = {
+        get: jest.fn(async () => null),
+        set: jest.fn(async () => undefined),
+        remove: jest.fn(async () => undefined),
+      };
+      const passkeys = {
+        isSupported: () => true,
+        isPlatformAuthenticatorAvailable: async () => true,
+        create: jest.fn(),
+        get: jest.fn(),
+      };
+
+      const Harness = ({ tick }: { tick: number }) => (
+        <AuthProvider
+          apiHost={apiHost}
+          transport={{ mode: 'bearer', tokenStorage }}
+          ports={{ passkeys }}
+        >
+          <Consumer />
+          <span data-testid="tick">{tick}</span>
+        </AuthProvider>
+      );
+
+      let rerender: (ui: React.ReactElement) => void = () => undefined;
+      await act(async () => {
+        ({ rerender } = render(<Harness tick={1} />));
+      });
+      await act(async () => {
+        rerender(<Harness tick={2} />);
+      });
+      await act(async () => {
+        rerender(<Harness tick={3} />);
+      });
+
+      // One session, so one client, so one session read on mount.
+      expect(createFetchWithAuth).toHaveBeenCalledTimes(1);
+      expect(mockFetchWithAuthImpl).toHaveBeenCalledTimes(1);
+    });
+  });
+
   describe('StrictMode remount', () => {
     it('settles a signed-out session instead of loading forever', async () => {
       // The adapter answers a missing access cookie with 400, which is the

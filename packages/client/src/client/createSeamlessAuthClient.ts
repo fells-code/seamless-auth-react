@@ -4,14 +4,11 @@
  * See LICENSE file in the project root for full license information
  */
 
-import {
-  startAuthentication,
-  startRegistration,
-  type AuthenticationResponseJSON,
-  type PublicKeyCredentialCreationOptionsJSON,
-  type PublicKeyCredentialRequestOptionsJSON,
-  type RegistrationResponseJSON,
-  WebAuthnError,
+import type {
+  AuthenticationResponseJSON,
+  PublicKeyCredentialCreationOptionsJSON,
+  PublicKeyCredentialRequestOptionsJSON,
+  RegistrationResponseJSON,
 } from '@simplewebauthn/browser';
 
 import type {
@@ -44,6 +41,9 @@ import type {
 } from '@seamless-auth/types';
 
 import { createFetchWithAuth } from '../fetchWithAuth';
+import { createBrowserPasskeyPort } from '../ports/browserPasskeys';
+import { isPasskeyCeremonyError, type PasskeyPort } from '../ports/passkeys';
+import type { TransportOptions } from '../transport';
 import { getWebAuthnErrorDetail } from './errors';
 import {
   NETWORK_ERROR_STATUS,
@@ -56,7 +56,6 @@ import {
   createPrfRequestBody,
   extractPasskeyPrfResult,
   getRegistrationPrfCapable,
-  isPasskeyPrfSupported,
   PasskeyPrfInput,
   PasskeyPrfResult,
   preparePrfRequestOptions,
@@ -71,6 +70,14 @@ export interface SeamlessAuthClientOptions {
    * destination as the send it repeats. Omit it to keep the deployment's.
    */
   magicLinkRedirectUri?: string;
+  /**
+   * How the session travels. Defaults to cookie transport, the browser
+   * contract. A native binding sets `mode: 'bearer'` and supplies a
+   * `tokenStorage` backed by the platform keystore.
+   */
+  transport?: Omit<TransportOptions, 'apiHost'>;
+  /** Who runs the passkey ceremonies. Defaults to the browser. */
+  passkeys?: PasskeyPort;
 }
 
 export interface LoginInput {
@@ -423,8 +430,10 @@ export const createSeamlessAuthClient = (
   opts: SeamlessAuthClientOptions
 ): SeamlessAuthClient => {
   const fetchWithAuth = createFetchWithAuth({
+    ...opts.transport,
     authHost: opts.apiHost,
   });
+  const passkeys = opts.passkeys ?? createBrowserPasskeyPort();
 
   return {
     getCurrentUser: () =>
@@ -458,9 +467,7 @@ export const createSeamlessAuthClient = (
       let assertionResponse: AuthenticationResponseJSON;
 
       try {
-        const credential = (await startAuthentication({
-          optionsJSON: preparePrfRequestOptions(started.data),
-        })) as AuthenticationResponseJSON;
+        const credential = await passkeys.get(preparePrfRequestOptions(started.data));
         prf = extractPasskeyPrfResult(credential);
         assertionResponse = stripPrfResultsFromAssertion(credential);
       } catch (error) {
@@ -685,9 +692,9 @@ export const createSeamlessAuthClient = (
       let attestationResponse: RegistrationResponseJSON;
 
       try {
-        attestationResponse = await startRegistration({ optionsJSON: challenge.data });
+        attestationResponse = await passkeys.create(challenge.data);
       } catch (error) {
-        if (error instanceof WebAuthnError) {
+        if (isPasskeyCeremonyError(error)) {
           // The authenticator name is the useful detail here, for example
           // InvalidStateError when the passkey already exists.
           return resultError(error.name, NETWORK_ERROR_STATUS, undefined, error);
@@ -720,7 +727,7 @@ export const createSeamlessAuthClient = (
       return resultOf({ credentialId: attestationResponse.id, prfCapable });
     },
 
-    isPasskeyPrfSupported,
+    isPasskeyPrfSupported: async () => passkeys.isSupported(),
 
     getStepUpStatus: () =>
       requestResult<StepUpStatus>(
@@ -741,9 +748,7 @@ export const createSeamlessAuthClient = (
       let assertionResponse: AuthenticationResponseJSON;
 
       try {
-        const credential = (await startAuthentication({
-          optionsJSON: preparePrfRequestOptions(started.data),
-        })) as AuthenticationResponseJSON;
+        const credential = await passkeys.get(preparePrfRequestOptions(started.data));
         assertionResponse = stripPrfResultsFromAssertion(credential);
       } catch (error) {
         return webAuthnFailure(
@@ -784,9 +789,7 @@ export const createSeamlessAuthClient = (
       let assertionResponse: AuthenticationResponseJSON;
 
       try {
-        const credential = (await startAuthentication({
-          optionsJSON: preparePrfRequestOptions(started.data),
-        })) as AuthenticationResponseJSON;
+        const credential = await passkeys.get(preparePrfRequestOptions(started.data));
         prf = extractPasskeyPrfResult(credential);
         assertionResponse = stripPrfResultsFromAssertion(credential);
       } catch (error) {

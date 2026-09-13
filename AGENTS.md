@@ -86,12 +86,26 @@ Common usage patterns:
 
 ## Runtime Model
 
-This package assumes a Seamless Auth-compatible backend mounted under `/auth`.
+This package assumes a Seamless Auth-compatible backend (a server adapter)
+mounted under `/auth`.
 
-`createFetchWithAuth()` is the shared request helper:
+`createTransport()` in `@seamless-auth/client` is the shared request layer, and
+`createFetchWithAuth()` is the seam the client is built on:
 
-- it always sends `credentials: "include"`
-- it targets `${authHost}/auth/...`
+- cookie transport (the default, and what every browser application uses) sends
+  `credentials: "include"` to `${apiHost}/auth/...` and holds no tokens
+- bearer transport (`mode: 'bearer'`, for native bindings) marks every request
+  with `x-seamless-auth-transport: bearer`, attaches the ephemeral token on
+  pre-auth routes and the access token on signed-in routes, stores the pair a
+  session-issuing response returns through a `TokenStoragePort`, and refreshes
+  once through `POST /refresh` on a 401 with at most one refresh in flight
+- which routes take which token is one table, `ROUTE_RULES` in
+  `packages/client/src/transport.ts`, mirroring the server adapter's own map
+
+Platform differences sit behind ports the binding supplies: `PasskeyPort` (who
+runs the WebAuthn ceremonies), `OAuthRedirectPort` (how the provider is opened),
+`TokenStoragePort` (where a bearer session lives). The browser implementations
+are the defaults, so a web application configures nothing.
 
 Important implication:
 
