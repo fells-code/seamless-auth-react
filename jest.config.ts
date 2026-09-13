@@ -1,5 +1,9 @@
 export default {
-  projects: ['<rootDir>/packages/client', '<rootDir>/packages/react'],
+  projects: [
+    '<rootDir>/packages/client',
+    '<rootDir>/packages/react',
+    '<rootDir>/packages/react-native',
+  ],
   collectCoverage: true,
   collectCoverageFrom: ['src/**/*.{ts,tsx}', '!src/**/*.d.ts'],
   coverageThreshold: {
