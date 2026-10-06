@@ -4,27 +4,43 @@
  * See LICENSE file in the project root for full license information
  */
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useAuth } from '@/AuthProvider';
 import { useAuthClient } from '@/hooks/useAuthClient';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 
 import styles from '@/styles/verifyMagiclink.module.css';
 
+type Verification = ReturnType<ReturnType<typeof useAuthClient>['verifyMagicLink']>;
+
+/**
+ * Where an emailed magic link lands.
+ *
+ * Verifying the link does not sign in this tab. The session belongs to the
+ * browser that asked for the link, which collects it from `/magic-link/check`
+ * with its pre-auth cookie. So once the link is verified, this screen tells
+ * that tab, then signs in here too when it can: when the link was opened in
+ * the same browser, which holds the same pre-auth cookie. Opened on another
+ * device there is nothing to collect, and the screen says to go back.
+ */
 const VerifyMagicLink: React.FC = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const token = searchParams.get('token');
 
   const [error, setError] = useState('');
-  const [successMsg, setSuccessMsg] = useState('');
+  const [outcome, setOutcome] = useState<'signed-in' | 'elsewhere' | null>(null);
 
   const authClient = useAuthClient();
   const { refreshSession } = useAuth();
 
+  // A link can be used once. Strict Mode runs this effect twice in development,
+  // and a second request would find the link spent and report a failure, so the
+  // remount waits on the first request instead of sending another.
+  const verification = useRef<{ token: string; result: Verification } | null>(null);
+
   useEffect(() => {
     let mounted = true;
-    let channel: BroadcastChannel | null = null;
     let redirectTimeout: ReturnType<typeof setTimeout> | null = null;
 
     const verify = async () => {
@@ -36,34 +52,47 @@ const VerifyMagicLink: React.FC = () => {
         return;
       }
 
-      const { error } = await authClient.verifyMagicLink(token);
-
-      if (error) {
-        console.error('Failed to verify token');
-        if (mounted) {
-          setError('Failed to verify token');
-        }
-        return;
+      if (verification.current?.token !== token) {
+        verification.current = { token, result: authClient.verifyMagicLink(token) };
       }
 
-      // The verify call sets the session cookie for this browser. Sync
-      // provider state here so the tab that completed verification lands
-      // authenticated instead of relying on another tab or a manual reload.
-      await refreshSession();
+      const { error } = await verification.current.result;
 
       if (!mounted) {
         return;
       }
 
-      channel = new BroadcastChannel('seamless-auth');
+      if (error) {
+        console.error('Failed to verify token');
+        setError('Failed to verify token');
+        return;
+      }
 
-      channel.postMessage({
-        type: 'MAGIC_LINK_AUTH_SUCCESS',
-      });
+      const channel = new BroadcastChannel('seamless-auth');
+      channel.postMessage({ type: 'MAGIC_LINK_AUTH_SUCCESS' });
+      channel.close();
 
-      setSuccessMsg(
-        'You have been verified on the device and browser that initiated this request'
-      );
+      // Each successful check issues a session, so check only when this browser
+      // has none yet: the requesting tab may already have collected it. In the
+      // background, because an application that shows a loading screen while
+      // the session is read would unmount this screen and verify again.
+      let session = await refreshSession({ background: true });
+
+      if (session.error) {
+        await authClient.checkMagicLink();
+        session = await refreshSession({ background: true });
+      }
+
+      if (!mounted) {
+        return;
+      }
+
+      if (session.error) {
+        setOutcome('elsewhere');
+        return;
+      }
+
+      setOutcome('signed-in');
 
       redirectTimeout = setTimeout(() => {
         if (!mounted) {
@@ -77,7 +106,6 @@ const VerifyMagicLink: React.FC = () => {
 
     return () => {
       mounted = false;
-      channel?.close();
 
       if (redirectTimeout) {
         clearTimeout(redirectTimeout);
@@ -91,9 +119,9 @@ const VerifyMagicLink: React.FC = () => {
         <h1 className={styles.title}>Verifying your login</h1>
 
         <div className={styles.verificationContent}>
-          {!successMsg && !error && <div className={styles.spinner}></div>}
+          {!outcome && !error && <div className={styles.spinner}></div>}
 
-          {successMsg && (
+          {outcome && (
             <div className={styles.successIcon}>
               <svg
                 viewBox="0 0 24 24"
@@ -107,14 +135,21 @@ const VerifyMagicLink: React.FC = () => {
             </div>
           )}
 
-          {!successMsg && !error && (
+          {!outcome && !error && (
             <p className={styles.helperText}>
               Please wait while we securely verify your sign-in link.
             </p>
           )}
 
-          {successMsg && (
+          {outcome === 'signed-in' && (
             <p className={styles.successText}>Login verified. Redirecting…</p>
+          )}
+
+          {outcome === 'elsewhere' && (
+            <p className={styles.successText}>
+              Login verified. Return to the device where you requested this link to
+              continue.
+            </p>
           )}
 
           {error && <p className={styles.error}>{error}</p>}
