@@ -10,7 +10,7 @@ import { useAuthClient } from '@/hooks/useAuthClient';
 import { usePasskeySupport } from '@/hooks/usePasskeySupport';
 import { useLocation, useNavigate } from 'react-router-dom';
 
-import { authRoutePaths } from '@/routes';
+import { authRoutePaths } from '@/authRoutePaths';
 import styles from '@/styles/verifyOTP.module.css';
 import OtpInput from '@/components/OtpInput';
 

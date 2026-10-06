@@ -74,6 +74,117 @@ describe('createAuthSession', () => {
     expect(mockFetchWithAuth).not.toHaveBeenCalled();
   });
 
+  describe('initialSession', () => {
+    it('starts signed in and settled from a server-resolved session', () => {
+      const session = createAuthSession({
+        apiHost,
+        storage: createMemoryStorage(),
+        initialSession: { user, credentials: [{ id: 'cred-1' }] as any },
+      });
+
+      expect(session.getState()).toMatchObject({
+        user,
+        credentials: [{ id: 'cred-1' }],
+        organizations: [],
+        activeOrganization: null,
+        isAuthenticated: true,
+        loading: false,
+      });
+      expect(mockFetchWithAuth).not.toHaveBeenCalled();
+    });
+
+    it('starts signed out and settled when the server found no session', () => {
+      const session = createAuthSession({
+        apiHost,
+        storage: createMemoryStorage(),
+        initialSession: null,
+      });
+
+      expect(session.getState()).toMatchObject({
+        user: null,
+        isAuthenticated: false,
+        loading: false,
+      });
+    });
+  });
+
+  describe('refreshSession in the background', () => {
+    it('keeps the current state on screen instead of reporting loading', async () => {
+      const session = createAuthSession({
+        apiHost,
+        storage: createMemoryStorage(),
+        initialSession: { user },
+      });
+      const loadingSeen: boolean[] = [];
+      session.subscribe(() => loadingSeen.push(session.getState().loading));
+      mockFetchWithAuth.mockResolvedValueOnce(
+        okResponse({ user, credentials: [{ id: 'cred-1' }] })
+      );
+
+      await session.actions.refreshSession({ background: true });
+
+      expect(loadingSeen).not.toContain(true);
+      expect(session.getState().credentials).toEqual([{ id: 'cred-1' }]);
+    });
+
+    it('still signs out when the server no longer accepts the session', async () => {
+      const session = createAuthSession({
+        apiHost,
+        storage: createMemoryStorage(),
+        initialSession: { user },
+      });
+      mockFetchWithAuth.mockResolvedValueOnce(failedResponse());
+
+      await session.actions.refreshSession({ background: true });
+
+      expect(session.getState()).toMatchObject({
+        user: null,
+        isAuthenticated: false,
+        loading: false,
+      });
+    });
+  });
+
+  describe('getServerState', () => {
+    it('leaves out a previous sign-in that only browser storage knows about', () => {
+      const storage = createMemoryStorage();
+      storage.set('seamlessauth_seen', 'true');
+
+      const session = buildSession(storage);
+
+      expect(session.getState().hasSignedInBefore).toBe(true);
+      expect(session.getServerState().hasSignedInBefore).toBe(false);
+      expect(session.getServerState()).toEqual({
+        ...session.getState(),
+        hasSignedInBefore: false,
+      });
+    });
+
+    it('carries a server-resolved session, and keeps one reference', () => {
+      const session = createAuthSession({
+        apiHost,
+        storage: createMemoryStorage(),
+        initialSession: { user },
+      });
+
+      expect(session.getServerState()).toMatchObject({ user, loading: false });
+      expect(session.getServerState()).toBe(session.getServerState());
+    });
+
+    it('does not follow later updates', async () => {
+      mockFetchWithAuth.mockResolvedValueOnce(okResponse({ user }));
+      const session = buildSession();
+
+      await session.actions.refreshSession();
+
+      expect(session.getState().isAuthenticated).toBe(true);
+      expect(session.getServerState()).toMatchObject({
+        isAuthenticated: false,
+        loading: true,
+      });
+    });
+  });
+
   it('populates the session and notifies subscribers', async () => {
     mockFetchWithAuth.mockResolvedValueOnce(
       okResponse({ user, credentials: [{ id: 'cred-1' }] })

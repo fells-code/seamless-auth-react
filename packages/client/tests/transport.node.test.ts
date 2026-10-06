@@ -462,9 +462,12 @@ describe('bearer transport', () => {
     await storage.set({ accessToken: 'access-1', refreshToken: 'refresh-1' });
     const { calls, fetchImpl } = scriptedFetch(() => jsonResponse(200, { sessions: [] }));
 
-    const response = await bearer(fetchImpl, storage).authorizedFetch(`${API}/auth/sessions`, {
-      method: 'GET',
-    });
+    const response = await bearer(fetchImpl, storage).authorizedFetch(
+      `${API}/auth/sessions`,
+      {
+        method: 'GET',
+      }
+    );
 
     expect(response.status).toBe(200);
     expect(calls[0].url).toBe(`${API}/auth/sessions`);

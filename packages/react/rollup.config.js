@@ -12,11 +12,19 @@ const __dirname = path.dirname(__filename);
 
 export default [
   {
-    input: 'src/index.ts',
+    // Two entries in one build, so the provider's context lives in a single
+    // shared module that both import. Separate builds would each inline their own
+    // copy, and the bundled screens would never see the application's provider.
+    input: {
+      index: 'src/index.ts',
+      routes: 'src/routes.ts',
+    },
     output: {
-      file: 'dist/index.js',
+      dir: 'dist',
       format: 'esm',
       sourcemap: true,
+      entryFileNames: '[name].js',
+      chunkFileNames: 'chunks/shared-[hash].js',
     },
     external: [
       'react',
@@ -44,7 +52,12 @@ export default [
         minimize: true,
       }),
 
-      terser(),
+      // Every module here holds browser state or effects, so the whole package is
+      // a client boundary; server code reads from @seamless-auth/client instead.
+      // Rollup strips module-level directives while bundling, and terser drops an
+      // output banner as a dead expression, so the directive goes in as terser's
+      // preamble. scripts/check-react-dist.mjs fails the build if it goes missing.
+      terser({ format: { preamble: "'use client';" } }),
     ],
   },
 ];

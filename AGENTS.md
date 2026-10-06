@@ -149,7 +149,7 @@ those files before relying on it.
 Runtime exports currently include:
 
 - `AuthProvider`
-- `AuthRoutes`
+- `AuthRoutes`, from the `@seamless-auth/react/routes` subpath (`src/routes.ts`), not the root
 - `createSeamlessAuthClient`
 - `useAuth`
 - `useAuthClient`
@@ -226,12 +226,39 @@ This repository is an npm workspace with two published packages:
   - exposes browser support detection for passkeys
 - `src/AuthRoutes.tsx`
   - bundles the prebuilt auth route flow
+- `src/routes.ts`
+  - the `./routes` entry. The bundled screens are the only react-router-dom
+    consumers, so they ship from here and the root entry stays router-free
+- `src/authRoutePaths.ts`
+  - the canonical paths the bundled screens serve
 - `src/views/*`
   - bundled route screens that consume the public provider/client layer
 - `src/components/*`
   - reusable UI pieces for those bundled screens
 - `src/utils.ts`
   - browser-only helpers (`parseUserAgent`) and validators the screens use
+
+Next.js and server rendering (#78):
+
+- the React build is one rollup run with two inputs (`index`, `routes`) so the
+  provider context lives in a single shared chunk. Two builds would each inline
+  a context and the screens would never see the application's provider
+- every emitted file starts with `'use client'`, added as terser's `preamble`.
+  Rollup strips module-level directives and terser drops an output `banner`, so
+  neither of the obvious approaches survives. `scripts/check-react-dist.mjs`
+  runs at the end of the React build and fails it if any file lacks the
+  directive or if `index.js` reaches `react-router-dom`
+- `@seamless-auth/client` carries no directive: server code imports helpers and
+  types from it
+- the provider hydrates from `session.getServerState()`, which never reads
+  browser storage. Do not pass `getState` as the server snapshot again
+- `initialSession` seeds the store once; the provider then revalidates with
+  `refreshSession({ background: true })`. Never document forwarding browser
+  cookies to the adapter's `/auth/users/me` from a server: an expired access
+  cookie makes the adapter rotate the refresh token in a response the browser
+  never sees. Server reads go through `getSeamlessUser` in `@seamless-auth/core`
+- the server half (a route-handler adapter and session helpers) belongs in a
+  `@seamless-auth/nextjs` package in `seamless-auth-server`, not here
 
 Tests live in each package's `tests/` directory and run as two Jest projects
 from the root (`npm test`). The React project maps `@seamless-auth/client` to the

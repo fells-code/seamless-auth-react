@@ -10,7 +10,7 @@ import { useAuthClient } from '@/hooks/useAuthClient';
 import { FALLBACK_LOGIN_METHODS, useLoginMethods } from '@/hooks/useLoginMethods';
 import { usePasskeySupport } from '@/hooks/usePasskeySupport';
 import { useNavigate } from 'react-router-dom';
-import { authRoutePaths } from '@/routes';
+import { authRoutePaths } from '@/authRoutePaths';
 import styles from '@/styles/login.module.css';
 import { isValidEmail, isValidPhoneNumber } from '../utils';
 import AuthFallbackOptions from '@/components/AuthFallbackOptions';

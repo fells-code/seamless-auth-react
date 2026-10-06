@@ -7,7 +7,7 @@
 import { MemoryRouter, useLocation } from 'react-router-dom';
 import { render, screen } from '@testing-library/react';
 import { AuthRoutes } from '../src/AuthRoutes';
-import { authRoutePaths } from '../src/routes';
+import { authRoutePaths } from '../src/authRoutePaths';
 
 jest.mock('@/views/Login', () => () => <div>Login Page</div>);
 jest.mock('@/views/PassKeyLogin', () => () => <div>Passkey Login Page</div>);

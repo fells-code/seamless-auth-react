@@ -32,6 +32,22 @@ import { createDefaultStorage, SessionStoragePort } from './storage';
 
 const PREVIOUS_SIGN_IN_KEY = 'seamlessauth_seen';
 
+/**
+ * A session a server resolved before the page reached the browser. Only `user` is
+ * required, because a server that verified the access cookie may have nothing
+ * else to hand over; the rest fills in when the session revalidates.
+ */
+export type InitialSession = Pick<CurrentUserResult, 'user'> &
+  Partial<Omit<CurrentUserResult, 'user'>>;
+
+export interface RefreshSessionOptions {
+  /**
+   * Keep the current state on screen while the session is read, rather than
+   * reporting `loading`. For revalidating a session the UI already shows.
+   */
+  background?: boolean;
+}
+
 /** Everything a UI binding renders from. Replaced wholesale on every change. */
 export interface AuthSessionState {
   user: User | null;
@@ -53,7 +69,9 @@ export interface AuthSessionActions {
   registerPasskey: (
     input: PasskeyMetadata | RegisterPasskeyOptions
   ) => Promise<SeamlessAuthResult<PasskeyRegistrationData>>;
-  refreshSession: () => Promise<SeamlessAuthResult<CurrentUserResult>>;
+  refreshSession: (
+    options?: RefreshSessionOptions
+  ) => Promise<SeamlessAuthResult<CurrentUserResult>>;
   logout: () => Promise<SeamlessAuthResult<MessageResult>>;
   logoutAllSessions: () => Promise<SeamlessAuthResult<MessageResult>>;
   deleteUser: () => Promise<SeamlessAuthResult<MessageResult>>;
@@ -89,6 +107,13 @@ export interface AuthSessionActions {
  */
 export interface AuthSession {
   getState: () => AuthSessionState;
+  /**
+   * The state as a server render saw it: the initial state with nothing read
+   * from browser storage. A binding that hydrates server-rendered markup renders
+   * this first, so a value only the browser knows (a previous sign-in) cannot
+   * make the client's first render disagree with the server's.
+   */
+  getServerState: () => AuthSessionState;
   subscribe: (listener: () => void) => () => void;
   actions: AuthSessionActions;
   /**
@@ -110,6 +135,13 @@ export interface AuthSessionOptions extends Omit<SeamlessAuthClientOptions, 'api
    * cannot branch on it.
    */
   detectPreviousSignIn?: boolean;
+  /**
+   * The session a server already resolved for this request, or `null` when it
+   * found none. Either way the store starts settled rather than loading, so a
+   * server-rendered page does not flash signed out. Left out, the session is
+   * unknown until `refreshSession` runs.
+   */
+  initialSession?: InitialSession | null;
 }
 
 const SIGNED_OUT = {
@@ -121,12 +153,23 @@ const SIGNED_OUT = {
   isAuthenticated: false,
 } satisfies Partial<AuthSessionState>;
 
+function signedIn(session: InitialSession) {
+  return {
+    user: session.user,
+    credentials: session.credentials ?? [],
+    organizations: session.organizations ?? [],
+    activeOrganization: session.activeOrganization ?? null,
+    isAuthenticated: true,
+  } satisfies Partial<AuthSessionState>;
+}
+
 export function createAuthSession(options: AuthSessionOptions): AuthSession {
   const {
     apiHost,
     detectPreviousSignIn = true,
     client: providedClient,
     storage: providedStorage,
+    initialSession,
     ...clientOptions
   } = options;
   const client =
@@ -139,9 +182,15 @@ export function createAuthSession(options: AuthSessionOptions): AuthSession {
   // React's batching used to hide.
   let refreshGeneration = 0;
 
-  let state: AuthSessionState = {
+  const serverState: AuthSessionState = {
     ...SIGNED_OUT,
-    loading: true,
+    ...(initialSession ? signedIn(initialSession) : {}),
+    loading: initialSession === undefined,
+    hasSignedInBefore: false,
+  };
+
+  let state: AuthSessionState = {
+    ...serverState,
     hasSignedInBefore:
       detectPreviousSignIn && storage.get(PREVIOUS_SIGN_IN_KEY) === 'true',
   };
@@ -197,10 +246,12 @@ export function createAuthSession(options: AuthSessionOptions): AuthSession {
     }
   }
 
-  async function refreshSession() {
+  async function refreshSession({ background = false }: RefreshSessionOptions = {}) {
     const generation = ++refreshGeneration;
 
-    setState({ loading: true });
+    if (!background) {
+      setState({ loading: true });
+    }
 
     const result = await client.getCurrentUser();
 
@@ -218,14 +269,7 @@ export function createAuthSession(options: AuthSessionOptions): AuthSession {
       return result;
     }
 
-    setState({
-      user: result.data.user,
-      credentials: result.data.credentials ?? [],
-      organizations: result.data.organizations ?? [],
-      activeOrganization: result.data.activeOrganization ?? null,
-      isAuthenticated: true,
-      loading: false,
-    });
+    setState({ ...signedIn(result.data), loading: false });
 
     if (!state.hasSignedInBefore) {
       markSignedIn();
@@ -373,6 +417,7 @@ export function createAuthSession(options: AuthSessionOptions): AuthSession {
 
   return {
     getState: () => state,
+    getServerState: () => serverState,
     subscribe: listener => {
       listeners.add(listener);
 

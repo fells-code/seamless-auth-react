@@ -5,7 +5,6 @@
  */
 
 import { AuthContextType, AuthPorts, AuthProvider, useAuth } from '@/AuthProvider';
-import { AuthRoutes } from '@/AuthRoutes';
 import {
   createSeamlessAuthClient,
   CredentialUpdateResult,
@@ -74,17 +73,18 @@ import {
   User,
 } from '@seamless-auth/client';
 import type {
+  InitialSession,
   OAuthRedirectOutcome,
   OAuthRedirectPort,
   PasskeyPort,
   StoredTokens,
   TokenStoragePort,
+  RefreshSessionOptions,
   TransportOptions,
 } from '@seamless-auth/client';
 
 export {
   AuthProvider,
-  AuthRoutes,
   createSeamlessAuthClient,
   encodePrfSalt,
   extractPasskeyPrfResult,
@@ -112,6 +112,7 @@ export type {
   CurrentUserResult,
   FinishOAuthLoginInput,
   FinishOAuthLoginResult,
+  InitialSession,
   LoginInput,
   LoginMethod,
   LoginStartResult,
@@ -139,6 +140,7 @@ export type {
   PasskeyPrfResult,
   PasskeyRegistrationData,
   PublicSystemConfigResult,
+  RefreshSessionOptions,
   RegisterInput,
   RegisterPasskeyOptions,
   SeamlessAuthClient,
