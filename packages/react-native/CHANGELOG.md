@@ -1,5 +1,13 @@
 # @seamless-auth/react-native
 
+## 0.2.1
+
+### Patch Changes
+
+- 4a2d6ff: Support Node 22 and newer. The `engines` field now requires `>=22` instead of `>=24.0.0 <25.0.0`, and CI runs on Node 22, 24, and the latest release (fells-code/seamless-auth-api#339).
+- Updated dependencies [4a2d6ff]
+  - @seamless-auth/client@0.3.1
+
 ## 0.2.0
 
 ### Minor Changes
