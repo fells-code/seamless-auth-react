@@ -261,9 +261,9 @@ The workflow:
 Do not create release tags manually for normal releases. The workflow owns stable package tags after
 the reviewed release PR is merged.
 
-This package targets a Node 24 baseline. The `engines` field requires Node 24 (`>=24.0.0 <25.0.0`),
-`.nvmrc` pins 24, and both CI and release automation run on Node 24 in GitHub Actions. Use Node 24.10
-or newer locally so development and release commands match the workflows.
+These packages support Node 22 or newer. The `engines` field requires `>=22`, and CI tests Node 22,
+24, and the latest release. `.nvmrc` pins 24, which release automation uses, so use Node 24.10 or
+newer locally to match the release workflow.
 
 ### npm Publishing
 
