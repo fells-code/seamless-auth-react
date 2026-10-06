@@ -14,7 +14,7 @@ import EmailRegistration from '@/views/EmailRegistration';
 import VerifyMagicLink from '@/views/VerifyMagicLink';
 import OAuthCallback from '@/views/OAuthCallback';
 import MagicLinkSent from './components/MagicLinkSent';
-import { authRoutePaths } from './routes';
+import { authRoutePaths } from './authRoutePaths';
 
 export const AuthRoutes = () => (
   <Routes>

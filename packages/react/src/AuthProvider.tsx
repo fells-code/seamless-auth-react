@@ -26,6 +26,8 @@ import { PasskeyPrfInput } from '@seamless-auth/client';
 import {
   createAuthSession,
   createBrowserOAuthRedirect,
+  type InitialSession,
+  type RefreshSessionOptions,
   createBrowserPasskeyPort,
   type OAuthRedirectPort,
   type PasskeyPort,
@@ -39,6 +41,7 @@ import React, {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useSyncExternalStore,
 } from 'react';
 
@@ -47,7 +50,9 @@ export interface AuthContextType {
   logout: () => Promise<SeamlessAuthResult<MessageResult>>;
   logoutAllSessions: () => Promise<SeamlessAuthResult<MessageResult>>;
   deleteUser: () => Promise<SeamlessAuthResult<MessageResult>>;
-  refreshSession: () => Promise<SeamlessAuthResult<CurrentUserResult>>;
+  refreshSession: (
+    options?: RefreshSessionOptions
+  ) => Promise<SeamlessAuthResult<CurrentUserResult>>;
   isAuthenticated: boolean;
   hasRole: (role: string) => boolean | undefined;
   hasScopedRole: (role: string | string[]) => boolean | undefined;
@@ -131,6 +136,14 @@ interface AuthProviderProps {
   transport?: Omit<TransportOptions, 'apiHost'>;
   /** Platform ports. Each one left out falls back to the browser's. */
   ports?: Partial<AuthPorts>;
+  /**
+   * The session a server already resolved for this request, or `null` when it
+   * found none. The first paint renders it settled instead of loading, and the
+   * provider then revalidates in the background, which fills in credentials and
+   * organizations and catches a session the server could not see. Read once,
+   * when the session is created.
+   */
+  initialSession?: InitialSession | null;
 }
 
 export const AuthProvider: React.FC<AuthProviderProps> = ({
@@ -140,6 +153,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({
   magicLinkRedirectUri,
   transport,
   ports: providedPorts,
+  initialSession,
 }) => {
   // Memoised on what is inside the objects, not on the objects. Callers write
   // these props inline, and a fresh session per render would sign the user out
@@ -159,6 +173,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({
     [mode, basePath, tokenStorage, fetchImpl]
   );
 
+  // Seeds the store like a `useState` initialiser. A server component hands over
+  // a fresh object on every `router.refresh()`, and rebuilding the store for each
+  // one would reset a sign-in that is half way through.
+  const initialSessionRef = useRef(initialSession);
+
   const session = useMemo(
     () =>
       createAuthSession({
@@ -167,6 +186,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({
         transport: stableTransport,
         passkeys: ports.passkeys,
         detectPreviousSignIn: autoDetectPreviousSignin,
+        initialSession: initialSessionRef.current,
       }),
     [
       apiHost,
@@ -178,12 +198,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({
   );
 
   // The store is the source of truth; React only reads snapshots from it. The
-  // server snapshot is the same call because the store reaches browser storage
-  // through a port that falls back to memory when there is none.
+  // server snapshot leaves out what only the browser knows, so hydration renders
+  // exactly what the server did and picks up the rest straight after.
   const state = useSyncExternalStore(
     session.subscribe,
     session.getState,
-    session.getState
+    session.getServerState
   );
 
   // The store is deliberately not destroyed on cleanup. `destroy()` is terminal,
@@ -198,7 +218,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({
   // into a store nobody observes. `destroy()` stays on the store for bindings that
   // genuinely own its lifetime.
   useEffect(() => {
-    void session.actions.refreshSession();
+    void session.actions.refreshSession({
+      background: initialSessionRef.current !== undefined,
+    });
   }, [session]);
 
   const value = useMemo(

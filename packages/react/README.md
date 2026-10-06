@@ -11,7 +11,7 @@
 ## What It Exports
 
 - `AuthProvider`
-- `AuthRoutes`
+- `AuthRoutes`, from `@seamless-auth/react/routes`
 - `useAuth()`
 - `createSeamlessAuthClient()`
 - `useAuthClient()`
@@ -29,6 +29,9 @@
 npm install @seamless-auth/react
 ```
 
+`react-router-dom` is an optional peer. Install it only if you render the bundled screens from
+`@seamless-auth/react/routes`; `AuthProvider`, the hooks, and the headless client do not need it.
+
 ## Releases
 
 Published versions are listed in [CHANGELOG.md](./CHANGELOG.md) and GitHub Releases. Releases are
@@ -42,7 +45,7 @@ You can use this package in three ways:
 
 1. `AuthProvider` + `useAuth()` for auth state and core auth actions
 2. `createSeamlessAuthClient()` or `useAuthClient()` to build fully custom login and registration screens
-3. `AuthRoutes` when you want the built-in login, OTP, magic-link, and passkey screens
+3. `AuthRoutes` (from `@seamless-auth/react/routes`) when you want the built-in login, OTP, magic-link, and passkey screens
 
 Most apps will use `AuthProvider` either way.
 
@@ -82,7 +85,8 @@ function Dashboard() {
 ### Use built-in auth routes with `AuthRoutes`
 
 ```tsx
-import { AuthRoutes, useAuth } from '@seamless-auth/react';
+import { useAuth } from '@seamless-auth/react';
+import { AuthRoutes } from '@seamless-auth/react/routes';
 import { Route, Routes } from 'react-router-dom';
 
 function AppRoutes() {
@@ -101,6 +105,74 @@ function AppRoutes() {
 ```
 
 You are still responsible for your app’s route protection and redirects.
+
+`AuthRoutes` moved to its own entry in 0.14.0. Earlier versions exported it from
+`@seamless-auth/react`; update the import to `@seamless-auth/react/routes`.
+
+## Next.js
+
+The package works in the Next.js App Router. Every module ships with a `'use client'` directive, so
+`AuthProvider` can be rendered straight from a server layout, and nothing touches `window` or
+storage while rendering on the server.
+
+```tsx
+// app/layout.tsx
+import { AuthProvider } from '@seamless-auth/react';
+
+export default function RootLayout({ children }: { children: React.ReactNode }) {
+  return (
+    <html lang="en">
+      <body>
+        <AuthProvider apiHost={process.env.NEXT_PUBLIC_API_HOST!}>
+          {children}
+        </AuthProvider>
+      </body>
+    </html>
+  );
+}
+```
+
+Things to know:
+
+- **Use custom UI, not `AuthRoutes`.** The bundled screens route with react-router, which a Next.js
+  app does not have. Build the screens with `useAuth()`, `useAuthClient()`, and the recipes under
+  [Custom UI Recipes](#custom-ui-recipes). `react-router-dom` does not need to be installed.
+- **Props from a server component must be serialisable.** `apiHost`, `magicLinkRedirectUri`, and
+  `initialSession` are. `transport` and `ports` take functions, so set those from a client component
+  that wraps the provider.
+- **Server code imports from `@seamless-auth/client`.** Everything exported here is a client
+  reference inside a server component, including the pure helpers. Read `hasScopedRole`,
+  `roleGrantsAccess`, and the types from `@seamless-auth/client` on the server.
+- **Hydration is safe.** The first client render matches the server's: `hasSignedInBefore` is
+  `false` on both and turns `true` straight after hydration when the browser remembers a sign-in.
+
+### Rendering a known session on the first paint
+
+Without help the provider starts in `loading` and learns the session from `/users/me` after
+hydration. A server that has already resolved the session can pass it as `initialSession`, and the
+first paint renders it settled:
+
+```tsx
+<AuthProvider apiHost={apiHost} initialSession={user ? { user } : null}>
+  {children}
+</AuthProvider>
+```
+
+Only `user` is required. The provider still revalidates in the background, without reporting
+`loading`, so credentials and organizations fill in, a revoked session signs out, and a session the
+server could not see (for example an expired access cookie with a live refresh cookie) still signs
+in. `initialSession` is read once, when the provider creates its session.
+
+Resolve the user on the server with `getSeamlessUser()` from `@seamless-auth/core`, which verifies
+the access cookie locally and asks the auth API directly. It needs your adapter's cookie secret, and
+the session cookies have to reach the Next.js server, so serve the adapter from the same site. Do not forward the browser's cookies to
+your adapter's `/auth/users/me` from the server: when the access cookie has expired the adapter
+rotates the refresh token in a response the browser never receives, and the browser's next refresh
+is then treated as a replay and revokes the session. A dedicated server package for Next.js is tracked in
+[seamless-auth-server#170](https://github.com/fells-code/seamless-auth-server/issues/170).
+
+`refreshSession({ background: true })` is public, for revalidating a session your UI already shows
+(on window focus, for example) without flashing a loading state.
 
 ## `useAuth()` API
 
@@ -121,7 +193,7 @@ You are still responsible for your app’s route protection and redirects.
   listOAuthProviders(): Promise<SeamlessAuthResult<OAuthProvidersResult>>;
   startOAuthLogin(input: StartOAuthLoginInput): Promise<SeamlessAuthResult<StartOAuthLoginResult>>;
   finishOAuthLogin(input: FinishOAuthLoginInput): Promise<SeamlessAuthResult<MessageResult>>;
-  refreshSession(): Promise<SeamlessAuthResult<CurrentUserResult>>;
+  refreshSession(options?: { background?: boolean }): Promise<SeamlessAuthResult<CurrentUserResult>>;
   refreshStepUpStatus(): Promise<SeamlessAuthResult<StepUpStatus>>;
   verifyStepUpWithPasskey(): Promise<SeamlessAuthResult<StepUpStatus>>;
   verifyStepUpWithPasskeyPrf(input: PasskeyPrfInput): Promise<SeamlessAuthResult<StepUpPrfData>>;
@@ -1158,7 +1230,8 @@ refuses every backup-eligible passkey, so handle the code rather than assuming t
 
 ## Notes
 
-- This package does not create its own `<BrowserRouter>`.
+- This package does not create its own `<BrowserRouter>`, and only `@seamless-auth/react/routes`
+  needs one.
 - It is designed to fit into your app’s existing routing tree.
 - The quickest path is `AuthProvider` + `AuthRoutes`.
 - The most flexible path is `AuthProvider` + custom UI using `useAuth()`, `useAuthClient()`, and `usePasskeySupport()`.
