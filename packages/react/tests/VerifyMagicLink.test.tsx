@@ -5,6 +5,7 @@
  */
 
 import { render, screen, act } from '@testing-library/react';
+import { StrictMode } from 'react';
 import VerifyMagicLink from '@/views/VerifyMagicLink';
 
 import { useAuth } from '@/AuthProvider';
@@ -23,9 +24,12 @@ jest.mock('react-router-dom', () => ({
 
 describe('VerifyMagicLink', () => {
   const navigate = jest.fn();
-  const refreshSession = jest.fn().mockResolvedValue(undefined);
+  const signedIn = { data: { user: { id: 'user-1' } }, error: null };
+  const signedOut = { data: null, error: new Error('unauthenticated') };
+  const refreshSession = jest.fn();
   const mockAuthClient = {
     verifyMagicLink: jest.fn(),
+    checkMagicLink: jest.fn(),
   };
   const postMessage = jest.fn();
   const close = jest.fn();
@@ -43,6 +47,11 @@ describe('VerifyMagicLink', () => {
     })) as any;
 
     jest.clearAllMocks();
+    refreshSession.mockResolvedValue(signedIn);
+    mockAuthClient.checkMagicLink.mockResolvedValue({
+      data: { message: 'Success' },
+      error: null,
+    });
   });
 
   afterEach(() => {
@@ -187,6 +196,112 @@ describe('VerifyMagicLink', () => {
     });
 
     expect(navigate).not.toHaveBeenCalled();
+  });
+
+  // Strict Mode runs the effect twice in development. The link is single use,
+  // so a second request is refused, and that refusal used to be what the
+  // screen reported.
+  test('spends the link once under Strict Mode and signs in', async () => {
+    (useSearchParams as jest.Mock).mockReturnValue([
+      new URLSearchParams('?token=abc123'),
+    ]);
+
+    let used = false;
+    mockAuthClient.verifyMagicLink.mockImplementation(async () => {
+      if (used) return { data: null, error: new Error('already used') };
+      used = true;
+      return { data: { message: 'Success' }, error: null };
+    });
+
+    render(
+      <StrictMode>
+        <VerifyMagicLink />
+      </StrictMode>
+    );
+
+    expect(await screen.findByText(/login verified\. redirecting/i)).toBeInTheDocument();
+    expect(mockAuthClient.verifyMagicLink).toHaveBeenCalledTimes(1);
+    expect(screen.queryByText(/failed to verify token/i)).not.toBeInTheDocument();
+  });
+
+  test('does not ask for another session when this browser already has one', async () => {
+    (useSearchParams as jest.Mock).mockReturnValue([
+      new URLSearchParams('?token=abc123'),
+    ]);
+    mockAuthClient.verifyMagicLink.mockResolvedValue({
+      data: { message: 'Success' },
+      error: null,
+    });
+
+    render(<VerifyMagicLink />);
+
+    await screen.findByText(/login verified\. redirecting/i);
+    expect(mockAuthClient.checkMagicLink).not.toHaveBeenCalled();
+  });
+
+  // Verifying does not sign in this tab; the session is collected with the
+  // pre-auth cookie of the browser that asked for the link.
+  test('collects the session when the link was opened in the requesting browser', async () => {
+    (useSearchParams as jest.Mock).mockReturnValue([
+      new URLSearchParams('?token=abc123'),
+    ]);
+    mockAuthClient.verifyMagicLink.mockResolvedValue({
+      data: { message: 'Success' },
+      error: null,
+    });
+    refreshSession.mockResolvedValueOnce(signedOut).mockResolvedValueOnce(signedIn);
+
+    render(<VerifyMagicLink />);
+
+    await screen.findByText(/login verified\. redirecting/i);
+    expect(mockAuthClient.checkMagicLink).toHaveBeenCalledTimes(1);
+
+    act(() => {
+      jest.advanceTimersByTime(900);
+    });
+    expect(navigate).toHaveBeenCalledWith('/');
+  });
+
+  test('sends the reader back when the link was opened on another device', async () => {
+    (useSearchParams as jest.Mock).mockReturnValue([
+      new URLSearchParams('?token=abc123'),
+    ]);
+    mockAuthClient.verifyMagicLink.mockResolvedValue({
+      data: { message: 'Success' },
+      error: null,
+    });
+    mockAuthClient.checkMagicLink.mockResolvedValue({
+      data: null,
+      error: new Error('unauthenticated'),
+    });
+    refreshSession.mockResolvedValue(signedOut);
+
+    render(<VerifyMagicLink />);
+
+    expect(
+      await screen.findByText(/return to the device where you requested this link/i)
+    ).toBeInTheDocument();
+    expect(postMessage).toHaveBeenCalledWith({ type: 'MAGIC_LINK_AUTH_SUCCESS' });
+
+    act(() => {
+      jest.advanceTimersByTime(900);
+    });
+    expect(navigate).not.toHaveBeenCalled();
+  });
+
+  test('reads the session in the background so the application keeps this screen mounted', async () => {
+    (useSearchParams as jest.Mock).mockReturnValue([
+      new URLSearchParams('?token=abc123'),
+    ]);
+    mockAuthClient.verifyMagicLink.mockResolvedValue({
+      data: { message: 'Success' },
+      error: null,
+    });
+
+    render(<VerifyMagicLink />);
+
+    await screen.findByText(/login verified\. redirecting/i);
+    expect(refreshSession).toHaveBeenCalledWith({ background: true });
   });
 
   test('shows spinner during verification', () => {
