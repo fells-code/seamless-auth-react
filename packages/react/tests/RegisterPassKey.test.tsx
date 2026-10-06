@@ -12,12 +12,14 @@ import { useLoginMethods } from '@/hooks/useLoginMethods';
 import { usePasskeySupport } from '@/hooks/usePasskeySupport';
 
 const mockNavigate = jest.fn();
+let mockLocationState: unknown = null;
 const mockRefreshSession = jest.fn();
 const mockRegisterPasskey = jest.fn();
 
 jest.mock('react-router-dom', () => ({
   ...jest.requireActual('react-router-dom'),
   useNavigate: () => mockNavigate,
+  useLocation: () => ({ state: mockLocationState }),
 }));
 
 jest.mock('@/AuthProvider', () => ({
@@ -46,6 +48,7 @@ jest.mock('@/utils', () => ({
 
 beforeEach(() => {
   jest.clearAllMocks();
+  mockLocationState = null;
   (useAuthClient as jest.Mock).mockReturnValue({
     registerPasskey: mockRegisterPasskey,
   });
@@ -328,4 +331,44 @@ describe('RegisterPasskey skip control', () => {
       await screen.findByText(/does not accept that kind of authenticator/i)
     ).toBeInTheDocument();
   });
+});
+
+// The OAuth callback sends a user here first when the API asks for enrollment,
+// and hands over where they were going.
+describe('RegisterPasskey destination', () => {
+  it('continues to the destination it was given after registering', async () => {
+    mockLocationState = { returnTo: '/dashboard?tab=billing' };
+    mockRegisterPasskey.mockResolvedValueOnce({
+      data: { credentialId: 'cred', prfCapable: false },
+      error: null,
+    });
+
+    render(<RegisterPasskey />);
+    fireEvent.click(await screen.findByText(/Register Passkey/i));
+
+    await waitFor(() =>
+      expect(mockNavigate).toHaveBeenCalledWith('/dashboard?tab=billing')
+    );
+  });
+
+  it('continues to the destination it was given after a skip', async () => {
+    mockLocationState = { returnTo: '/dashboard' };
+
+    render(<RegisterPasskey />);
+    fireEvent.click(await screen.findByText(/Skip for now/i));
+
+    await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith('/dashboard'));
+  });
+
+  it.each(['//evil.example/path', '/\\evil.example', 'https://evil.example/', 42])(
+    'goes home instead of following %p',
+    async returnTo => {
+      mockLocationState = { returnTo };
+
+      render(<RegisterPasskey />);
+      fireEvent.click(await screen.findByText(/Skip for now/i));
+
+      await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith('/'));
+    }
+  );
 });

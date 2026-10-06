@@ -15,7 +15,7 @@ import React, { useState } from 'react';
 import { useAuthClient } from '@/hooks/useAuthClient';
 import { hasNonPasskeyLoginMethod, useLoginMethods } from '@/hooks/useLoginMethods';
 import { usePasskeySupport } from '@/hooks/usePasskeySupport';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 
 import styles from '@/styles/registerPasskey.module.css';
 import { parseUserAgent } from '@/utils';
@@ -36,12 +36,30 @@ function policyRefusalMessage(error: unknown): string | undefined {
   return code ? POLICY_REFUSAL_MESSAGES[code] : undefined;
 }
 
+/**
+ * Where to go once the passkey step is done. The OAuth callback passes the
+ * caller's destination through router state when the API asks for enrollment
+ * first. Only an in-app path is honoured, so state cannot become an off-site
+ * redirect.
+ */
+function destinationFrom(state: unknown): string {
+  const returnTo = (state as { returnTo?: unknown } | null)?.returnTo;
+
+  return typeof returnTo === 'string' &&
+    returnTo.startsWith('/') &&
+    !returnTo.startsWith('//') &&
+    !returnTo.startsWith('/\\')
+    ? returnTo
+    : '/';
+}
+
 const PasskeyRegistration: React.FC = () => {
   const { refreshSession } = useAuth();
   const authClient = useAuthClient();
   const { passkeySupported, loading: passkeySupportLoading } = usePasskeySupport();
   const { loginMethods, loading: loginMethodsLoading } = useLoginMethods();
   const navigate = useNavigate();
+  const destination = destinationFrom(useLocation().state);
 
   const [status, setStatus] = useState<'idle' | 'success' | 'error' | 'loading'>('idle');
   const [message, setMessage] = useState('');
@@ -57,7 +75,7 @@ const PasskeyRegistration: React.FC = () => {
 
   const finishWithoutPasskey = async () => {
     await refreshSession();
-    navigate('/');
+    navigate(destination);
   };
 
   const registerPasskey = async (attachment?: PasskeyAttachment) => {
@@ -85,7 +103,7 @@ const PasskeyRegistration: React.FC = () => {
       await refreshSession();
       setStatus('success');
       setMessage('Passkey registered successfully.');
-      navigate('/');
+      navigate(destination);
     } catch (error) {
       console.error('Passkey registration failed.');
       setStatus('error');

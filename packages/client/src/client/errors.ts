@@ -47,6 +47,8 @@ const OAUTH_ERROR_CODES: Record<OAuthErrorCode, true> = {
   oauth_missing_email: true,
   oauth_email_not_verified: true,
   oauth_missing_subject: true,
+  oauth_invalid_id_token: true,
+  oauth_provider_retired: true,
 };
 
 function readCode(body: unknown): unknown {

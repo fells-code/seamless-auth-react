@@ -71,6 +71,30 @@ describe('OAuthCallback', () => {
     );
   });
 
+  test('sends the user into passkey enrollment when the API asks, keeping the destination', async () => {
+    finishOAuthLogin.mockResolvedValue({
+      data: {
+        message: 'Success',
+        nextStep: 'enroll_passkey',
+        returnTo: `${window.location.origin}/dashboard`,
+      },
+      error: null,
+    });
+    window.sessionStorage.setItem('seamless:oauth:provider', 'mock');
+    (useSearchParams as jest.Mock).mockReturnValue([
+      new URLSearchParams('code=abc&state=xyz'),
+    ]);
+
+    render(<OAuthCallback />);
+
+    await waitFor(() =>
+      expect(navigate).toHaveBeenCalledWith('/register-passkey', {
+        state: { returnTo: '/dashboard' },
+      })
+    );
+    expect(navigate).toHaveBeenCalledTimes(1);
+  });
+
   // These views route with react-router, which cannot leave the application. An adopter
   // that wants to is expected to read returnTo off the client result and navigate itself.
   test('falls back home when the returnTo is on another origin', async () => {
@@ -133,6 +157,8 @@ describe('OAuthCallback', () => {
       ['oauth_missing_email', /did not share an email address/],
       ['oauth_email_not_verified', /is not verified/],
       ['oauth_missing_subject', /usable account identifier/],
+      ['oauth_invalid_id_token', /could not be verified/],
+      ['oauth_provider_retired', /no longer signs in with this provider/],
     ])('maps %s to curated messaging', async (code, expected) => {
       renderWithError(new SeamlessAuthError('Sign-in failed', 400, { code }));
 
