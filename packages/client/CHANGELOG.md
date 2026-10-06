@@ -1,5 +1,23 @@
 # @seamless-auth/client
 
+## 0.2.0
+
+### Minor Changes
+
+- 419025e: Support the Next.js App Router.
+  - Every module in `@seamless-auth/react` now ships with a `'use client'` directive, so `AuthProvider` renders straight from a server layout. The build fails if the directive goes missing from any emitted file.
+  - **Breaking:** `AuthRoutes` moved to `@seamless-auth/react/routes`, and `react-router-dom` is now an optional peer. Change `import { AuthRoutes } from '@seamless-auth/react'` to `import { AuthRoutes } from '@seamless-auth/react/routes'`. Applications that do not render the bundled screens no longer need react-router installed.
+  - Fixed a hydration mismatch for returning users. `hasSignedInBefore` was read from `localStorage` on the client's first render, which the server could not match. The store now exposes `getServerState()`, and the provider hydrates from it.
+  - `AuthProvider` and `createAuthSession` accept `initialSession`, a session the server already resolved (or `null`). The first paint renders it settled instead of loading, and the session then revalidates in the background.
+  - `refreshSession({ background: true })` revalidates without reporting `loading`.
+
+- 0dfe622: Support signing in through a legacy identity provider during a migration cutover (fells-code/seamless-auth-api#337).
+  - `getOAuthErrorCode` recognises `oauth_provider_retired` (the user's organization no longer signs in with that provider) and `oauth_invalid_id_token`.
+  - The bundled OAuth callback sends the user to passkey enrollment when the sign-in response carries `nextStep: 'enroll_passkey'`, and the passkey screen then continues to the `returnTo` the flow asked for instead of always going home.
+  - The callback shows a specific message for both new codes.
+
+  Requires `@seamless-auth/types` 0.25.0.
+
 ## 0.1.0
 
 ### Minor Changes
