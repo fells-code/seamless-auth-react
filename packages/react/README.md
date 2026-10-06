@@ -1238,4 +1238,4 @@ refuses every backup-eligible passkey, so handle the code rather than assuming t
 
 ## License
 
-AGPL-3.0-only
+Apache-2.0

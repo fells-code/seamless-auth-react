@@ -31,7 +31,7 @@
     "directory": "packages/client"
   },
   "author": "Fells Code, LLC",
-  "license": "AGPL-3.0-only",
+  "license": "Apache-2.0",
   "bugs": {
     "url": "https://github.com/fells-code/seamless-auth-react/issues"
   },
