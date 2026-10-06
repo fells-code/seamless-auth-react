@@ -462,17 +462,17 @@ function OAuthButtons() {
   const [providers, setProviders] = useState<OAuthProvider[]>([]);
 
   useEffect(() => {
-    void listOAuthProviders().then(result => setProviders(result.providers));
+    void listOAuthProviders().then(({ data }) => setProviders(data?.providers ?? []));
   }, [listOAuthProviders]);
 
   async function signIn(providerId: string) {
-    const result = await startOAuthLogin({
+    const { data, error } = await startOAuthLogin({
       providerId,
       redirectUri: `${window.location.origin}/oauth/callback`,
       returnTo: `${window.location.origin}/dashboard`,
     });
 
-    window.location.assign(result.authorizationUrl);
+    if (!error) window.location.assign(data.authorizationUrl);
   }
 
   return (
@@ -549,13 +549,17 @@ The bundled `AuthRoutes` callback screen already maps these three codes to actio
 For fully custom UI without `useAuth()`, call the headless client directly:
 
 ```ts
-const providers = await authClient.listOAuthProviders();
-const started = await authClient.startOAuthLogin({
-  providerId: providers.providers[0].id,
-  redirectUri: `${window.location.origin}/oauth/callback`,
-});
+const { data: listed } = await authClient.listOAuthProviders();
+const provider = listed?.providers[0];
 
-window.location.assign(started.authorizationUrl);
+if (provider) {
+  const { data: started, error } = await authClient.startOAuthLogin({
+    providerId: provider.id,
+    redirectUri: `${window.location.origin}/oauth/callback`,
+  });
+
+  if (!error) window.location.assign(started.authorizationUrl);
+}
 ```
 
 OAuth must be enabled on the Seamless Auth API with `LOGIN_METHODS` including `oauth` and at least
