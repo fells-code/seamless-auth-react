@@ -31,4 +31,4 @@ are managed with Changesets; see [RELEASES.md](RELEASES.md) and
 
 ## License
 
-AGPL-3.0-only. See [LICENSE](LICENSE).
+Apache-2.0. See [LICENSE](LICENSE).
