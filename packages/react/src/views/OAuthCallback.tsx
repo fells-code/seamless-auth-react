@@ -7,6 +7,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/AuthProvider';
+import { authRoutePaths } from '@/authRoutePaths';
 import { getOAuthErrorCode, OAuthErrorCode } from '@seamless-auth/client';
 import { OAUTH_PROVIDER_STORAGE_KEY } from '@/components/OAuthProviderButtons';
 
@@ -45,6 +46,10 @@ const CODE_ERRORS: Record<OAuthErrorCode, string> = {
     'The email address on your provider account is not verified. Verify it with your provider, then try again.',
   oauth_missing_subject:
     'Your provider did not return a usable account identifier. Try again, or sign in with a different method.',
+  oauth_invalid_id_token:
+    'Your provider sent a sign-in response that could not be verified. Try again, or sign in with a different method.',
+  oauth_provider_retired:
+    'Your organization no longer signs in with this provider. Sign in with your passkey or another method instead.',
 };
 
 const OAuthCallback: React.FC = () => {
@@ -76,7 +81,14 @@ const OAuthCallback: React.FC = () => {
         }
 
         sessionStorage.removeItem(OAUTH_PROVIDER_STORAGE_KEY);
-        navigate(inAppPath(data?.returnTo) ?? '/');
+        const destination = inAppPath(data?.returnTo) ?? '/';
+
+        if (data?.nextStep === 'enroll_passkey') {
+          navigate(authRoutePaths.registerPasskey, { state: { returnTo: destination } });
+          return;
+        }
+
+        navigate(destination);
       }
     );
   }, [finishOAuthLogin, navigate, searchParams]);
