@@ -1,5 +1,18 @@
 # @seamless-auth/react-native
 
+## 0.2.0
+
+### Minor Changes
+
+- 0fcd830: Relicense from AGPL-3.0-only to the Apache License, Version 2.0 (fells-code/seamless-auth-api#335). The `LICENSE` file, the `license` field and the license header in source files now say Apache-2.0, and the AGPL summary in `LICENSE.md` is removed.
+
+### Patch Changes
+
+- 7a26a6c: Depend on `@seamless-auth/types` `^0.26.0` (was `^0.25.0`), so the SDK's wire types track the current auth API contract.
+- Updated dependencies [0fcd830]
+- Updated dependencies [7a26a6c]
+  - @seamless-auth/client@0.3.0
+
 ## 0.1.1
 
 ### Patch Changes
