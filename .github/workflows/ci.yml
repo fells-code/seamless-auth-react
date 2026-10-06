@@ -22,7 +22,9 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        node-version: [24]
+        # The supported range is engines >=22: the oldest supported LTS, the
+        # development default from .nvmrc, and the newest release.
+        node-version: [22, 24, latest]
 
     steps:
       - name: Checkout repo
