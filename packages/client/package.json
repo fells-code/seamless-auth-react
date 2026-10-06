@@ -42,7 +42,7 @@
     "provenance": true
   },
   "dependencies": {
-    "@seamless-auth/types": "^0.25.0",
+    "@seamless-auth/types": "^0.26.0",
     "@simplewebauthn/browser": "^13.1.0"
   },
   "sideEffects": false
