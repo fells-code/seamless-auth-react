@@ -40,6 +40,9 @@ jobs:
       - name: Lint
         run: npm run lint
 
+      - name: Check @seamless-auth/types is current
+        run: npm run check:types-current
+
       - name: Run Tests with Coverage
         run: npm test -- --coverage --runInBand
 
