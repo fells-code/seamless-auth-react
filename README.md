@@ -14,6 +14,25 @@ core with it. The client package exists so that the bindings share one
 implementation of the auth flows and session state instead of re-implementing
 them; `@seamless-auth/react-native` is the second binding over it.
 
+## Start here
+
+New to Seamless Auth? The [self-hosted quickstart](https://docs.seamlessauth.com/start/quickstart/) runs the full stack locally with Docker. If Seamless hosts your auth instance, follow the [managed quickstart](https://docs.seamlessauth.com/start/managed-quickstart/) instead.
+
+This repo is the client layer: the browser and native SDKs, which talk only to your backend's `/auth` routes and never to the auth API directly.
+
+```mermaid
+flowchart LR
+  browser["Browser<br/>@seamless-auth/react"] -- "signed httpOnly cookies" --> backend
+  native["Native app<br/>@seamless-auth/react-native"] -- "bearer tokens" --> backend
+  backend["Your backend<br/>@seamless-auth/express, fastify, or nextjs<br/>mounted at /auth"] -- "bearer token + service token" --> api
+  api["seamless-auth-api<br/>owns the session"] --> db[("Postgres")]
+  backend -. "verifies tokens with JWKS" .-> api
+  style browser stroke-width:3px
+  style native stroke-width:3px
+```
+
+[How the pieces connect](https://docs.seamlessauth.com/start/overview/#how-the-pieces-connect) explains each hop. [Compatibility matrix](https://docs.seamlessauth.com/build/ecosystem/#compatibility-matrix) lists which package versions work together.
+
 ## Working in this repository
 
 ```bash
