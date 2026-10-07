@@ -1,5 +1,17 @@
 # @seamless-auth/react
 
+## 0.15.1
+
+### Patch Changes
+
+- 4a2d6ff: Support Node 22 and newer. The `engines` field now requires `>=22` instead of `>=24.0.0 <25.0.0`, and CI runs on Node 22, 24, and the latest release (fells-code/seamless-auth-api#339).
+- 929f7d5: Fix the bundled magic-link screen (`/verify-magiclink`) under React Strict Mode. Strict Mode runs effects twice in development, and the screen sent the single-use link to the server twice: the first request consumed it, the second was refused, and the screen showed "Failed to verify token" for a link that worked. It now sends one request per link.
+
+  The screen also no longer assumes that verifying a link signs in the tab that opened it. The session belongs to the browser that requested the link. After verifying, the screen signs in when the link was opened in that same browser, and otherwise tells the reader to return to the device that asked.
+
+- Updated dependencies [4a2d6ff]
+  - @seamless-auth/client@0.3.1
+
 ## 0.15.0
 
 ### Minor Changes
