@@ -1,6 +1,6 @@
 {
   "name": "@seamless-auth/react",
-  "version": "0.15.1",
+  "version": "0.15.2",
   "description": "A drop-in authentication solution for modern React applications.",
   "type": "module",
   "exports": {
@@ -56,7 +56,7 @@
     }
   },
   "dependencies": {
-    "@seamless-auth/client": "^0.3.1",
+    "@seamless-auth/client": "^0.3.2",
     "@seamless-auth/types": "^0.28.0",
     "@simplewebauthn/browser": "^13.1.0",
     "libphonenumber-js": "^1.12.7"
