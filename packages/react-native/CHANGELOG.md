@@ -1,5 +1,14 @@
 # @seamless-auth/react-native
 
+## 0.2.3
+
+### Patch Changes
+
+- 5041bb3: `@seamless-auth/client` now exports the step logic behind the bundled sign-in screens: `beginSignIn`, `registerWithEmail`, `requestOtp` and `verifyOtp`, `watchMagicLink` and `finishMagicLinkSignIn`, `startOAuthSignIn` and `completeOAuthCallback`, `enrollPasskey`, `loadLoginMethods`, `fallbackSignInOptions`, `detectPasskeySupport`, `safeReturnPath` and `inAppPath`, plus `isValidEmail`, `isValidPhoneNumber` and `parseUserAgent`. A custom UI in any framework can call them, and every binding's screens now share one implementation. The React and React Native screens behave as before.
+- Updated dependencies [5041bb3]
+- Updated dependencies [5041bb3]
+  - @seamless-auth/client@0.4.0
+
 ## 0.2.2
 
 ### Patch Changes
