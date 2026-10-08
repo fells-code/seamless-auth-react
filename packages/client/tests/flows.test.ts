@@ -497,6 +497,16 @@ describe('redirects', () => {
     expect(inAppPath(undefined, 'https://a.example')).toBeNull();
     expect(inAppPath('https://b.example/x', 'https://a.example')).toBeNull();
     expect(inAppPath('/x#y', 'https://a.example')).toBe('/x#y');
+    // Same-origin URLs whose path a browser reads as protocol-relative.
+    for (const url of [
+      'https://a.example//evil.example',
+      'https://a.example/\\evil.example',
+      'https://a.example/\t/evil.example',
+    ]) {
+      expect(inAppPath(url, 'https://a.example')).toBeNull();
+    }
+    expect(safeReturnPath('/\t/evil.example')).toBe('/');
+    expect(safeReturnPath('/a\nb')).toBe('/');
   });
 });
 
