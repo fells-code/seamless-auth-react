@@ -6,6 +6,7 @@
 
 import { useEffect, useState } from 'react';
 
+import { detectPasskeySupport } from '@seamless-auth/client';
 import { useAuth } from '@/AuthProvider';
 
 /** Whether this device can enrol and use passkeys, from the passkey port. */
@@ -17,20 +18,12 @@ export const usePasskeySupport = () => {
   useEffect(() => {
     let active = true;
 
-    const checkSupport = async () => {
-      try {
-        const supported =
-          ports.passkeys.isSupported() &&
-          (await ports.passkeys.isPlatformAuthenticatorAvailable());
-        if (active) setPasskeySupported(supported);
-      } catch {
-        if (active) setPasskeySupported(false);
-      } finally {
-        if (active) setLoading(false);
+    void detectPasskeySupport(ports.passkeys).then(supported => {
+      if (active) {
+        setPasskeySupported(supported);
+        setLoading(false);
       }
-    };
-
-    void checkSupport();
+    });
 
     return () => {
       active = false;

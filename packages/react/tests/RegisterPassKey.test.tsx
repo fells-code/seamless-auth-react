@@ -38,13 +38,15 @@ jest.mock('@/hooks/useLoginMethods', () => ({
   useLoginMethods: jest.fn(),
 }));
 
-jest.mock('@/utils', () => ({
-  parseUserAgent: jest.fn().mockReturnValue({
-    platform: 'macOS',
-    browser: 'Chrome',
-    deviceInfo: 'MacBook Pro',
-  }),
-}));
+const MAC_CHROME =
+  'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36';
+
+beforeAll(() => {
+  Object.defineProperty(window.navigator, 'userAgent', {
+    value: MAC_CHROME,
+    configurable: true,
+  });
+});
 
 beforeEach(() => {
   jest.clearAllMocks();
@@ -81,10 +83,10 @@ describe('RegisterPasskey', () => {
     await waitFor(() => {
       expect(mockRegisterPasskey).toHaveBeenCalledWith({
         metadata: {
-          friendlyName: 'MacBook Pro',
-          platform: 'macOS',
-          browser: 'Chrome',
-          deviceInfo: 'MacBook Pro',
+          friendlyName: 'mac • chrome',
+          platform: 'mac',
+          browser: 'chrome',
+          deviceInfo: 'mac • chrome',
         },
         attachment: undefined,
       });
@@ -272,10 +274,10 @@ describe('RegisterPasskey skip control', () => {
     await waitFor(() => {
       expect(mockRegisterPasskey).toHaveBeenCalledWith({
         metadata: {
-          friendlyName: 'MacBook Pro',
-          platform: 'macOS',
-          browser: 'Chrome',
-          deviceInfo: 'MacBook Pro',
+          friendlyName: 'mac • chrome',
+          platform: 'mac',
+          browser: 'chrome',
+          deviceInfo: 'mac • chrome',
         },
         attachment: 'cross-platform',
       });

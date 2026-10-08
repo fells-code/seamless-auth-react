@@ -7,13 +7,6 @@
 import { render, screen, fireEvent } from '@testing-library/react';
 import AuthFallbackOptions from '@/components/AuthFallbackOptions';
 
-import { isValidEmail, isValidPhoneNumber } from '@/utils';
-
-jest.mock('@/utils', () => ({
-  isValidEmail: jest.fn(),
-  isValidPhoneNumber: jest.fn(),
-}));
-
 describe('AuthFallbackOptions', () => {
   const magicLinkHandler = jest.fn();
   const emailOtpHandler = jest.fn();
@@ -25,9 +18,6 @@ describe('AuthFallbackOptions', () => {
   });
 
   test('renders magic link option when identifier is an email', () => {
-    (isValidEmail as jest.Mock).mockReturnValue(true);
-    (isValidPhoneNumber as jest.Mock).mockReturnValue(false);
-
     render(
       <AuthFallbackOptions
         identifier="test@example.com"
@@ -46,12 +36,9 @@ describe('AuthFallbackOptions', () => {
   });
 
   test('renders phone OTP option when identifier is a phone number', () => {
-    (isValidEmail as jest.Mock).mockReturnValue(false);
-    (isValidPhoneNumber as jest.Mock).mockReturnValue(true);
-
     render(
       <AuthFallbackOptions
-        identifier="+15555555555"
+        identifier="+14155552671"
         onMagicLink={magicLinkHandler}
         onEmailOtp={emailOtpHandler}
         onPhoneOtp={phoneOtpHandler}
@@ -69,9 +56,6 @@ describe('AuthFallbackOptions', () => {
   });
 
   test('calls magic link handler when magic link button is clicked', () => {
-    (isValidEmail as jest.Mock).mockReturnValue(true);
-    (isValidPhoneNumber as jest.Mock).mockReturnValue(false);
-
     render(
       <AuthFallbackOptions
         identifier="test@example.com"
@@ -88,12 +72,9 @@ describe('AuthFallbackOptions', () => {
   });
 
   test('calls phone OTP handler when phone button is clicked', () => {
-    (isValidEmail as jest.Mock).mockReturnValue(false);
-    (isValidPhoneNumber as jest.Mock).mockReturnValue(true);
-
     render(
       <AuthFallbackOptions
-        identifier="+15555555555"
+        identifier="+14155552671"
         onMagicLink={magicLinkHandler}
         onEmailOtp={emailOtpHandler}
         onPhoneOtp={phoneOtpHandler}
@@ -107,9 +88,6 @@ describe('AuthFallbackOptions', () => {
   });
 
   test('renders and calls email OTP when enabled for an email identifier', () => {
-    (isValidEmail as jest.Mock).mockReturnValue(true);
-    (isValidPhoneNumber as jest.Mock).mockReturnValue(false);
-
     render(
       <AuthFallbackOptions
         identifier="test@example.com"
@@ -130,9 +108,6 @@ describe('AuthFallbackOptions', () => {
   });
 
   test('filters fallback options using configured login methods', () => {
-    (isValidEmail as jest.Mock).mockReturnValue(true);
-    (isValidPhoneNumber as jest.Mock).mockReturnValue(false);
-
     render(
       <AuthFallbackOptions
         identifier="test@example.com"
@@ -152,9 +127,6 @@ describe('AuthFallbackOptions', () => {
   });
 
   test('always renders passkey retry option', () => {
-    (isValidEmail as jest.Mock).mockReturnValue(false);
-    (isValidPhoneNumber as jest.Mock).mockReturnValue(false);
-
     render(
       <AuthFallbackOptions
         identifier="anything"
@@ -171,9 +143,6 @@ describe('AuthFallbackOptions', () => {
   });
 
   test('calls passkey retry handler when clicked', () => {
-    (isValidEmail as jest.Mock).mockReturnValue(false);
-    (isValidPhoneNumber as jest.Mock).mockReturnValue(false);
-
     render(
       <AuthFallbackOptions
         identifier="anything"

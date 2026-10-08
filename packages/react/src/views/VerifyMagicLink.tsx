@@ -9,6 +9,8 @@ import { useAuth } from '@/AuthProvider';
 import { useAuthClient } from '@/hooks/useAuthClient';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 
+import { finishMagicLinkSignIn } from '@seamless-auth/client';
+
 import styles from '@/styles/verifyMagiclink.module.css';
 
 type Verification = ReturnType<ReturnType<typeof useAuthClient>['verifyMagicLink']>;
@@ -68,31 +70,20 @@ const VerifyMagicLink: React.FC = () => {
         return;
       }
 
-      const channel = new BroadcastChannel('seamless-auth');
-      channel.postMessage({ type: 'MAGIC_LINK_AUTH_SUCCESS' });
-      channel.close();
-
-      // Each successful check issues a session, so check only when this browser
-      // has none yet: the requesting tab may already have collected it. In the
-      // background, because an application that shows a loading screen while
-      // the session is read would unmount this screen and verify again.
-      let session = await refreshSession({ background: true });
-
-      if (session.error) {
-        await authClient.checkMagicLink();
-        session = await refreshSession({ background: true });
-      }
+      const outcome = await finishMagicLinkSignIn({
+        client: authClient,
+        refreshSession,
+      });
 
       if (!mounted) {
         return;
       }
 
-      if (session.error) {
-        setOutcome('elsewhere');
+      setOutcome(outcome);
+
+      if (outcome === 'elsewhere') {
         return;
       }
-
-      setOutcome('signed-in');
 
       redirectTimeout = setTimeout(() => {
         if (!mounted) {

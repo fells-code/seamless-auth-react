@@ -7,7 +7,7 @@
 import { useAuth } from '@/AuthProvider';
 import React, { useEffect, useState } from 'react';
 import { useAuthClient } from '@/hooks/useAuthClient';
-import { FALLBACK_LOGIN_METHODS, useLoginMethods } from '@/hooks/useLoginMethods';
+import { useLoginMethods } from '@/hooks/useLoginMethods';
 import { usePasskeySupport } from '@/hooks/usePasskeySupport';
 import { useNavigate } from 'react-router-dom';
 import { authRoutePaths } from '@/authRoutePaths';
@@ -15,7 +15,12 @@ import styles from '@/styles/login.module.css';
 import { isValidEmail, isValidPhoneNumber } from '../utils';
 import AuthFallbackOptions from '@/components/AuthFallbackOptions';
 import OAuthProviderButtons from '@/components/OAuthProviderButtons';
-import type { LoginMethod } from '@seamless-auth/client';
+import {
+  beginSignIn,
+  PASSKEY_SIGN_IN_FAILED,
+  registerWithEmail,
+  type LoginMethod,
+} from '@seamless-auth/client';
 
 const Login: React.FC = () => {
   const navigate = useNavigate();
@@ -78,19 +83,10 @@ const Login: React.FC = () => {
   const register = async () => {
     setFormErrors('');
 
-    const { data, error } = await authClient.register({
-      email,
-    });
+    const { error } = await registerWithEmail(authClient, email);
 
     if (error) {
-      setFormErrors('Failed to register. Please try again.');
-      return;
-    }
-
-    if (data.message !== 'Success') {
-      setFormErrors(
-        'An unexpected error occurred. Try again. If the problem persists, contact support.'
-      );
+      setFormErrors(error);
       return;
     }
 
@@ -137,37 +133,27 @@ const Login: React.FC = () => {
 
     try {
       if (mode === 'login') {
-        const { data: loginStart, error } = await login(identifier, passkeySupported);
+        const step = await beginSignIn(
+          { login, handlePasskeyLogin },
+          { identifier, passkeySupported, configuredMethods }
+        );
 
-        if (error) {
-          setFormErrors('Failed to start sign-in. Please try again.');
+        if (step.kind === 'error') {
+          setFormErrors(step.message);
           return;
         }
 
-        // The login response is per-user and authoritative when present. The
-        // instance configuration is the better fallback than a hardcoded list,
-        // because it at least reflects this deployment.
-        const availableMethods = loginStart?.loginMethods?.length
-          ? loginStart.loginMethods
-          : (configuredMethods ?? FALLBACK_LOGIN_METHODS);
-        setLoginMethods(availableMethods);
-
-        if (passkeySupported && availableMethods.includes('passkey')) {
-          const { error: passkeyError } = await handlePasskeyLogin();
-
-          if (!passkeyError) {
-            navigate('/');
-            return;
-          }
-
-          setShowFallbackOptions(true);
-          setFormErrors(
-            'Passkey sign-in could not be completed. Choose another sign-in method.'
-          );
+        if (step.kind === 'signed_in') {
+          navigate('/');
           return;
         }
 
+        setLoginMethods(step.loginMethods);
         setShowFallbackOptions(true);
+
+        if (step.passkeyFailed) {
+          setFormErrors(PASSKEY_SIGN_IN_FAILED);
+        }
         return;
       }
 

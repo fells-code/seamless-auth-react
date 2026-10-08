@@ -5,8 +5,11 @@
  */
 
 import React from 'react';
-import { isValidEmail, isValidPhoneNumber } from '../utils';
-import type { LoginMethod } from '@seamless-auth/client';
+import {
+  fallbackSignInOptions,
+  hasFallbackSignInOption,
+  type LoginMethod,
+} from '@seamless-auth/client';
 
 import styles from '../styles/login.module.css';
 
@@ -27,19 +30,12 @@ const AuthFallbackOptions: React.FC<AuthFallbackOptionsProps> = ({
   onPasskeyRetry,
   loginMethods,
 }) => {
-  // Null means the caller has not resolved the methods yet. This component is
-  // the last step of a fallback flow, so it stays permissive and lets the
-  // handlers it was given decide, rather than hiding an option a caller wired up.
-  const allowedMethods = new Set<LoginMethod>(
-    loginMethods ?? ['passkey', 'magic_link', 'phone_otp']
-  );
-  const showMagicLink = allowedMethods.has('magic_link') && isValidEmail(identifier);
-  const showEmailOtp =
-    allowedMethods.has('email_otp') && Boolean(onEmailOtp) && isValidEmail(identifier);
-  const showPhoneOtp = allowedMethods.has('phone_otp') && isValidPhoneNumber(identifier);
-  const showPasskeyRetry = allowedMethods.has('passkey') && Boolean(onPasskeyRetry);
+  const options = fallbackSignInOptions(identifier, loginMethods, {
+    emailOtp: Boolean(onEmailOtp),
+    passkeyRetry: Boolean(onPasskeyRetry),
+  });
 
-  if (!showMagicLink && !showEmailOtp && !showPhoneOtp && !showPasskeyRetry) {
+  if (!hasFallbackSignInOption(options)) {
     return null;
   }
 
@@ -50,7 +46,7 @@ const AuthFallbackOptions: React.FC<AuthFallbackOptionsProps> = ({
       <p className={styles.fallbackDescription}>Choose another secure sign-in method.</p>
 
       <div className={styles.fallbackActions}>
-        {showMagicLink && (
+        {options.magicLink && (
           <button
             type="button"
             className={styles.fallbackActionButton}
@@ -63,7 +59,7 @@ const AuthFallbackOptions: React.FC<AuthFallbackOptionsProps> = ({
           </button>
         )}
 
-        {showEmailOtp && (
+        {options.emailOtp && (
           <button
             type="button"
             className={styles.fallbackActionButton}
@@ -74,7 +70,7 @@ const AuthFallbackOptions: React.FC<AuthFallbackOptionsProps> = ({
           </button>
         )}
 
-        {showPhoneOtp && (
+        {options.phoneOtp && (
           <button
             type="button"
             className={styles.fallbackActionButton}
@@ -86,7 +82,7 @@ const AuthFallbackOptions: React.FC<AuthFallbackOptionsProps> = ({
         )}
       </div>
 
-      {showPasskeyRetry && (
+      {options.passkeyRetry && (
         <button type="button" className={styles.linkButton} onClick={onPasskeyRetry}>
           Try passkey anyway
         </button>

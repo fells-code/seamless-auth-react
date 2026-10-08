@@ -43,7 +43,8 @@
   },
   "dependencies": {
     "@seamless-auth/types": "^0.28.0",
-    "@simplewebauthn/browser": "^13.1.0"
+    "@simplewebauthn/browser": "^13.1.0",
+    "libphonenumber-js": "^1.12.7"
   },
   "sideEffects": false
 }

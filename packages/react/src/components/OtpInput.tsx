@@ -5,6 +5,8 @@
  */
 
 import React, { useRef } from 'react';
+import { isOtpCharacter, otpCharacters } from '@seamless-auth/client';
+
 import styles from '@/styles/otpInput.module.css';
 
 interface Props {
@@ -26,18 +28,13 @@ const OtpInput: React.FC<Props> = ({
 
   const values = value.split('').concat(Array(length).fill('')).slice(0, length);
 
-  const isValidChar = (char: string) => {
-    if (inputMode === 'numeric') return /^\d$/.test(char);
-    return /^[a-zA-Z]$/.test(char);
-  };
-
   const handleChange = (index: number, input: string) => {
     if (input.length > 1) {
       handleBulkInput(index, input);
       return;
     }
 
-    if (!input || isValidChar(input)) {
+    if (!input || isOtpCharacter(input, inputMode)) {
       const newValueArr = [...values];
       newValueArr[index] = input;
 
@@ -51,15 +48,7 @@ const OtpInput: React.FC<Props> = ({
   };
 
   const handleBulkInput = (index: number, input: string) => {
-    let cleaned = input;
-
-    if (inputMode === 'numeric') {
-      cleaned = input.replace(/\D/g, '');
-    } else {
-      cleaned = input.replace(/[^a-zA-Z]/g, '');
-    }
-
-    const chars = cleaned.slice(0, length).split('');
+    const chars = otpCharacters(input, inputMode).slice(0, length);
 
     const newValueArr = [...values];
 

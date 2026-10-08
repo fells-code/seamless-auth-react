@@ -208,6 +208,11 @@ This repository is an npm workspace with two published packages:
   - shared headless auth client
   - contains the backend request choreography for login, registration, OTP, magic-link, passkey flows, and credential mutations
 - `src/client/errors.ts`, `src/client/result.ts`, `src/client/webauthnPrf.ts`, `src/client/webauthnSupport.ts`
+- `src/flows/*`
+  - the step logic behind the bundled screens (sign-in start, OTP, magic link,
+    OAuth, passkey enrolment, safe return paths, login methods, validators).
+    Every binding's screens are thin views over these, so a fix lands once for
+    React, React Native, Angular and the bindings that follow
 - `src/fetchWithAuth.ts`
   - `/auth` request construction
 - `src/scopedRoles.ts`
