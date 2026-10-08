@@ -16,7 +16,7 @@ export default [
       format: 'esm',
       sourcemap: true,
     },
-    external: ['@simplewebauthn/browser'],
+    external: ['@simplewebauthn/browser', 'libphonenumber-js'],
     plugins: [
       alias({
         entries: [{ find: '@', replacement: path.resolve(__dirname, 'src') }],

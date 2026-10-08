@@ -186,7 +186,7 @@ Public API changes should be treated deliberately:
 
 ## Current Architecture
 
-This repository is an npm workspace with two published packages:
+This repository is an npm workspace. Its published packages include:
 
 - `packages/client`, published as `@seamless-auth/client`: the framework-agnostic
   core every binding shares. No React, no router, no DOM types beyond what
@@ -208,6 +208,11 @@ This repository is an npm workspace with two published packages:
   - shared headless auth client
   - contains the backend request choreography for login, registration, OTP, magic-link, passkey flows, and credential mutations
 - `src/client/errors.ts`, `src/client/result.ts`, `src/client/webauthnPrf.ts`, `src/client/webauthnSupport.ts`
+- `src/flows/*`
+  - the step logic behind the bundled screens (sign-in start, OTP, magic link,
+    OAuth, passkey enrolment, safe return paths, login methods, validators).
+    Every binding's screens are thin views over these, so a fix lands once for
+    React, React Native, Angular and the bindings that follow
 - `src/fetchWithAuth.ts`
   - `/auth` request construction
 - `src/scopedRoles.ts`
@@ -237,6 +242,29 @@ This repository is an npm workspace with two published packages:
   - reusable UI pieces for those bundled screens
 - `src/utils.ts`
   - browser-only helpers (`parseUserAgent`) and validators the screens use
+
+`@seamless-auth/angular` (#170):
+
+- built with ng-packagr against the lowest supported Angular major (20) in
+  partial compilation mode, with a peer range of `^20 || ^21 || ^22`. Raise the
+  build version only when the oldest supported major leaves LTS
+- publishes from `dist`: ng-packagr writes the manifest there, and
+  `publishConfig.directory` tells Changesets to publish that folder.
+  `scripts/finalize-angular-dist.mjs` finishes the manifest and fails the build
+  if a bundle touches web storage, configures bearer transport, or ships fully
+  compiled code
+- cookie transport only. `SeamlessAuthConfig` has no `mode`, so no token can
+  reach page scripts in this binding
+- `src/` is the root entry (service, `provideSeamlessAuth`, guards,
+  interceptor); `routes/src/` is the `./routes` secondary entry with the
+  standalone screens and `seamlessAuthRoutes`
+- the screens are thin views over `@seamless-auth/client` flows and must keep
+  the same accessible names and ids as the React screens: the verify harness
+  in seamless-cli runs the same browser specs against both
+- screens navigate relative to their parent route, never with `..`, because
+  `oauth/callback` spans two segments
+- tests run zoneless through jest-preset-angular in the workspace's jsdom
+  environment; `typecheck` runs `ngc`, which also checks templates
 
 Next.js and server rendering (#78):
 

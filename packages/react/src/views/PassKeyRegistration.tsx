@@ -5,53 +5,19 @@
  */
 
 import { useAuth } from '@/AuthProvider';
-import { PasskeyAttachment, PasskeyMetadata } from '@seamless-auth/client';
 import {
-  getPasskeyPolicyErrorCode,
-  isUnauthenticated,
-  type PasskeyPolicyErrorCode,
+  enrollPasskey,
+  hasNonPasskeyLoginMethod,
+  safeReturnPath,
+  type PasskeyAttachment,
 } from '@seamless-auth/client';
 import React, { useState } from 'react';
 import { useAuthClient } from '@/hooks/useAuthClient';
-import { hasNonPasskeyLoginMethod, useLoginMethods } from '@/hooks/useLoginMethods';
+import { useLoginMethods } from '@/hooks/useLoginMethods';
 import { usePasskeySupport } from '@/hooks/usePasskeySupport';
 import { useLocation, useNavigate } from 'react-router-dom';
 
 import styles from '@/styles/registerPasskey.module.css';
-import { parseUserAgent } from '@/utils';
-
-const POLICY_REFUSAL_MESSAGES: Record<PasskeyPolicyErrorCode, string> = {
-  attachment_not_allowed:
-    'This application does not accept that kind of authenticator. Try the other option.',
-  synced_passkey_not_allowed:
-    'This passkey syncs to a password manager, and this application requires one that stays on a single device, such as a security key.',
-  authenticator_not_allowed: 'This application does not accept this authenticator.',
-  prf_required:
-    'This authenticator does not support a feature this application requires.',
-};
-
-function policyRefusalMessage(error: unknown): string | undefined {
-  const code = getPasskeyPolicyErrorCode(error);
-
-  return code ? POLICY_REFUSAL_MESSAGES[code] : undefined;
-}
-
-/**
- * Where to go once the passkey step is done. The OAuth callback passes the
- * caller's destination through router state when the API asks for enrollment
- * first. Only an in-app path is honoured, so state cannot become an off-site
- * redirect.
- */
-function destinationFrom(state: unknown): string {
-  const returnTo = (state as { returnTo?: unknown } | null)?.returnTo;
-
-  return typeof returnTo === 'string' &&
-    returnTo.startsWith('/') &&
-    !returnTo.startsWith('//') &&
-    !returnTo.startsWith('/\\')
-    ? returnTo
-    : '/';
-}
 
 const PasskeyRegistration: React.FC = () => {
   const { refreshSession } = useAuth();
@@ -59,7 +25,11 @@ const PasskeyRegistration: React.FC = () => {
   const { passkeySupported, loading: passkeySupportLoading } = usePasskeySupport();
   const { loginMethods, loading: loginMethodsLoading } = useLoginMethods();
   const navigate = useNavigate();
-  const destination = destinationFrom(useLocation().state);
+  // The OAuth callback passes the caller's destination through router state
+  // when the API asks for enrollment first.
+  const destination = safeReturnPath(
+    (useLocation().state as { returnTo?: unknown } | null)?.returnTo
+  );
 
   const [status, setStatus] = useState<'idle' | 'success' | 'error' | 'loading'>('idle');
   const [message, setMessage] = useState('');
@@ -79,46 +49,22 @@ const PasskeyRegistration: React.FC = () => {
   };
 
   const registerPasskey = async (attachment?: PasskeyAttachment) => {
-    const { platform, browser, deviceInfo } = parseUserAgent();
-
-    const metadata: PasskeyMetadata = {
-      // The credential still carries a label, but asking for one here put a
-      // form between the user and the browser prompt they came for. The device
-      // it was enrolled on identifies it well enough to rename later.
-      friendlyName: deviceInfo,
-      platform,
-      browser,
-      deviceInfo,
-    };
-
     setStatus('loading');
 
-    try {
-      const { error } = await authClient.registerPasskey({ metadata, attachment });
+    const { error } = await enrollPasskey(
+      { client: authClient, refreshSession },
+      attachment
+    );
 
-      if (error) {
-        throw error;
-      }
-
-      await refreshSession();
-      setStatus('success');
-      setMessage('Passkey registered successfully.');
-      navigate(destination);
-    } catch (error) {
-      console.error('Passkey registration failed.');
+    if (error) {
       setStatus('error');
-      // A policy refusal names something the user can act on, for example
-      // reaching for a security key instead. A 401 is the session, not the
-      // authenticator: enrollment takes the signed-in one, so the answer is to
-      // sign in again rather than to try a different key. Anything else stays
-      // generic.
-      setMessage(
-        policyRefusalMessage(error) ??
-          (isUnauthenticated(error)
-            ? 'Your session expired before the passkey was saved. Sign in again to add one.'
-            : 'Error registering passkey.')
-      );
+      setMessage(error);
+      return;
     }
+
+    setStatus('success');
+    setMessage('Passkey registered successfully.');
+    navigate(destination);
   };
 
   return (

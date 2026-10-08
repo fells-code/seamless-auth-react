@@ -35,9 +35,35 @@ npm install @seamless-auth/client
 - PRF helpers for passkey-derived secrets.
 - `hasScopedRole` / `roleGrantsAccess`, the same role matching the auth API and
   server adapters apply.
+- Flows: the step logic behind the bundled sign-in screens, so every binding
+  behaves the same and none reimplements it. See below.
 
 The wire types come from `@seamless-auth/types`; this package aliases them rather
 than redeclaring shapes.
+
+## Flows
+
+Each bundled screen in a binding is a thin view over one of these. A custom UI in
+any framework can call them directly.
+
+| Flow                                                                        | What it does                                                                                                       |
+| --------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
+| `beginSignIn(actions, { identifier, passkeySupported, configuredMethods })` | Starts a login and runs the passkey ceremony when it can. Resolves to `signed_in`, `choose_method` or `error`      |
+| `registerWithEmail(client, email)`                                          | Starts registration. The next step is the email code                                                               |
+| `requestOtp` / `verifyOtp`                                                  | Sends and checks a code for a channel (`email`, `phone`) and flow (`login`, `register`), and says where to go next |
+| `watchMagicLink({ client, refreshSession, onSignedIn })`                    | In the tab that asked for a link, waits for it to be used (cross-tab message or poll). Returns a stop function     |
+| `finishMagicLinkSignIn({ client, refreshSession })`                         | On the page the link lands on, after `client.verifyMagicLink(token)` succeeds                                      |
+| `startOAuthSignIn` / `completeOAuthCallback`                                | Starts a provider sign-in and finishes it on the redirect URI                                                      |
+| `enrollPasskey({ client, refreshSession }, attachment?)`                    | Enrols a passkey for the signed-in user, labelled with this device                                                 |
+| `loadLoginMethods`, `fallbackSignInOptions`, `hasNonPasskeyLoginMethod`     | What the instance allows, and what to offer a user                                                                 |
+| `detectPasskeySupport(port)`                                                | Whether this device can use a passkey                                                                              |
+| `safeReturnPath`, `inAppPath`                                               | Keep a destination inside the application                                                                          |
+| `isValidEmail`, `isValidPhoneNumber`, `parseUserAgent`, `formatCountdown`   | Small shared helpers                                                                                               |
+
+None of them store a token. In a browser the session lives in HttpOnly cookies the
+server adapter sets; the only thing written to browser storage is the id of the
+OAuth provider in flight (`sessionStorage`) and a flag that this browser has
+signed in before (`localStorage`).
 
 ## Transport
 

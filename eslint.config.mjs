@@ -74,14 +74,19 @@ export default [
                 'react-router-dom',
                 'react-native',
                 'react-native/*',
+                '@angular/*',
+                'rxjs',
+                'rxjs/*',
               ],
               message:
-                'The client core must stay framework agnostic. Keep React and router imports in a binding package. See #64.',
+                'The client core must stay framework agnostic. Keep React, Angular and router imports in a binding package. See #64.',
             },
             {
               group: [
                 '@seamless-auth/react',
                 '@seamless-auth/react-native',
+                '@seamless-auth/angular',
+                '@seamless-auth/angular/*',
                 '../react/*',
               ],
               message: 'The client core must not import from a binding package. See #64.',

@@ -3,16 +3,18 @@
 This repository is an npm workspace that publishes the client-side packages for
 [Seamless Auth](https://github.com/fells-code/seamless-auth-api):
 
-| Package                                                          | What it is                                                                                                                           |
-| ---------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
-| [`@seamless-auth/client`](packages/client/README.md)             | Framework-agnostic core: the headless auth client, session store, result and error types.                                            |
-| [`@seamless-auth/react`](packages/react/README.md)               | React binding: `AuthProvider`, hooks, and optional prebuilt auth screens. Depends on the client package.                             |
-| [`@seamless-auth/react-native`](packages/react-native/README.md) | Headless React Native binding: provider, hooks, and the native ports for passkeys, keystore token storage, and in-app browser OAuth. |
+| Package                                                          | What it is                                                                                                                                  |
+| ---------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| [`@seamless-auth/client`](packages/client/README.md)             | Framework-agnostic core: the headless auth client, session store, result and error types.                                                   |
+| [`@seamless-auth/react`](packages/react/README.md)               | React binding: `AuthProvider`, hooks, and optional prebuilt auth screens. Depends on the client package.                                    |
+| [`@seamless-auth/react-native`](packages/react-native/README.md) | Headless React Native binding: provider, hooks, and the native ports for passkeys, keystore token storage, and in-app browser OAuth.        |
+| [`@seamless-auth/angular`](packages/angular/README.md)           | Angular binding: a signal-based `SeamlessAuth` service, route guards, an `HttpClient` interceptor, and optional standalone sign-in screens. |
 
 Most React applications only install `@seamless-auth/react`; it brings the client
 core with it. The client package exists so that the bindings share one
 implementation of the auth flows and session state instead of re-implementing
-them; `@seamless-auth/react-native` is the second binding over it.
+them; `@seamless-auth/react-native` and `@seamless-auth/angular` are bindings
+over it too, and so will the Vue and Svelte bindings be.
 
 ## Start here
 
@@ -22,7 +24,7 @@ This repo is the client layer: the browser and native SDKs, which talk only to y
 
 ```mermaid
 flowchart LR
-  browser["Browser<br/>@seamless-auth/react"] -- "signed httpOnly cookies" --> backend
+  browser["Browser<br/>@seamless-auth/react or angular"] -- "signed httpOnly cookies" --> backend
   native["Native app<br/>@seamless-auth/react-native"] -- "bearer tokens" --> backend
   backend["Your backend<br/>@seamless-auth/express, fastify, or nextjs<br/>mounted at /auth"] -- "bearer token + service token" --> api
   api["seamless-auth-api<br/>owns the session"] --> db[("Postgres")]
@@ -42,8 +44,9 @@ npm test
 npm run build
 ```
 
-Tests run as one Jest project per package from the root. The React project
-resolves `@seamless-auth/client` to the client package's source, so a change in
+Tests run as one Jest project per package from the root. The React, React
+Native and Angular projects resolve `@seamless-auth/client` to the client
+package's source, so a change in
 the core is exercised by the React suite without a build in between. Releases
 are managed with Changesets; see [RELEASES.md](RELEASES.md) and
 [CONTRIBUTING.md](CONTRIBUTING.md).

@@ -7,17 +7,21 @@
 import React, { useEffect, useState } from 'react';
 import { useHref } from 'react-router-dom';
 import { useAuth } from '@/AuthProvider';
-import type { OAuthProvider } from '@seamless-auth/client';
+import {
+  OAUTH_CALLBACK_PATH,
+  startOAuthSignIn,
+  type OAuthProvider,
+} from '@seamless-auth/client';
 
 import styles from '../styles/login.module.css';
 
-export const OAUTH_PROVIDER_STORAGE_KEY = 'seamless:oauth:provider';
+export { OAUTH_PROVIDER_STORAGE_KEY } from '@seamless-auth/client';
 
 const OAuthProviderButtons: React.FC = () => {
   const { listOAuthProviders, startOAuthLogin, finishOAuthLogin, ports } = useAuth();
   // useHref applies the router basename, so the callback URL stays correct for
   // apps mounted under a non-root basename (for example /app/oauth/callback).
-  const callbackHref = useHref('/oauth/callback');
+  const callbackHref = useHref(OAUTH_CALLBACK_PATH);
   const [providers, setProviders] = useState<OAuthProvider[]>([]);
   const [error, setError] = useState('');
 
@@ -40,32 +44,17 @@ const OAuthProviderButtons: React.FC = () => {
   const handleSelect = async (providerId: string) => {
     setError('');
 
-    // The callback route reads this to know which provider to finish with.
-    sessionStorage.setItem(OAUTH_PROVIDER_STORAGE_KEY, providerId);
-
     const redirectUri = new URL(callbackHref, window.location.origin).toString();
-    const { data, error } = await startOAuthLogin({ providerId, redirectUri });
+    const { error } = await startOAuthSignIn(
+      {
+        actions: { startOAuthLogin, finishOAuthLogin },
+        oauthRedirect: ports.oauthRedirect,
+      },
+      { providerId, redirectUri }
+    );
 
     if (error) {
-      setError('Could not start sign-in with this provider.');
-      return;
-    }
-
-    // In a browser this navigates away and the callback route finishes the
-    // login. A port that hands the callback straight back (an in-app browser
-    // session) finishes it here instead.
-    const outcome = await ports.oauthRedirect.open(data.authorizationUrl, redirectUri);
-
-    if (outcome.type === 'callback') {
-      const finished = await finishOAuthLogin({
-        providerId,
-        code: outcome.code,
-        state: outcome.state,
-      });
-
-      if (finished.error) {
-        setError('Could not finish sign-in with this provider.');
-      }
+      setError(error);
     }
   };
 

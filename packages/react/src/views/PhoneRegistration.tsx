@@ -12,6 +12,14 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { authRoutePaths } from '@/authRoutePaths';
 import styles from '@/styles/verifyOTP.module.css';
 import OtpInput from '@/components/OtpInput';
+import {
+  formatCountdown,
+  OTP_LENGTH,
+  OTP_LIFETIME_SECONDS,
+  otpResendFailedMessage,
+  requestOtp,
+  verifyOtp,
+} from '@seamless-auth/client';
 
 const PhoneRegistration: React.FC = () => {
   const navigate = useNavigate();
@@ -24,7 +32,7 @@ const PhoneRegistration: React.FC = () => {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [resendMsg, setResendMsg] = useState('');
-  const [phoneTimeLeft, setPhoneTimeLeft] = useState(300);
+  const [phoneTimeLeft, setPhoneTimeLeft] = useState(OTP_LIFETIME_SECONDS);
 
   const authClient = useAuthClient();
 
@@ -32,7 +40,7 @@ const PhoneRegistration: React.FC = () => {
     e.preventDefault();
     setError('');
 
-    if (phoneOtp.length !== 6) {
+    if (phoneOtp.length !== OTP_LENGTH) {
       setError('Please enter a valid code.');
       return;
     }
@@ -50,39 +58,38 @@ const PhoneRegistration: React.FC = () => {
   };
 
   const verifyPhoneOTP = async () => {
-    setLoading(true);
+    if (phoneVerified) return;
 
-    if (!phoneVerified) {
-      const { error } = isLoginFlow
-        ? await authClient.verifyLoginPhoneOtp(phoneOtp)
-        : await authClient.verifyPhoneOtp(phoneOtp);
+    // A registration code leads on to the email code, which the flow sends.
+    const { next, error } = await verifyOtp(
+      { client: authClient, refreshSession },
+      { channel: 'phone', flow: isLoginFlow ? 'login' : 'register', code: phoneOtp }
+    );
 
-      if (error) {
-        setError('Verification failed.');
-      } else {
-        if (isLoginFlow) {
-          await refreshSession();
-          navigate('/');
-          return;
-        }
-
-        setPhoneVerified(true);
-      }
+    if (error !== null) {
+      setError(error);
+      return;
     }
 
-    setLoading(false);
+    if (next === 'verify_email') {
+      setPhoneVerified(true);
+      navigate(authRoutePaths.verifyEmailOtp);
+      return;
+    }
+
+    navigate('/');
   };
 
   const onResendPhone = async () => {
     setError('');
-    const { error } = isLoginFlow
-      ? await authClient.requestLoginPhoneOtp()
-      : await authClient.requestPhoneOtp();
+    const { error } = await requestOtp(
+      authClient,
+      'phone',
+      isLoginFlow ? 'login' : 'register'
+    );
 
     if (error) {
-      setError(
-        'Failed to send SMS code. If this persists, refresh the page and try again.'
-      );
+      setError(otpResendFailedMessage('phone'));
       return;
     } else {
       setResendMsg('Verification SMS has been resent.');
@@ -101,14 +108,6 @@ const PhoneRegistration: React.FC = () => {
     return null;
   };
 
-  const formatTime = (seconds: number) => {
-    const m = Math.floor(seconds / 60)
-      .toString()
-      .padStart(2, '0');
-    const s = (seconds % 60).toString().padStart(2, '0');
-    return `${m}:${s}`;
-  };
-
   useEffect(() => {
     const interval = setInterval(() => {
       setPhoneTimeLeft(prev => (prev > 0 ? prev - 1 : 0));
@@ -116,24 +115,6 @@ const PhoneRegistration: React.FC = () => {
 
     return () => clearInterval(interval);
   }, []);
-
-  useEffect(() => {
-    const nextStep = async () => {
-      const { error } = await authClient.requestEmailOtp();
-
-      if (error) {
-        setError(
-          'Failed to send Email code. If this persists, refresh the page and try registering again.'
-        );
-        return;
-      } else {
-        navigate(authRoutePaths.verifyEmailOtp);
-      }
-    };
-    if (phoneVerified && !isLoginFlow) {
-      nextStep();
-    }
-  }, [phoneVerified, isLoginFlow, navigate, authClient]);
 
   return (
     <div className={styles.container}>
@@ -149,7 +130,7 @@ const PhoneRegistration: React.FC = () => {
             <label htmlFor="phoneCode" className={styles.label}>
               Phone Verification Code {getStatusIcon(phoneVerified)} -{' '}
               <span className={styles.timer}>
-                Code expires in: {formatTime(phoneTimeLeft)}
+                Code expires in: {formatCountdown(phoneTimeLeft)}
               </span>
             </label>
             <OtpInput length={6} value={phoneOtp} onChange={setPhoneOtp} />

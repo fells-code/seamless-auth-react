@@ -13,6 +13,14 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { authRoutePaths } from '@/authRoutePaths';
 import styles from '@/styles/verifyOTP.module.css';
 import OtpInput from '@/components/OtpInput';
+import {
+  formatCountdown,
+  OTP_LENGTH,
+  OTP_LIFETIME_SECONDS,
+  otpResendFailedMessage,
+  requestOtp,
+  verifyOtp,
+} from '@seamless-auth/client';
 
 const EmailRegistration: React.FC = () => {
   const navigate = useNavigate();
@@ -24,7 +32,7 @@ const EmailRegistration: React.FC = () => {
 
   const [loading, setLoading] = useState(false);
   const [emailOtp, setEmailOtp] = useState('');
-  const [emailTimeLeft, setEmailTimeLeft] = useState(300);
+  const [emailTimeLeft, setEmailTimeLeft] = useState(OTP_LIFETIME_SECONDS);
   const [error, setError] = useState('');
   const [resendMsg, setResendMsg] = useState('');
 
@@ -32,14 +40,14 @@ const EmailRegistration: React.FC = () => {
     setError('');
     setResendMsg('');
 
-    const { error } = isLoginFlow
-      ? await authClient.requestLoginEmailOtp()
-      : await authClient.requestEmailOtp();
+    const { error } = await requestOtp(
+      authClient,
+      'email',
+      isLoginFlow ? 'login' : 'register'
+    );
 
     if (error) {
-      setError(
-        'Failed to send Email code. If this persists, refresh the page and try again.'
-      );
+      setError(otpResendFailedMessage('email'));
       return;
     }
 
@@ -50,7 +58,7 @@ const EmailRegistration: React.FC = () => {
     e.preventDefault();
     setError('');
 
-    if (emailOtp.length !== 6) {
+    if (emailOtp.length !== OTP_LENGTH) {
       setError('Please enter a valid code.');
       return;
     }
@@ -58,27 +66,22 @@ const EmailRegistration: React.FC = () => {
     setLoading(true);
 
     try {
-      const { error } = isLoginFlow
-        ? await authClient.verifyLoginEmailOtp(emailOtp)
-        : await authClient.verifyEmailOtp(emailOtp);
+      const { next, error } = await verifyOtp(
+        { client: authClient, refreshSession },
+        {
+          channel: 'email',
+          flow: isLoginFlow ? 'login' : 'register',
+          code: emailOtp,
+          passkeySupported,
+        }
+      );
 
-      if (error) {
-        setError('Verification failed.');
+      if (error !== null) {
+        setError(error);
         return;
       }
 
-      if (isLoginFlow) {
-        await refreshSession();
-        navigate('/');
-        return;
-      }
-
-      if (passkeySupported) {
-        navigate(authRoutePaths.registerPasskey);
-      } else {
-        await refreshSession();
-        navigate('/');
-      }
+      navigate(next === 'register_passkey' ? authRoutePaths.registerPasskey : '/');
     } catch {
       // Backstop for unexpected errors only. The client reports request
       // failures through `error`, not by throwing.
@@ -87,14 +90,6 @@ const EmailRegistration: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
-
-  const formatTime = (seconds: number) => {
-    const m = Math.floor(seconds / 60)
-      .toString()
-      .padStart(2, '0');
-    const s = (seconds % 60).toString().padStart(2, '0');
-    return `${m}:${s}`;
   };
 
   useEffect(() => {
@@ -122,7 +117,7 @@ const EmailRegistration: React.FC = () => {
               Email Verification Code
               <span className={styles.timer}>
                 {' '}
-                — Code expires in {formatTime(emailTimeLeft)}
+                — Code expires in {formatCountdown(emailTimeLeft)}
               </span>
             </label>
             <OtpInput

@@ -1,0 +1,14 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "module": "CommonJS",
+    "moduleResolution": "Node10",
+    "isolatedModules": true,
+    "paths": {
+      "@seamless-auth/angular": ["./src/index.ts"],
+      "@seamless-auth/angular/routes": ["./routes/src/index.ts"],
+      "@seamless-auth/client": ["../client/src/index.ts"]
+    }
+  },
+  "include": ["src", "routes/src", "tests", "../../jest.setup.ts"]
+}

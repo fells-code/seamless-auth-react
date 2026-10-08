@@ -4,10 +4,15 @@
  * See LICENSE file in the project root for full license information
  */
 
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useAuth } from '@/AuthProvider';
 import { useAuthClient } from '@/hooks/useAuthClient';
 import { useNavigate, useLocation } from 'react-router-dom';
+
+import {
+  MAGIC_LINK_RESEND_COOLDOWN_SECONDS,
+  watchMagicLink,
+} from '@seamless-auth/client';
 
 import styles from '@/styles/magiclink.module.css';
 
@@ -19,7 +24,7 @@ const MagicLinkSent: React.FC = () => {
 
   const identifier = location.state?.identifier as string | undefined;
 
-  const [cooldown, setCooldown] = useState(30);
+  const [cooldown, setCooldown] = useState(MAGIC_LINK_RESEND_COOLDOWN_SECONDS);
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -34,50 +39,18 @@ const MagicLinkSent: React.FC = () => {
 
     await authClient.requestMagicLink();
 
-    setCooldown(30);
+    setCooldown(MAGIC_LINK_RESEND_COOLDOWN_SECONDS);
   };
 
-  // The poll endpoint answers 204 while the emailed link is still unused, and
-  // only reports Success once it has been consumed. A bare ok check would treat
-  // that 204 as completion and redirect before the user clicks the link.
-  const magicLinkCompleted = useCallback(async () => {
-    const { data, error } = await authClient.checkMagicLink();
-
-    return !error && data?.message === 'Success';
-  }, [authClient]);
-
-  useEffect(() => {
-    const channel = new BroadcastChannel('seamless-auth');
-
-    channel.onmessage = async event => {
-      if (event.data?.type === 'MAGIC_LINK_AUTH_SUCCESS') {
-        if (await magicLinkCompleted()) {
-          await refreshSession();
-          navigate('/');
-        }
-      }
-    };
-
-    return () => {
-      channel.close();
-    };
-  }, [magicLinkCompleted, navigate, refreshSession]);
-
-  useEffect(() => {
-    const interval = setInterval(async () => {
-      try {
-        if (await magicLinkCompleted()) {
-          await refreshSession();
-          navigate('/');
-        }
-      } catch {
-        // A rejection inside a timer has no caller to surface it, so the poll
-        // swallows unexpected errors and simply tries again on the next tick.
-      }
-    }, 5000);
-
-    return () => clearInterval(interval);
-  }, [magicLinkCompleted, refreshSession, navigate]);
+  useEffect(
+    () =>
+      watchMagicLink({
+        client: authClient,
+        refreshSession,
+        onSignedIn: () => navigate('/'),
+      }),
+    [authClient, navigate, refreshSession]
+  );
 
   return (
     <div className={styles.container}>

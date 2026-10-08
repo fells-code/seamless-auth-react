@@ -6,17 +6,10 @@
 
 import { useEffect, useState } from 'react';
 
-import type { LoginMethod } from '@seamless-auth/client';
+import { loadLoginMethods, type LoginMethod } from '@seamless-auth/client';
 import { useAuthClient } from '@/hooks/useAuthClient';
 
-/**
- * Used only until the instance answers, and if it never does.
- *
- * Deliberately the narrowest useful set, and matching the auth server's own
- * defaults. Offering a method that turns out to be disabled sends a user down a
- * path that fails, which is worse than showing one option too few.
- */
-export const FALLBACK_LOGIN_METHODS: LoginMethod[] = ['passkey', 'magic_link'];
+export { FALLBACK_LOGIN_METHODS, hasNonPasskeyLoginMethod } from '@seamless-auth/client';
 
 /**
  * Which sign-in methods this instance has enabled, read from the auth server
@@ -35,25 +28,14 @@ export const useLoginMethods = () => {
   useEffect(() => {
     let active = true;
 
-    const read = async () => {
-      try {
-        const { data, error } = await authClient.getPublicSystemConfig();
+    void loadLoginMethods(authClient).then(methods => {
+      if (!active) return;
 
-        if (active && !error && data?.loginMethods?.length) {
-          setLoginMethods(data.loginMethods);
-        }
-      } catch {
-        // Backstop only. The client reports request failures through `error`,
-        // not by throwing, and either way the methods stay unknown. Leaving
-        // `loading` true here would hang every screen that waits on it.
-      } finally {
-        if (active) {
-          setLoading(false);
-        }
+      if (methods) {
+        setLoginMethods(methods);
       }
-    };
-
-    void read();
+      setLoading(false);
+    });
 
     return () => {
       active = false;
@@ -62,13 +44,3 @@ export const useLoginMethods = () => {
 
   return { loginMethods, loading };
 };
-
-/**
- * Whether a user who declines a passkey would still have a way to sign in.
- *
- * Returns false while the methods are unknown, so a failed or in-flight request
- * never produces a skip control that could strand someone in an account they
- * cannot get back into.
- */
-export const hasNonPasskeyLoginMethod = (loginMethods: LoginMethod[] | null) =>
-  Boolean(loginMethods?.some(method => method !== 'passkey'));
