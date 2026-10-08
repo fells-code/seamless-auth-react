@@ -1,5 +1,15 @@
 # @seamless-auth/client
 
+## 0.4.0
+
+### Minor Changes
+
+- 5041bb3: `@seamless-auth/client` now exports the step logic behind the bundled sign-in screens: `beginSignIn`, `registerWithEmail`, `requestOtp` and `verifyOtp`, `watchMagicLink` and `finishMagicLinkSignIn`, `startOAuthSignIn` and `completeOAuthCallback`, `enrollPasskey`, `loadLoginMethods`, `fallbackSignInOptions`, `detectPasskeySupport`, `safeReturnPath` and `inAppPath`, plus `isValidEmail`, `isValidPhoneNumber` and `parseUserAgent`. A custom UI in any framework can call them, and every binding's screens now share one implementation. The React and React Native screens behave as before.
+
+### Patch Changes
+
+- 5041bb3: The bundled screens now refuse a post-sign-in destination that a browser would read as another site. That covers a same-origin `returnTo` whose path starts with `//`, and a path hiding `//` behind a tab or newline. Older react-router 6 releases hand such a path to `window.location`, so it could have sent a user off-site.
+
 ## 0.3.2
 
 ### Patch Changes
