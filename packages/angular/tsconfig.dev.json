@@ -1,0 +1,4 @@
+{
+  "extends": "./tsconfig.json",
+  "include": ["src", "routes/src", "tests", "../../jest.setup.ts"]
+}

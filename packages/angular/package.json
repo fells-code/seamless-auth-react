@@ -1,0 +1,50 @@
+{
+  "name": "@seamless-auth/angular",
+  "version": "0.0.0",
+  "description": "Angular bindings for Seamless Auth: a signal-based auth service, route guards, and optional sign-in screens.",
+  "type": "module",
+  "engines": {
+    "node": ">=22",
+    "npm": ">=9.0.0 <13.0.0"
+  },
+  "scripts": {
+    "build": "node ../../scripts/clean-dist.mjs && ng-packagr -p ng-package.json -c tsconfig.build.json && node ../../scripts/finalize-angular-dist.mjs",
+    "typecheck": "ngc -p tsconfig.dev.json --noEmit",
+    "check-npm-build": "npm pack --dry-run ./dist"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/fells-code/seamless-auth-react.git",
+    "directory": "packages/angular"
+  },
+  "author": "Fells Code, LLC",
+  "license": "Apache-2.0",
+  "bugs": {
+    "url": "https://github.com/fells-code/seamless-auth-react/issues"
+  },
+  "homepage": "https://github.com/fells-code/seamless-auth-react/tree/main/packages/angular#readme",
+  "keywords": [
+    "angular",
+    "authentication",
+    "passkeys",
+    "webauthn",
+    "seamless-auth"
+  ],
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/",
+    "provenance": true,
+    "directory": "dist"
+  },
+  "peerDependencies": {
+    "@angular/common": "^20.0.0 || ^21.0.0 || ^22.0.0",
+    "@angular/core": "^20.0.0 || ^21.0.0 || ^22.0.0",
+    "@angular/router": "^20.0.0 || ^21.0.0 || ^22.0.0",
+    "rxjs": "^7.4.0"
+  },
+  "dependencies": {
+    "@seamless-auth/client": "^0.3.2",
+    "tslib": "^2.7.0"
+  },
+  "sideEffects": false
+}

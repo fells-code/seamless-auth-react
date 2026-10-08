@@ -6,7 +6,8 @@ This repo uses npm plus Changesets.
 
 1. Make the code change.
 2. Run `npm run changeset`.
-3. Select `@seamless-auth/react`.
+3. Select every package the change affects (`@seamless-auth/client`, `@seamless-auth/react`,
+   `@seamless-auth/react-native`, `@seamless-auth/angular`).
 4. Choose the semver bump.
 5. Write release notes for SDK adopters, not implementation notes.
 
@@ -33,6 +34,13 @@ methods, the changeset states the minimum adapter version.
 
 When a change spans both repos, publish the adapter first, then the SDK. Publishing the SDK against an
 older adapter leaves adopters with a 404 on the affected flow until a compatible adapter exists.
+
+## Angular package
+
+`@seamless-auth/angular` publishes from `packages/angular/dist`, the folder ng-packagr builds, through
+`publishConfig.directory`. `npm run release:stable` builds before it publishes, so the built manifest
+carries the version the release PR set. Check the built package with
+`npm run check-npm-build -w @seamless-auth/angular`.
 
 ## npm Publishing
 

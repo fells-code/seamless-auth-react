@@ -3,9 +3,10 @@ export default {
     '<rootDir>/packages/client',
     '<rootDir>/packages/react',
     '<rootDir>/packages/react-native',
+    '<rootDir>/packages/angular',
   ],
   collectCoverage: true,
-  collectCoverageFrom: ['src/**/*.{ts,tsx}', '!src/**/*.d.ts'],
+  collectCoverageFrom: ['src/**/*.{ts,tsx}', 'routes/src/**/*.ts', '!src/**/*.d.ts'],
   coverageThreshold: {
     global: {
       branches: 60,

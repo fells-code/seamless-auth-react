@@ -1,0 +1,19 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2022", "DOM"],
+    "experimentalDecorators": false,
+    "useDefineForClassFields": false,
+    "paths": {
+      "@seamless-auth/angular": ["./src/index.ts"],
+      "@seamless-auth/client": ["../client/src/index.ts"],
+      "@seamless-auth/angular/routes": ["./routes/src/index.ts"]
+    }
+  },
+  "angularCompilerOptions": {
+    "strictTemplates": true,
+    "strictInjectionParameters": true,
+    "strictInputAccessModifiers": true
+  }
+}
