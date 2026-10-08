@@ -4,7 +4,13 @@
  * See LICENSE file in the project root for full license information
  */
 
-import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
+import {
+  afterNextRender,
+  ChangeDetectionStrategy,
+  Component,
+  inject,
+  signal,
+} from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
 import { SeamlessAuth } from '@seamless-auth/angular';
 import { completeOAuthCallback } from '@seamless-auth/client';
@@ -41,23 +47,32 @@ export class SaOAuthCallback {
   constructor() {
     const params = inject(ActivatedRoute).snapshot.queryParamMap;
 
-    void completeOAuthCallback(this.auth, params, window.location.origin).then(
-      outcome => {
-        if (outcome.kind === 'error') {
-          this.error.set(outcome.message);
-          return;
-        }
+    // Browser only: the code is single use, and a server render has neither the
+    // browser's cookies nor a window.
+    afterNextRender(async () => {
+      // The code and state are read; keep them out of history and Referers.
+      void this.navigation.dropQuery();
 
-        if (outcome.kind === 'enroll_passkey') {
-          void this.navigation.toScreen(authRoutePaths.registerPasskey, {
-            returnTo: outcome.returnTo,
-          });
-          return;
-        }
+      const outcome = await completeOAuthCallback(
+        this.auth,
+        params,
+        window.location.origin
+      );
 
-        void this.navigation.toApp(outcome.destination);
+      if (outcome.kind === 'error') {
+        this.error.set(outcome.message);
+        return;
       }
-    );
+
+      if (outcome.kind === 'enroll_passkey') {
+        void this.navigation.toScreen(authRoutePaths.registerPasskey, {
+          returnTo: outcome.returnTo,
+        });
+        return;
+      }
+
+      void this.navigation.toApp(outcome.destination);
+    });
   }
 
   backToLogin() {

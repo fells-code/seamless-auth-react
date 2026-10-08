@@ -5,6 +5,7 @@
  */
 
 import {
+  afterNextRender,
   ChangeDetectionStrategy,
   Component,
   DestroyRef,
@@ -75,19 +76,24 @@ export class SaMagicLinkSent {
   readonly cooldown = signal(MAGIC_LINK_RESEND_COOLDOWN_SECONDS);
 
   constructor() {
-    const timer = setInterval(() => {
-      this.cooldown.update(seconds => Math.max(0, seconds - 1));
-    }, 1000);
+    const destroyRef = inject(DestroyRef);
 
-    const stop = watchMagicLink({
-      client: this.auth.client,
-      refreshSession: this.auth.refreshSession,
-      onSignedIn: () => void this.navigation.toApp(),
-    });
+    // Browser only: a server render must not poll or open a channel.
+    afterNextRender(() => {
+      const timer = setInterval(() => {
+        this.cooldown.update(seconds => Math.max(0, seconds - 1));
+      }, 1000);
 
-    inject(DestroyRef).onDestroy(() => {
-      clearInterval(timer);
-      stop();
+      const stop = watchMagicLink({
+        client: this.auth.client,
+        refreshSession: this.auth.refreshSession,
+        onSignedIn: () => void this.navigation.toApp(),
+      });
+
+      destroyRef.onDestroy(() => {
+        clearInterval(timer);
+        stop();
+      });
     });
   }
 

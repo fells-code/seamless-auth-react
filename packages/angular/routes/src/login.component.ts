@@ -5,6 +5,7 @@
  */
 
 import {
+  afterNextRender,
   ChangeDetectionStrategy,
   Component,
   computed,
@@ -159,8 +160,10 @@ export class SaLogin {
   });
 
   constructor() {
-    void this.auth.loadLoginMethods();
-    void this.auth.checkPasskeySupport();
+    afterNextRender(() => {
+      void this.auth.loadLoginMethods();
+      void this.auth.checkPasskeySupport();
+    });
   }
 
   valueOf(event: Event): string {

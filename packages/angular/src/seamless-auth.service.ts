@@ -170,11 +170,15 @@ export class SeamlessAuth {
   readonly authorizedFetch: SeamlessAuthClient['authorizedFetch'] = (input, init) =>
     this.session.client.authorizedFetch(input, init);
 
-  /** Resolves with the state once the session has been read. */
+  /**
+   * Resolves with the state once the session has been read. During a server
+   * render the session is never read there, so this resolves at once with what
+   * the server knows (`loading` stays true without an `initialSession`).
+   */
   whenSettled(): Promise<AuthSessionState> {
     const current = this.state();
 
-    if (!current.loading) {
+    if (!current.loading || !this.isBrowser) {
       return Promise.resolve(current);
     }
 

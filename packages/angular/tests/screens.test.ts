@@ -317,6 +317,7 @@ describe('magic link screens', () => {
       'GET /magic-link/check': { status: 204 },
     });
     expect(text()).toContain('Return to the device where you requested this link');
+    expect(url()).toBe('/verify-magiclink');
   });
 
   it('reports a link that cannot be verified, or no link at all', async () => {
@@ -486,6 +487,8 @@ describe('OAuth', () => {
     await open('/oauth/callback?code=c1', {});
     expect(heading()).toBe('Sign-in failed');
     expect(text()).toContain('missing required information');
+    // The single-use code is not left in the address bar or history.
+    expect(url()).toBe('/oauth/callback');
     await click('Back to login');
     expect(url()).toBe('/login');
   });

@@ -31,7 +31,15 @@ export function injectAuthNavigation() {
     toScreen: (path: AuthRoutePath, state?: Record<string, unknown>) =>
       router.navigateByUrl(screenTree(path), { state }),
     /** Where the application wants a signed-in user, or an in-app path. */
-    toApp: (path?: string) => router.navigateByUrl(path ?? auth.signedInPath),
+    toApp: (path?: string, options: { replaceUrl?: boolean } = {}) =>
+      router.navigateByUrl(path ?? auth.signedInPath, options),
+    /**
+     * Drops the query from the current URL in place. For screens whose query is a
+     * one-time secret (a magic link token, an OAuth code), so it does not stay in
+     * history or travel in a Referer.
+     */
+    dropQuery: () =>
+      router.navigate([], { relativeTo: route, queryParams: {}, replaceUrl: true }),
     /** Navigation state the previous screen handed over. */
     state: <T extends object>(): Partial<T> => {
       const state = location.getState();

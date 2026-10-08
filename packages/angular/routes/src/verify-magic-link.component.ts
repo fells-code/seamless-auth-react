@@ -5,6 +5,7 @@
  */
 
 import {
+  afterNextRender,
   ChangeDetectionStrategy,
   Component,
   DestroyRef,
@@ -71,11 +72,17 @@ export class SaVerifyMagicLink {
       clearTimeout(redirect);
     });
 
-    void (async () => {
+    // Browser only. A server render would spend the single-use link in a request
+    // that carries none of this browser's cookies, and the browser would then
+    // find it used.
+    afterNextRender(async () => {
       if (!this.token) {
         this.error.set('Missing token for verification.');
         return;
       }
+
+      // The token is read; keep it out of history and Referers from here on.
+      void this.navigation.dropQuery();
 
       // A link can be used once. The component verifies exactly once per
       // instance, and Angular does not mount a route component twice.
@@ -100,6 +107,6 @@ export class SaVerifyMagicLink {
       if (outcome === 'signed-in') {
         redirect = setTimeout(() => void this.navigation.toApp(), 900);
       }
-    })();
+    });
   }
 }

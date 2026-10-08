@@ -4,7 +4,14 @@
  * See LICENSE file in the project root for full license information
  */
 
-import { ChangeDetectionStrategy, Component, inject, input, signal } from '@angular/core';
+import {
+  afterNextRender,
+  ChangeDetectionStrategy,
+  Component,
+  inject,
+  input,
+  signal,
+} from '@angular/core';
 import { SeamlessAuth } from '@seamless-auth/angular';
 import { startOAuthSignIn, type OAuthProvider } from '@seamless-auth/client';
 
@@ -44,8 +51,10 @@ export class SaOAuthProviderButtons {
   readonly error = signal('');
 
   constructor() {
-    void this.auth.listOAuthProviders().then(({ data }) => {
-      this.providers.set(data?.providers ?? []);
+    afterNextRender(() => {
+      void this.auth.listOAuthProviders().then(({ data }) => {
+        this.providers.set(data?.providers ?? []);
+      });
     });
   }
 

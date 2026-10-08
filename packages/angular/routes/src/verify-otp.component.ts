@@ -5,6 +5,7 @@
  */
 
 import {
+  afterNextRender,
   ChangeDetectionStrategy,
   Component,
   computed,
@@ -113,15 +114,19 @@ export class SaVerifyOtp {
   readonly countdown = computed(() => formatCountdown(this.secondsLeft()));
 
   constructor() {
-    if (this.channel === 'email') {
-      // The registration screen offers passkey enrolment next, which needs this.
-      void this.auth.checkPasskeySupport();
-    }
+    const destroyRef = inject(DestroyRef);
 
-    const timer = setInterval(() => {
-      this.secondsLeft.update(seconds => Math.max(0, seconds - 1));
-    }, 1000);
-    inject(DestroyRef).onDestroy(() => clearInterval(timer));
+    afterNextRender(() => {
+      if (this.channel === 'email') {
+        // The registration screen offers passkey enrolment next, which needs this.
+        void this.auth.checkPasskeySupport();
+      }
+
+      const timer = setInterval(() => {
+        this.secondsLeft.update(seconds => Math.max(0, seconds - 1));
+      }, 1000);
+      destroyRef.onDestroy(() => clearInterval(timer));
+    });
   }
 
   async resend() {

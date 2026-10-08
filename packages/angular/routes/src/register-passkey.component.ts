@@ -5,6 +5,7 @@
  */
 
 import {
+  afterNextRender,
   ChangeDetectionStrategy,
   Component,
   computed,
@@ -113,8 +114,10 @@ export class SaRegisterPasskey {
   readonly canSkip = computed(() => hasNonPasskeyLoginMethod(this.auth.loginMethods()));
 
   constructor() {
-    void this.auth.checkPasskeySupport();
-    void this.auth.loadLoginMethods();
+    afterNextRender(() => {
+      void this.auth.checkPasskeySupport();
+      void this.auth.loadLoginMethods();
+    });
   }
 
   async register(attachment?: PasskeyAttachment) {

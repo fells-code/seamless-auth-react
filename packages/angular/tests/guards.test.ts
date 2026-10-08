@@ -4,7 +4,7 @@
  * See LICENSE file in the project root for full license information
  */
 
-import { Component } from '@angular/core';
+import { Component, PLATFORM_ID } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { provideRouter, Router } from '@angular/router';
 import { RouterTestingHarness } from '@angular/router/testing';
@@ -15,10 +15,11 @@ import { createAdapter, signedIn, signedOut } from './adapter';
 @Component({ template: 'page' })
 class Page {}
 
-function setup(session: typeof signedIn) {
+function setup(session: typeof signedIn, platform = 'browser') {
   const adapter = createAdapter({ 'GET /users/me': session });
   TestBed.configureTestingModule({
     providers: [
+      { provide: PLATFORM_ID, useValue: platform },
       provideSeamlessAuth({ apiHost: 'https://app.example.com', fetch: adapter.fetch }),
       provideRouter([
         { path: '', component: Page, canActivate: [authGuard] },
@@ -78,6 +79,13 @@ describe('guards', () => {
     setup(signedIn);
     expect(await visit('/')).toBe('/');
     expect(await visit('/login')).toBe('/');
+  });
+
+  it('does not hold a server render waiting for a session it will never read', async () => {
+    setup(signedOut, 'server');
+    // The browser runs the guards again when the application boots there.
+    expect(await visit('/')).toBe('/');
+    expect(await visit('/login')).toBe('/login');
   });
 
   it('checks roles, scoped roles included', async () => {

@@ -40,6 +40,12 @@ export function requireAuth(options: RequireAuthOptions = {}): SeamlessAuthGuard
     const router = inject(Router);
     const state = await auth.whenSettled();
 
+    if (state.loading) {
+      // A server render that was not handed the session cannot decide. The
+      // browser runs the guard again when the application boots there.
+      return true;
+    }
+
     if (!state.isAuthenticated) {
       return router.parseUrl(options.redirectTo ?? auth.loginPath);
     }
@@ -63,6 +69,10 @@ export function requireGuest(options: { redirectTo?: string } = {}): SeamlessAut
     const auth = inject(SeamlessAuth);
     const router = inject(Router);
     const state = await auth.whenSettled();
+
+    if (state.loading) {
+      return true;
+    }
 
     return state.isAuthenticated
       ? router.parseUrl(options.redirectTo ?? auth.signedInPath)
