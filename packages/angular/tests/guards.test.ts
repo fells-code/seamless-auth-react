@@ -10,7 +10,7 @@ import { provideRouter, Router } from '@angular/router';
 import { RouterTestingHarness } from '@angular/router/testing';
 
 import { authGuard, guestGuard, provideSeamlessAuth, requireAuth } from '../src';
-import { createAdapter, signedIn, signedOut } from './adapter';
+import { createAdapter, signedIn, signedOut } from '../../../test-support/fakeAdapter';
 
 @Component({ template: 'page' })
 class Page {}

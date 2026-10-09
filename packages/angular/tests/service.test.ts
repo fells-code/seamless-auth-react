@@ -9,7 +9,14 @@ import { TestBed } from '@angular/core/testing';
 import { firstValueFrom, take, toArray } from 'rxjs';
 
 import { provideSeamlessAuth, SeamlessAuth, type SeamlessAuthConfig } from '../src';
-import { createAdapter, flush, passkeyPort, signedIn, signedOut, user } from './adapter';
+import {
+  createAdapter,
+  flush,
+  passkeyPort,
+  signedIn,
+  signedOut,
+  user,
+} from '../../../test-support/fakeAdapter';
 
 const apiHost = 'https://app.example.com';
 

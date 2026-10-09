@@ -12,7 +12,7 @@ import {
 import { TestBed } from '@angular/core/testing';
 
 import { provideSeamlessAuth, seamlessAuthInterceptor } from '../src';
-import { createAdapter, signedOut } from './adapter';
+import { createAdapter, signedOut } from '../../../test-support/fakeAdapter';
 
 describe('seamlessAuthInterceptor', () => {
   it('sends cookies to the adapter origin and nowhere else', () => {

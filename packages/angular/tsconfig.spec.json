@@ -10,5 +10,5 @@
       "@seamless-auth/client": ["../client/src/index.ts"]
     }
   },
-  "include": ["src", "routes/src", "tests", "../../jest.setup.ts"]
+  "include": ["src", "routes/src", "tests", "../../jest.setup.ts", "../../test-support"]
 }

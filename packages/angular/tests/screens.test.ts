@@ -25,7 +25,7 @@ import {
   signedOut,
   type AdapterHandler,
   type AdapterReply,
-} from './adapter';
+} from '../../../test-support/fakeAdapter';
 
 @Component({ template: '<p>You are signed in</p>' })
 class Home {}
