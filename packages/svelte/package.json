@@ -1,6 +1,6 @@
 {
   "name": "@seamless-auth/svelte",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "description": "Svelte bindings for Seamless Auth: a rune-based session, SvelteKit guards, and optional sign-in screens.",
   "type": "module",
   "svelte": "./dist/index.js",
