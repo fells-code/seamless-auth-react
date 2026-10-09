@@ -1,0 +1,78 @@
+{
+  "name": "@seamless-auth/svelte",
+  "version": "0.0.0",
+  "description": "Svelte bindings for Seamless Auth: a rune-based session, SvelteKit guards, and optional sign-in screens.",
+  "type": "module",
+  "svelte": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "svelte": "./dist/index.js",
+      "default": "./dist/index.js"
+    },
+    "./kit": {
+      "types": "./dist/kit/index.d.ts",
+      "svelte": "./dist/kit/index.js",
+      "default": "./dist/kit/index.js"
+    },
+    "./seamless-auth.css": "./dist/seamless-auth.css"
+  },
+  "files": [
+    "dist",
+    "!dist/**/*.test.*",
+    "README.md",
+    "CHANGELOG.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=22",
+    "npm": ">=9.0.0 <13.0.0"
+  },
+  "scripts": {
+    "styles": "node ../../scripts/generate-svelte-styles.mjs",
+    "build": "npm run styles && node ../../scripts/clean-dist.mjs && svelte-package -i src -o dist && node ../../scripts/finalize-svelte-dist.mjs",
+    "typecheck": "npm run styles && svelte-check --tsconfig ./tsconfig.json --fail-on-warnings",
+    "test": "npm run styles && vitest run",
+    "check-npm-build": "npm pack --dry-run"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/fells-code/seamless-auth-react.git",
+    "directory": "packages/svelte"
+  },
+  "author": "Fells Code, LLC",
+  "license": "Apache-2.0",
+  "bugs": {
+    "url": "https://github.com/fells-code/seamless-auth-react/issues"
+  },
+  "homepage": "https://github.com/fells-code/seamless-auth-react/tree/main/packages/svelte#readme",
+  "keywords": [
+    "svelte",
+    "sveltekit",
+    "authentication",
+    "passkeys",
+    "webauthn",
+    "seamless-auth"
+  ],
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/",
+    "provenance": true
+  },
+  "peerDependencies": {
+    "@sveltejs/kit": "^2.26.0 || ^3.0.0",
+    "svelte": "^5.0.0"
+  },
+  "peerDependenciesMeta": {
+    "@sveltejs/kit": {
+      "optional": true
+    }
+  },
+  "dependencies": {
+    "@seamless-auth/client": "^0.5.0"
+  },
+  "sideEffects": [
+    "*.css"
+  ]
+}

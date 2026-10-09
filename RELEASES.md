@@ -7,7 +7,7 @@ This repo uses npm plus Changesets.
 1. Make the code change.
 2. Run `npm run changeset`.
 3. Select every package the change affects (`@seamless-auth/client`, `@seamless-auth/react`,
-   `@seamless-auth/react-native`, `@seamless-auth/angular`, `@seamless-auth/vue`).
+   `@seamless-auth/react-native`, `@seamless-auth/angular`, `@seamless-auth/vue`, `@seamless-auth/svelte`).
 4. Choose the semver bump.
 5. Write release notes for SDK adopters, not implementation notes.
 
