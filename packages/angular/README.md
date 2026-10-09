@@ -49,7 +49,8 @@ export const appConfig: ApplicationConfig = {
   providers: [
     provideRouter(routes),
     provideSeamlessAuth({ apiHost: 'https://app.example.com' }),
-    // Optional: sends the session cookies with HttpClient calls to apiHost, and only there.
+    // Optional: sends the session cookies with HttpClient calls to apiHost (and
+    // trustedOrigins), and nowhere else.
     provideHttpClient(withInterceptors([seamlessAuthInterceptor])),
   ],
 };
@@ -71,6 +72,7 @@ provideSeamlessAuth(() => ({ apiHost: inject(RUNTIME_CONFIG).apiUrl }));
 | `initialSession`           | none             | A session the server already resolved, for server rendering |
 | `ports`                    | browser          | `passkeys` and `oauthRedirect` ports                        |
 | `fetch`                    | global `fetch`   | The fetch auth requests go through                          |
+| `trustedOrigins`           | none             | Other origins of yours that may receive the session cookies |
 | `signedInPath`             | `/`              | Where the bundled screens go after sign-in                  |
 | `loginPath`                | `/login`         | Where `requireAuth` sends someone signed out                |
 
@@ -153,7 +155,7 @@ failure: `login`, `handlePasskeyLogin`, `registerPasskey`, `refreshSession`, `lo
 
 Also: `hasRole`, `hasScopedRole`, `markSignedIn`, `whenSettled()` (resolves once the session is read),
 `loadLoginMethods()` and `checkPasskeySupport()` (each read once and cached), `authorizedFetch` (a
-fetch for your own API that carries the cookies), `client` (the headless client for everything
+fetch for your own API that carries the cookies to `apiHost` and `trustedOrigins` only), `client` (the headless client for everything
 else, such as OTP and magic link calls), and `ports`.
 
 ## Built-in screens

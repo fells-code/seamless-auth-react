@@ -19,8 +19,8 @@ function originOf(url: string, base: string | undefined): string | null {
 
 /**
  * Sends the session cookies with `HttpClient` requests to the configured
- * `apiHost`, and only to it, so a request to any other origin never carries
- * them:
+ * `apiHost` and `trustedOrigins`, and only to them, so a request to any other
+ * origin never carries them:
  *
  * ```ts
  * provideHttpClient(withInterceptors([seamlessAuthInterceptor]))
@@ -30,11 +30,12 @@ function originOf(url: string, base: string | undefined): string | null {
  * `HttpClient`, and need nothing from this.
  */
 export const seamlessAuthInterceptor: HttpInterceptorFn = (request, next) => {
-  const { apiHost } = inject(SEAMLESS_AUTH_CONFIG);
+  const { apiHost, trustedOrigins = [] } = inject(SEAMLESS_AUTH_CONFIG);
   const base = typeof location === 'undefined' ? undefined : location.href;
   const target = originOf(request.url, base);
+  const trusted = [apiHost, ...trustedOrigins].map(origin => originOf(origin, base));
 
-  if (target !== null && target === originOf(apiHost, base)) {
+  if (target !== null && trusted.includes(target)) {
     return next(request.clone({ withCredentials: true }));
   }
 

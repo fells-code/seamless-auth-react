@@ -16,6 +16,7 @@ import {
   AUTH_TRANSPORT_HEADER,
   createTransport,
   resolveRouteRule,
+  UntrustedOriginError,
 } from '../src/transport';
 
 const API = 'https://api.example.com';
@@ -94,12 +95,16 @@ describe('cookie transport', () => {
     expect(transport.mode).toBe('cookie');
   });
 
-  it('authorizedFetch sends credentials to any URL untouched', async () => {
+  it('authorizedFetch sends credentials to apiHost and trusted origins only', async () => {
     const { calls, fetchImpl } = scriptedFetch(() => jsonResponse(200, {}));
-    const transport = createTransport({ apiHost: API, fetch: fetchImpl });
+    const transport = createTransport({
+      apiHost: API,
+      fetch: fetchImpl,
+      trustedOrigins: ['https://data.example.com'],
+    });
 
     await transport.authorizedFetch(`${API}/api/plan`, { method: 'GET' });
-    await transport.authorizedFetch(new URL('https://other.example.com/x'), {
+    await transport.authorizedFetch(new URL('https://data.example.com/x'), {
       method: 'POST',
       body: '{}',
     });
@@ -107,8 +112,125 @@ describe('cookie transport', () => {
     expect(calls[0].url).toBe(`${API}/api/plan`);
     expect(calls[0].init.credentials).toBe('include');
     expect(headersOf(calls[0])).toEqual({});
-    expect(calls[1].url).toBe('https://other.example.com/x');
+    expect(calls[1].url).toBe('https://data.example.com/x');
+    expect(calls[1].init.credentials).toBe('include');
     expect(headersOf(calls[1])).toEqual({ 'Content-Type': 'application/json' });
+  });
+
+  it('refuses a trustedOrigins entry that is not a bare origin', () => {
+    const { fetchImpl } = scriptedFetch(() => jsonResponse(200, {}));
+    for (const entry of [
+      '',
+      'api.example.com',
+      '*.example.com',
+      'https://api.example.com/v1',
+      'https://api.example.com/?x',
+      'https://user@api.example.com',
+      'http://api.example.com',
+      'ftp://api.example.com',
+    ]) {
+      expect(() =>
+        createTransport({ apiHost: API, fetch: fetchImpl, trustedOrigins: [entry] })
+      ).toThrow(/is not an origin/);
+    }
+    expect(() =>
+      createTransport({
+        apiHost: API,
+        fetch: fetchImpl,
+        trustedOrigins: ['https://data.example.com/', 'http://localhost:4000'],
+      })
+    ).not.toThrow();
+  });
+
+  // React Native ships its own URL, which reads the origin with a regex and does
+  // not throw on a relative URL. The check has to hold, and stay usable, with it.
+  it('judges origins the same way under a React Native style URL', async () => {
+    class RegexURL {
+      constructor(private readonly url: string) {}
+      get href() {
+        return this.url;
+      }
+      get origin() {
+        return this.url.match(/^(https?:\/\/[^/]+)/)?.[1] ?? '';
+      }
+      get protocol() {
+        return this.url.match(/^([a-z]+:)/)?.[1] ?? '';
+      }
+      get hostname() {
+        return this.url.match(/^https?:\/\/(?:[^@]+@)?([^:/?#]+)/)?.[1] ?? '';
+      }
+      get username() {
+        return this.url.match(/^https?:\/\/([^:@]+)(?::[^@]*)?@/)?.[1] ?? '';
+      }
+      get password() {
+        return '';
+      }
+      get pathname() {
+        return this.url.match(/https?:\/\/[^/]+(\/[^?#]*)?/)?.[1] ?? '/';
+      }
+      get search() {
+        return this.url.match(/\?[^#]*/)?.[0] ?? '';
+      }
+      get hash() {
+        return this.url.match(/#.*/)?.[0] ?? '';
+      }
+    }
+    const realURL = globalThis.URL;
+    globalThis.URL = RegexURL as unknown as typeof URL;
+    try {
+      const { calls, fetchImpl } = scriptedFetch(() => jsonResponse(200, {}));
+      const transport = createTransport({ apiHost: API, fetch: fetchImpl });
+
+      await transport.authorizedFetch(`${API}/beta_users`);
+      expect(calls).toHaveLength(1);
+
+      for (const url of [
+        'relative/path',
+        '',
+        `${API}@evil.example.com/x`,
+        `${API}.evil.example.com/x`,
+        'https://evil.example.com/x',
+      ]) {
+        await expect(transport.authorizedFetch(url)).rejects.toBeInstanceOf(
+          UntrustedOriginError
+        );
+      }
+      expect(calls).toHaveLength(1);
+    } finally {
+      globalThis.URL = realURL;
+    }
+  });
+
+  it('authorizedFetch refuses an input that is not a URL', async () => {
+    const { calls, fetchImpl } = scriptedFetch(() => jsonResponse(200, {}));
+    const transport = createTransport({ apiHost: API, fetch: fetchImpl });
+
+    await expect(
+      transport.authorizedFetch({ url: `${API}/x` } as unknown as string)
+    ).rejects.toBeInstanceOf(TypeError);
+    expect(calls).toHaveLength(0);
+  });
+
+  it('authorizedFetch refuses any other origin without sending a request', async () => {
+    const { calls, fetchImpl } = scriptedFetch(() => jsonResponse(200, {}));
+    const transport = createTransport({ apiHost: API, fetch: fetchImpl });
+
+    for (const url of [
+      'https://other.example.com/x',
+      'https://api.example.com.evil.test/x',
+      'http://api.example.com/x',
+      'https://api.example.com:8443/x',
+      'relative/without/a/page',
+      'data:text/plain,hi',
+    ]) {
+      await expect(transport.authorizedFetch(url)).rejects.toBeInstanceOf(
+        UntrustedOriginError
+      );
+    }
+    await expect(
+      transport.authorizedFetch('https://other.example.com/x')
+    ).rejects.toThrow(/trustedOrigins/);
+    expect(calls).toHaveLength(0);
   });
 
   it('never touches token storage', async () => {
@@ -413,7 +535,7 @@ describe('bearer transport', () => {
     expect(headersOf(calls[0]).Authorization).toBeUndefined();
   });
 
-  it('authorizedFetch carries the access token to any URL without the transport header', async () => {
+  it('authorizedFetch carries the access token to apiHost without the transport header', async () => {
     const storage = createMemoryTokenStorage();
     await storage.set({ accessToken: 'access-1', refreshToken: 'refresh-1' });
     const { calls, fetchImpl } = scriptedFetch(() => jsonResponse(200, { plan: [] }));
@@ -501,6 +623,18 @@ describe('bearer transport', () => {
       accessToken: 'access-new',
       refreshToken: 'refresh-new',
     });
+  });
+
+  it('authorizedFetch never sends the access token to an untrusted origin', async () => {
+    const storage = createMemoryTokenStorage();
+    await storage.set({ accessToken: 'access-1', refreshToken: 'refresh-1' });
+    const { calls, fetchImpl } = scriptedFetch(() => jsonResponse(401, {}));
+
+    await expect(
+      bearer(fetchImpl, storage).authorizedFetch('https://other.example.com/api')
+    ).rejects.toBeInstanceOf(UntrustedOriginError);
+    // Not sent, and no refresh attempted on its behalf either.
+    expect(calls).toHaveLength(0);
   });
 
   it('authorizedFetch never captures tokens from an application response', async () => {

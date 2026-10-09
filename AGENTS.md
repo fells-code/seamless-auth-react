@@ -101,6 +101,9 @@ mounted under `/auth`.
   once through `POST /refresh` on a 401 with at most one refresh in flight
 - which routes take which token is one table, `ROUTE_RULES` in
   `packages/client/src/transport.ts`, mirroring the server adapter's own map
+- `authorizedFetch` sends the session only to `apiHost` and the transport's
+  `trustedOrigins`, and rejects any other origin with `UntrustedOriginError`
+  before attaching anything. Keep that check ahead of every credential or token
 
 Platform differences sit behind ports the binding supplies: `PasskeyPort` (who
 runs the WebAuthn ceremonies), `OAuthRedirectPort` (how the provider is opened),

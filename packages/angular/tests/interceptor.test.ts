@@ -48,3 +48,31 @@ describe('seamlessAuthInterceptor', () => {
     backend.verify();
   });
 });
+
+describe('seamlessAuthInterceptor with trusted origins', () => {
+  it('also sends cookies to a trusted origin', () => {
+    TestBed.configureTestingModule({
+      providers: [
+        provideSeamlessAuth({
+          apiHost: 'https://auth.example.com',
+          trustedOrigins: ['https://api.example.com'],
+          fetch: createAdapter({ 'GET /users/me': signedOut }).fetch,
+        }),
+        provideHttpClient(withInterceptors([seamlessAuthInterceptor])),
+        provideHttpClientTesting(),
+      ],
+    });
+    const http = TestBed.inject(HttpClient);
+    const backend = TestBed.inject(HttpTestingController);
+
+    http.get('https://api.example.com/orders').subscribe();
+    http.get('https://evil.example.com/orders').subscribe();
+
+    expect(
+      backend.expectOne('https://api.example.com/orders').request.withCredentials
+    ).toBe(true);
+    expect(
+      backend.expectOne('https://evil.example.com/orders').request.withCredentials
+    ).toBe(false);
+  });
+});

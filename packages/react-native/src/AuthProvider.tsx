@@ -64,6 +64,11 @@ export interface AuthProviderProps {
   ports: NativeAuthPorts;
   /** The fetch to use, for tests and instrumented builds. Defaults to the global one. */
   fetch?: typeof fetch;
+  /**
+   * Origins besides `apiHost` that `useAuthorizedFetch` may send the access
+   * token to. Every other origin is refused.
+   */
+  trustedOrigins?: string[];
 }
 
 /**
@@ -79,8 +84,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({
   magicLinkRedirectUri,
   ports,
   fetch: fetchImpl,
+  trustedOrigins,
 }) => {
   const { passkeys, oauthRedirect, tokenStorage } = ports;
+  // An inline array is a new value on every render, so it is compared by content.
+  const trustedOriginsKey = trustedOrigins ? JSON.stringify(trustedOrigins) : undefined;
 
   const session = useMemo(
     () =>
@@ -93,12 +101,23 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({
           basePath,
           tokenStorage: tokenStorage ?? createMemoryTokenStorage(),
           fetch: fetchImpl,
+          trustedOrigins: trustedOriginsKey
+            ? (JSON.parse(trustedOriginsKey) as string[])
+            : undefined,
         },
         // There is no "seen before" flag on native: the keystore holding a
         // session is the signal, and it is read by the transport itself.
         detectPreviousSignIn: false,
       }),
-    [apiHost, basePath, magicLinkRedirectUri, passkeys, tokenStorage, fetchImpl]
+    [
+      apiHost,
+      basePath,
+      magicLinkRedirectUri,
+      passkeys,
+      tokenStorage,
+      fetchImpl,
+      trustedOriginsKey,
+    ]
   );
 
   const state = useSyncExternalStore(

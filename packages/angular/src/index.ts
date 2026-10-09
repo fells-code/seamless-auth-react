@@ -21,6 +21,7 @@ export {
   isUnauthenticated,
   roleGrantsAccess,
   SeamlessAuthError,
+  UntrustedOriginError,
 } from '@seamless-auth/client';
 export type {
   AuthSessionState,

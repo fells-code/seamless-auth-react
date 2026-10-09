@@ -314,6 +314,17 @@ const authorizedFetch = useAuthorizedFetch();
 const plan = await authorizedFetch('/api/plan/mine').then(r => r.json());
 ```
 
+It sends the session only to `apiHost` and the origins in `transport.trustedOrigins`. Any other
+origin rejects with `UntrustedOriginError` and nothing is sent. If your API is served from another
+origin of your own, list it:
+
+```tsx
+<AuthProvider
+  apiHost="https://auth.example.com"
+  transport={{ trustedOrigins: ['https://api.example.com'] }}
+>
+```
+
 ### Scoped roles
 
 `hasRole(role)` remains an exact role check. Use `hasScopedRole(role)` for colon-separated scoped
