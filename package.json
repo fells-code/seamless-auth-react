@@ -1,24 +1,25 @@
 {
   "name": "seamless-auth-client-sdks",
   "private": true,
-  "description": "Seamless Auth client SDKs: the framework-agnostic client core and its React, React Native and Angular bindings.",
+  "description": "Seamless Auth client SDKs: the framework-agnostic client core and its React, React Native, Angular and Vue bindings.",
   "type": "module",
   "workspaces": [
     "packages/client",
     "packages/react",
     "packages/react-native",
-    "packages/angular"
+    "packages/angular",
+    "packages/vue"
   ],
   "engines": {
     "node": ">=22",
     "npm": ">=9.0.0 <13.0.0"
   },
   "scripts": {
-    "build": "npm run build -w @seamless-auth/client && npm run build -w @seamless-auth/react && npm run build -w @seamless-auth/react-native && npm run build -w @seamless-auth/angular",
+    "build": "npm run build -w @seamless-auth/client && npm run build -w @seamless-auth/react && npm run build -w @seamless-auth/react-native && npm run build -w @seamless-auth/angular && npm run build -w @seamless-auth/vue",
     "test": "jest",
     "check:types-current": "node scripts/check-types-current.mjs",
     "coverage": "npm test -- --coverage",
-    "typecheck": "npm run typecheck -w @seamless-auth/client && npm run typecheck -w @seamless-auth/react && npm run typecheck -w @seamless-auth/react-native && npm run typecheck -w @seamless-auth/angular",
+    "typecheck": "npm run typecheck -w @seamless-auth/client && npm run typecheck -w @seamless-auth/react && npm run typecheck -w @seamless-auth/react-native && npm run typecheck -w @seamless-auth/angular && npm run typecheck -w @seamless-auth/vue",
     "lint": "eslint ./packages",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
@@ -71,6 +72,7 @@
     "@types/jest": "^29.5.14",
     "@types/react": "^18.3.4",
     "@types/react-dom": "^18.3.0",
+    "@vue/test-utils": "^2.5.1",
     "eslint": "^9.38.0",
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-import": "^2.32.0",
@@ -97,6 +99,8 @@
     "tsc-alias": "^1.9.1",
     "tslib": "^2.7.0",
     "typescript": "^5.9.3",
-    "typescript-eslint": "^8.46.1"
+    "typescript-eslint": "^8.46.1",
+    "vue": "^3.5.43",
+    "vue-router": "^4.6.4"
   }
 }

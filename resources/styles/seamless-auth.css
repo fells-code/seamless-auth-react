@@ -1,7 +1,9 @@
 /*
- * Styles for the bundled Seamless Auth screens. Theme them with the same
- * --seamless-* custom properties the React screens read, or override the
- * .sa-* classes. Every rule is scoped under .sa-auth.
+ * Styles for the bundled Seamless Auth screens of the Angular and Vue bindings
+ * (and those that follow). One file, so the screens look the same in every
+ * framework. Theme them with the same --seamless-* custom properties the React
+ * screens read, or override the .sa-* classes. Every rule is scoped under
+ * .sa-auth.
  */
 
 .sa-auth {

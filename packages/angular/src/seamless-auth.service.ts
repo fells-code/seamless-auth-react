@@ -69,6 +69,10 @@ export class SeamlessAuth {
   private readonly loginMethodsLoadingSignal = signal(true);
   private loginMethodsRequest: Promise<LoginMethod[] | null> | null = null;
 
+  // Settled with the last known state if the injector is destroyed first, so a
+  // guard still waiting on the session does not hang.
+  private readonly pendingSettles = new Set<() => void>();
+
   private readonly passkeySupportedSignal = signal(false);
   private readonly passkeySupportLoadingSignal = signal(true);
   private passkeySupportRequest: Promise<boolean> | null = null;
@@ -121,6 +125,7 @@ export class SeamlessAuth {
     // Unlike a React provider, the injector that owns this service is destroyed
     // exactly once, so the store can be torn down with it.
     inject(DestroyRef).onDestroy(() => {
+      [...this.pendingSettles].forEach(abandon => abandon());
       unsubscribe();
       session.destroy();
     });
@@ -189,14 +194,17 @@ export class SeamlessAuth {
     }
 
     return new Promise(resolve => {
+      const settle = (next: AuthSessionState) => {
+        unsubscribe();
+        this.pendingSettles.delete(abandon);
+        resolve(next);
+      };
+      const abandon = () => settle(this.state());
       const unsubscribe = this.session.subscribe(() => {
         const next = this.session.getState();
-
-        if (!next.loading) {
-          unsubscribe();
-          resolve(next);
-        }
+        if (!next.loading) settle(next);
       });
+      this.pendingSettles.add(abandon);
     });
   }
 

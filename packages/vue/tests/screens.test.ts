@@ -4,22 +4,19 @@
  * See LICENSE file in the project root for full license information
  */
 
-import { APP_BASE_HREF, Location } from '@angular/common';
-import { Component, signal } from '@angular/core';
-import { TestBed } from '@angular/core/testing';
-import { provideRouter, Router } from '@angular/router';
-import { RouterTestingHarness } from '@angular/router/testing';
 import {
   MAGIC_LINK_SUCCESS_MESSAGE,
   OAUTH_PROVIDER_STORAGE_KEY,
   type OAuthRedirectPort,
 } from '@seamless-auth/client';
+import { flushPromises, mount, type VueWrapper } from '@vue/test-utils';
+import { defineComponent, h, ref } from 'vue';
+import { createMemoryHistory, createRouter, RouterView, type Router } from 'vue-router';
 
-import { provideSeamlessAuth } from '../src';
-import { SaOtpInput, seamlessAuthRoutes } from '../routes/src';
+import { createSeamlessAuth } from '../src';
+import { createSeamlessAuthRoutes, SaOtpInput } from '../src/router';
 import {
   createAdapter,
-  flush,
   passkeyPort,
   signedIn,
   signedOut,
@@ -27,100 +24,103 @@ import {
   type AdapterReply,
 } from '../../../test-support/fakeAdapter';
 
-@Component({ template: '<p>You are signed in</p>' })
-class Home {}
+const Home = defineComponent({ setup: () => () => h('p', 'You are signed in') });
 
 const ok = { body: { message: 'Success' } };
 
-let harness: RouterTestingHarness;
+let wrapper: VueWrapper;
+let router: Router;
 
 async function open(
   url: string,
   routes: Record<string, AdapterReply | AdapterHandler>,
   options: {
     passkeys?: boolean;
-    state?: Record<string, unknown>;
+    state?: Record<string, string>;
     oauthRedirect?: OAuthRedirectPort;
-    baseHref?: string;
+    basePath?: string;
+    historyBase?: string;
+    config?: Record<string, unknown>;
   } = {}
 ) {
   const adapter = createAdapter({ 'GET /users/me': signedOut, ...routes });
   const passkeys = passkeyPort(options.passkeys ?? false);
 
-  TestBed.configureTestingModule({
-    providers: [
-      provideSeamlessAuth({
-        apiHost: 'https://app.example.com',
-        fetch: adapter.fetch,
-        ports: {
-          passkeys,
-          ...(options.oauthRedirect ? { oauthRedirect: options.oauthRedirect } : {}),
-        },
-      }),
-      provideRouter([
-        { path: '', component: Home },
-        { path: 'settings', component: Home },
-        ...seamlessAuthRoutes,
-      ]),
-      ...(options.baseHref
-        ? [{ provide: APP_BASE_HREF, useValue: options.baseHref }]
-        : []),
+  router = createRouter({
+    history: createMemoryHistory(options.historyBase),
+    routes: [
+      { path: '/', component: Home },
+      { path: '/settings', component: Home },
+      { path: '/home', component: Home },
+      ...createSeamlessAuthRoutes({ basePath: options.basePath }),
     ],
   });
 
-  harness = await RouterTestingHarness.create();
-  await TestBed.inject(Router).navigateByUrl(url, { state: options.state });
+  wrapper = mount(RouterView, {
+    attachTo: document.body,
+    global: {
+      plugins: [
+        router,
+        createSeamlessAuth({
+          apiHost: 'https://app.example.com',
+          fetch: adapter.fetch,
+          ports: {
+            passkeys,
+            ...(options.oauthRedirect ? { oauthRedirect: options.oauthRedirect } : {}),
+          },
+          ...options.config,
+        }),
+      ],
+    },
+  });
+
+  await router.push(options.state ? { path: url, state: options.state } : url);
   await settle();
 
   return { adapter, passkeys };
 }
 
 async function settle() {
-  for (let i = 0; i < 6; i++) {
-    await flush();
-    await harness.fixture.whenStable();
-  }
+  for (let i = 0; i < 6; i++) await flushPromises();
 }
 
-const root = () => harness.fixture.nativeElement as HTMLElement;
-const text = () => root().textContent ?? '';
-const url = () => TestBed.inject(Router).url;
+afterEach(() => wrapper?.unmount());
 
-function heading() {
-  return root().querySelector('h1, h2')?.textContent?.trim();
-}
+const text = () => wrapper.text();
+const url = () => router.currentRoute.value.fullPath;
+const heading = () => wrapper.find('h1, h2').text();
 
-function button(name: string | RegExp): HTMLButtonElement {
-  const match = Array.from(root().querySelectorAll('button')).find(candidate => {
-    const label = candidate.textContent?.trim() ?? '';
+function button(name: string | RegExp) {
+  const match = wrapper.findAll('button').find(candidate => {
+    const label = candidate.text().trim();
     return typeof name === 'string' ? label === name : name.test(label);
   });
   if (!match) throw new Error(`No button ${name} in: ${text()}`);
   return match;
 }
 
-function type(selector: string, value: string) {
-  const input = root().querySelector<HTMLInputElement>(selector);
-  if (!input) throw new Error(`No input ${selector}`);
-  input.value = value;
-  input.dispatchEvent(new Event('input'));
-  input.dispatchEvent(new Event('blur'));
-}
-
-function typeCode(code: string) {
-  const boxes = Array.from(
-    root().querySelectorAll<HTMLInputElement>('[aria-label^="Digit"]')
-  );
-  expect(boxes).toHaveLength(code.length);
-  code.split('').forEach((char, i) => {
-    boxes[i].value = char;
-    boxes[i].dispatchEvent(new Event('input'));
-  });
-}
-
 async function click(name: string | RegExp) {
-  button(name).click();
+  await button(name).trigger('click');
   await settle();
+}
+
+async function submit() {
+  await wrapper.find('form').trigger('submit');
+  await settle();
+}
+
+async function type(selector: string, value: string) {
+  const input = wrapper.find(selector);
+  await input.setValue(value);
+  await input.trigger('blur');
+}
+
+async function typeCode(code: string) {
+  const boxes = wrapper.findAll('[aria-label^="Digit"]');
+  expect(boxes).toHaveLength(code.length);
+  for (const [i, char] of code.split('').entries()) {
+    await boxes[i].setValue(char);
+  }
 }
 
 function bodyOf(adapter: ReturnType<typeof createAdapter>, method: string, path: string) {
@@ -148,23 +148,19 @@ beforeEach(() => {
 
 describe('login screen', () => {
   it('opens on Create Account and starts registration with an email', async () => {
-    const { adapter } = await open('/login', {
-      'POST /registration/register': ok,
-    });
+    const { adapter } = await open('/login', { 'POST /registration/register': ok });
 
     expect(heading()).toBe('Create Account');
-    expect(button('Register').disabled).toBe(true);
+    expect(button('Register').attributes('disabled')).toBeDefined();
     expect(text()).toContain('Enter your email address to continue.');
+    expect(document.getElementById('seamless-auth-styles')).not.toBeNull();
 
-    type('#email', 'not-an-email');
-    await settle();
+    await type('#email', 'not-an-email');
     expect(text()).toContain('Please enter a valid email');
 
-    type('#email', 'ada@example.com');
-    await settle();
-    expect(button('Register').disabled).toBe(false);
-
-    await click('Register');
+    await type('#email', 'ada@example.com');
+    expect(button('Register').attributes('disabled')).toBeUndefined();
+    await submit();
 
     expect(bodyOf(adapter, 'POST', '/registration/register')).toEqual({
       email: 'ada@example.com',
@@ -175,9 +171,8 @@ describe('login screen', () => {
 
   it('reports a failed registration', async () => {
     await open('/login', { 'POST /registration/register': { status: 500 } });
-    type('#email', 'ada@example.com');
-    await settle();
-    await click('Register');
+    await type('#email', 'ada@example.com');
+    await submit();
     expect(text()).toContain('Failed to register. Please try again.');
     expect(url()).toBe('/login');
   });
@@ -190,9 +185,8 @@ describe('login screen', () => {
     });
 
     expect(heading()).toBe('Sign In');
-    type('#identifier', 'ada@example.com');
-    await settle();
-    await click('Login');
+    await type('#identifier', 'ada@example.com');
+    await submit();
 
     expect(bodyOf(adapter, 'POST', '/login')).toEqual({
       identifier: 'ada@example.com',
@@ -203,7 +197,7 @@ describe('login screen', () => {
 
     await click(/Email Code/);
     expect(url()).toBe('/verify-email-otp');
-    expect(TestBed.inject(Location).getState()).toMatchObject({ flow: 'login' });
+    expect(router.options.history.state).toMatchObject({ flow: 'login' });
   });
 
   it('runs the passkey ceremony straight away when it can', async () => {
@@ -214,9 +208,7 @@ describe('login screen', () => {
       {
         'GET /users/me': () => session,
         'POST /login': { body: { loginMethods: ['passkey'] } },
-        'POST /webAuthn/login/start': {
-          body: { challenge: 'abc', allowCredentials: [] },
-        },
+        'POST /webAuthn/login/start': { body: { challenge: 'abc' } },
         'POST /webAuthn/login/finish': () => {
           session = signedIn;
           return ok;
@@ -230,9 +222,8 @@ describe('login screen', () => {
       clientExtensionResults: {},
     });
 
-    type('#identifier', 'ada@example.com');
-    await settle();
-    await click('Login');
+    await type('#identifier', 'ada@example.com');
+    await submit();
 
     expect(passkeys.get).toHaveBeenCalled();
     expect(adapter.called('POST', '/webAuthn/login/finish')).toHaveLength(1);
@@ -247,7 +238,6 @@ describe('login screen', () => {
       {
         'POST /login': { body: { loginMethods: ['passkey', 'magic_link'] } },
         'POST /webAuthn/login/start': { body: { challenge: 'abc' } },
-        'POST /magic-link': ok,
       },
       { passkeys: true }
     );
@@ -255,9 +245,8 @@ describe('login screen', () => {
       Object.assign(new Error('x'), { name: 'NotAllowedError' })
     );
 
-    type('#identifier', 'ada@example.com');
-    await settle();
-    await click('Login');
+    await type('#identifier', 'ada@example.com');
+    await submit();
 
     expect(text()).toContain('Passkey sign-in could not be completed');
     await click('Try passkey anyway');
@@ -268,8 +257,7 @@ describe('login screen', () => {
     await open('/login', {});
     await click(/Already have an account/);
     expect(heading()).toBe('Sign In');
-    type('#identifier', 'nonsense');
-    await settle();
+    await type('#identifier', 'nonsense');
     expect(text()).toContain('Please enter a valid email or phone number');
     await click(/Create one/);
     expect(heading()).toBe('Create Account');
@@ -287,32 +275,33 @@ describe('magic link screens', () => {
       'GET /magic-link/check': () => (used ? ok : { status: 204 }),
     });
 
-    type('#identifier', 'ada@example.com');
-    await settle();
-    await click('Login');
+    await type('#identifier', 'ada@example.com');
+    await submit();
     await click(/Email Magic Link/);
 
     expect(url()).toBe('/magic-link-sent');
     expect(heading()).toBe('Check your email');
     expect(text()).toContain('ada@example.com');
-    expect(button('Resend link').disabled).toBe(true);
+    expect(button('Resend link').attributes('disabled')).toBeDefined();
 
-    const channel = FakeChannel.instances.at(-1);
     used = true;
-    channel?.onmessage?.({ data: { type: MAGIC_LINK_SUCCESS_MESSAGE } });
+    FakeChannel.instances
+      .at(-1)
+      ?.onmessage?.({ data: { type: MAGIC_LINK_SUCCESS_MESSAGE } });
     await settle();
 
     expect(url()).toBe('/');
   });
 
-  it('verifies a link exactly once and signs this tab in', async () => {
-    const { adapter } = await open('/verify-magiclink?token=t%2F1', {
+  it('verifies a link exactly once, drops the token from the URL, and signs this tab in', async () => {
+    const { adapter } = await open('/verify-magiclink?token=t1', {
       'GET /users/me': signedIn,
-      'GET /magic-link/verify/t%2F1': ok,
+      'GET /magic-link/verify/t1': ok,
     });
 
-    expect(adapter.called('GET', '/magic-link/verify/t%2F1')).toHaveLength(1);
+    expect(adapter.called('GET', '/magic-link/verify/t1')).toHaveLength(1);
     expect(text()).toContain('Login verified. Redirecting...');
+    expect(url()).toBe('/verify-magiclink');
 
     await new Promise(resolve => setTimeout(resolve, 950));
     await settle();
@@ -325,7 +314,6 @@ describe('magic link screens', () => {
       'GET /magic-link/check': { status: 204 },
     });
     expect(text()).toContain('Return to the device where you requested this link');
-    expect(url()).toBe('/verify-magiclink');
   });
 
   it('reports a link that cannot be verified, or no link at all', async () => {
@@ -333,9 +321,8 @@ describe('magic link screens', () => {
       'GET /magic-link/verify/t1': { status: 400 },
     });
     expect(text()).toContain('Failed to verify token');
-  });
+    wrapper.unmount();
 
-  it('reports a missing token', async () => {
     await open('/verify-magiclink', {});
     expect(text()).toContain('Missing token for verification.');
   });
@@ -359,12 +346,11 @@ describe('one-time code screen', () => {
     expect(heading()).toBe('Verify Your Email');
     expect(text()).toContain('05:00');
 
-    await click(/Verify & Continue/);
+    await submit();
     expect(text()).toContain('Please enter a valid code.');
 
-    typeCode('abcdef');
-    await settle();
-    await click(/Verify & Continue/);
+    await typeCode('abcdef');
+    await submit();
 
     expect(bodyOf(adapter, 'POST', '/otp/verify-login-email-otp')).toEqual({
       verificationToken: 'abcdef',
@@ -382,41 +368,32 @@ describe('one-time code screen', () => {
       { passkeys: true }
     );
 
-    typeCode('abcdef');
-    await settle();
-    await click(/Verify & Continue/);
+    await typeCode('abcdef');
+    await submit();
 
     expect(url()).toBe('/register-passkey');
     expect(heading()).toBe('Secure Your Account with a Passkey');
   });
 
-  it('reports a rejected code and resends one', async () => {
+  it('reports a rejected code, resends one, and moves on to the email code', async () => {
+    let accept = false;
     const { adapter } = await open('/verify-phone-otp', {
-      'POST /otp/verify-phone-otp': { status: 400 },
+      'POST /otp/verify-phone-otp': () => (accept ? ok : { status: 400 }),
       'POST /otp/generate-phone-otp': ok,
+      'POST /otp/generate-email-otp': ok,
     });
 
     expect(heading()).toBe('Verify Your Phone Number');
-    typeCode('123456');
-    await settle();
-    await click(/Verify & Continue/);
+    await typeCode('123456');
+    await submit();
     expect(text()).toContain('Verification failed.');
 
     await click('Resend code to phone');
     expect(adapter.called('POST', '/otp/generate-phone-otp')).toHaveLength(1);
     expect(text()).toContain('Verification SMS has been resent.');
-  });
 
-  it('sends the email code after a registration phone code', async () => {
-    const { adapter } = await open('/verify-phone-otp', {
-      'POST /otp/verify-phone-otp': ok,
-      'POST /otp/generate-email-otp': ok,
-    });
-
-    typeCode('123456');
-    await settle();
-    await click(/Verify & Continue/);
-
+    accept = true;
+    await submit();
     expect(adapter.called('POST', '/otp/generate-email-otp')).toHaveLength(1);
     expect(url()).toBe('/verify-email-otp');
   });
@@ -469,7 +446,7 @@ describe('OAuth', () => {
     expect(text()).toContain('Could not start sign-in with this provider.');
   });
 
-  it('finishes on the callback screen', async () => {
+  it('finishes on the callback screen and keeps the destination in-app', async () => {
     sessionStorage.setItem(OAUTH_PROVIDER_STORAGE_KEY, 'mock');
     const { adapter } = await open('/oauth/callback?code=c1&state=s1', {
       'POST /oauth/mock/callback': { body: { returnTo: 'https://evil.test/' } },
@@ -488,14 +465,13 @@ describe('OAuth', () => {
       'POST /oauth/mock/callback': { body: { nextStep: 'enroll_passkey' } },
     });
     expect(url()).toBe('/register-passkey');
-    expect(TestBed.inject(Location).getState()).toMatchObject({ returnTo: '/' });
+    expect(router.options.history.state).toMatchObject({ returnTo: '/' });
   });
 
-  it('explains a failed callback', async () => {
+  it('explains a failed callback without leaving the code in the URL', async () => {
     await open('/oauth/callback?code=c1', {});
     expect(heading()).toBe('Sign-in failed');
     expect(text()).toContain('missing required information');
-    // The single-use code is not left in the address bar or history.
     expect(url()).toBe('/oauth/callback');
     await click('Back to login');
     expect(url()).toBe('/login');
@@ -528,7 +504,7 @@ describe('passkey screens', () => {
     expect(url()).toBe('/');
   });
 
-  it('names a policy refusal', async () => {
+  it('names a policy refusal, and lets the user skip when another method exists', async () => {
     const { passkeys } = await open(
       '/register-passkey',
       {
@@ -549,16 +525,15 @@ describe('passkey screens', () => {
     expect(url()).toBe('/');
   });
 
-  it('lets a user continue without one when the device cannot, and another method exists', async () => {
+  it('lets a user continue when the device cannot, and never strands them', async () => {
     await open('/register-passkey', {
       'GET /system-config/public': { body: { loginMethods: ['passkey', 'email_otp'] } },
     });
     expect(heading()).toBe('Passkeys are not available here');
     await click('Continue');
     expect(url()).toBe('/');
-  });
+    wrapper.unmount();
 
-  it('does not strand a user when a passkey is the only way in', async () => {
     await open('/register-passkey', {
       'GET /system-config/public': { body: { loginMethods: ['passkey'] } },
     });
@@ -577,119 +552,126 @@ describe('passkey screens', () => {
   });
 });
 
-@Component({
-  imports: [SaOtpInput],
-  template: `<sa-otp-input [(value)]="code" mode="numeric" />`,
-})
-class OtpHost {
-  readonly code = signal('');
-}
-
-describe('one-time code input', () => {
-  it('advances, refuses bad characters, takes a paste and handles backspace', async () => {
-    TestBed.configureTestingModule({});
-    const fixture = TestBed.createComponent(OtpHost);
-    await fixture.whenStable();
-    const boxes = () =>
-      Array.from(fixture.nativeElement.querySelectorAll('input')) as HTMLInputElement[];
-
-    boxes()[0].value = 'x';
-    boxes()[0].dispatchEvent(new Event('input'));
-    await fixture.whenStable();
-    expect(fixture.componentInstance.code()).toBe('');
-    expect(boxes()[0].value).toBe('');
-
-    boxes()[0].value = '4';
-    boxes()[0].dispatchEvent(new Event('input'));
-    await fixture.whenStable();
-    expect(fixture.componentInstance.code()).toBe('4');
-    expect(document.activeElement).toBe(boxes()[1]);
-
-    boxes()[1].value = '56';
-    boxes()[1].dispatchEvent(new Event('input'));
-    await fixture.whenStable();
-    expect(fixture.componentInstance.code()).toBe('456');
-
-    const paste = new Event('paste', { bubbles: true }) as Event & {
-      clipboardData: { getData: () => string };
-    };
-    paste.clipboardData = { getData: () => '12-34 56' };
-    boxes()[0].dispatchEvent(paste);
-    await fixture.whenStable();
-    expect(fixture.componentInstance.code()).toBe('123456');
-
-    boxes()[5].dispatchEvent(new KeyboardEvent('keydown', { key: 'Backspace' }));
-    await fixture.whenStable();
-    expect(fixture.componentInstance.code()).toBe('12345');
-
-    boxes()[5].dispatchEvent(new KeyboardEvent('keydown', { key: 'Backspace' }));
-    await fixture.whenStable();
-    expect(fixture.componentInstance.code()).toBe('1234');
-    expect(document.activeElement).toBe(boxes()[4]);
-
-    boxes()[4].dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowLeft' }));
-    expect(document.activeElement).toBe(boxes()[3]);
-    boxes()[3].dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight' }));
-    expect(document.activeElement).toBe(boxes()[4]);
-  });
-});
-
-describe('base href', () => {
-  it('does not add the base href twice to an OAuth destination', async () => {
-    sessionStorage.setItem(OAUTH_PROVIDER_STORAGE_KEY, 'mock');
-    await open(
-      '/oauth/callback?code=c1&state=s1',
-      {
-        'POST /oauth/mock/callback': {
-          body: { returnTo: 'http://localhost/app/settings?tab=2' },
-        },
-      },
-      { baseHref: '/app/' }
-    );
-    expect(url()).toBe('/settings?tab=2');
-  });
-});
-
-describe('mounted under a parent path', () => {
-  it('navigates between screens and builds the redirect URI under that path', async () => {
+describe('mounted under a base path', () => {
+  it('navigates by name and builds the redirect URI under that path', async () => {
     sessionStorage.setItem(OAUTH_PROVIDER_STORAGE_KEY, 'mock');
     const oauthRedirect = { open: jest.fn().mockResolvedValue({ type: 'navigated' }) };
-    const adapter = createAdapter({
-      'GET /users/me': signedOut,
-      'GET /oauth/providers': {
-        body: { providers: [{ id: 'mock', name: 'Mock OIDC' }] },
+    await open(
+      '/account/login',
+      {
+        'GET /oauth/providers': {
+          body: { providers: [{ id: 'mock', name: 'Mock OIDC' }] },
+        },
+        'POST /oauth/mock/start': {
+          body: { authorizationUrl: 'https://idp.test/authorize' },
+        },
+        'POST /oauth/mock/callback': { body: { nextStep: 'enroll_passkey' } },
       },
-      'POST /oauth/mock/start': {
-        body: { authorizationUrl: 'https://idp.test/authorize' },
-      },
-      'POST /oauth/mock/callback': { body: { nextStep: 'enroll_passkey' } },
-    });
+      { oauthRedirect, basePath: '/account/' }
+    );
 
-    TestBed.configureTestingModule({
-      providers: [
-        provideSeamlessAuth({
-          apiHost: 'https://app.example.com',
-          fetch: adapter.fetch,
-          ports: { passkeys: passkeyPort(false), oauthRedirect },
-        }),
-        provideRouter([
-          { path: '', component: Home },
-          { path: 'account', children: seamlessAuthRoutes },
-        ]),
-      ],
-    });
-    harness = await RouterTestingHarness.create();
-
-    await harness.navigateByUrl('/account/login');
-    await settle();
     await click('Continue with Mock OIDC');
     expect(oauthRedirect.open).toHaveBeenCalledWith(
       'https://idp.test/authorize',
       'http://localhost/account/oauth/callback'
     );
 
-    await harness.navigateByUrl('/account/oauth/callback?code=c&state=s');
+    await router.push('/account/oauth/callback?code=c&state=s');
     await settle();
     expect(url()).toBe('/account/register-passkey');
+  });
+});
+
+describe('review follow-ups', () => {
+  it('does not add the router base twice to an OAuth destination', async () => {
+    sessionStorage.setItem(OAUTH_PROVIDER_STORAGE_KEY, 'mock');
+    await open(
+      '/oauth/callback?code=c&state=s',
+      {
+        'POST /oauth/mock/callback': {
+          body: { returnTo: 'http://localhost/app/settings?tab=2' },
+        },
+      },
+      { historyBase: '/app' }
+    );
+    expect(url()).toBe('/settings?tab=2');
+  });
+
+  it('goes to signedInPath after enrolment when nothing was handed over', async () => {
+    await open(
+      '/register-passkey',
+      {
+        'GET /system-config/public': { body: { loginMethods: ['passkey', 'email_otp'] } },
+      },
+      { config: { signedInPath: '/home' } }
+    );
+    await click('Continue');
+    expect(url()).toBe('/home');
+  });
+
+  it('adds the stylesheet with a nonce, or not at all', async () => {
+    document.getElementById('seamless-auth-styles')?.remove();
+    await open('/login', {}, { config: { cspNonce: 'n0nce' } });
+    expect(
+      (document.getElementById('seamless-auth-styles') as HTMLStyleElement).nonce
+    ).toBe('n0nce');
+    wrapper.unmount();
+
+    document.getElementById('seamless-auth-styles')?.remove();
+    await open('/login', {}, { config: { injectStyles: false } });
+    expect(document.getElementById('seamless-auth-styles')).toBeNull();
+  });
+});
+
+describe('one-time code input', () => {
+  it('advances, refuses bad characters, takes a paste and handles backspace', async () => {
+    const Host = defineComponent({
+      setup() {
+        const code = ref('');
+        return { code };
+      },
+      render() {
+        return h(SaOtpInput, {
+          modelValue: this.code,
+          'onUpdate:modelValue': (value: string) => {
+            this.code = value;
+          },
+        });
+      },
+    });
+    const host = mount(Host, { attachTo: document.body });
+    const boxes = () => host.findAll('input');
+    const code = () => (host.vm as unknown as { code: string }).code;
+
+    await boxes()[0].setValue('x');
+    expect(code()).toBe('');
+    expect((boxes()[0].element as HTMLInputElement).value).toBe('');
+
+    await boxes()[0].setValue('4');
+    expect(code()).toBe('4');
+    expect(document.activeElement).toBe(boxes()[1].element);
+
+    await boxes()[1].setValue('56');
+    expect(code()).toBe('456');
+
+    const paste = new Event('paste', { bubbles: true }) as Event & {
+      clipboardData: { getData: () => string };
+    };
+    paste.clipboardData = { getData: () => '12-34 56' };
+    boxes()[0].element.dispatchEvent(paste);
+    await flushPromises();
+    expect(code()).toBe('123456');
+
+    await boxes()[5].trigger('keydown', { key: 'Backspace' });
+    expect(code()).toBe('12345');
+    await boxes()[5].trigger('keydown', { key: 'Backspace' });
+    expect(code()).toBe('1234');
+    expect(document.activeElement).toBe(boxes()[4].element);
+
+    await boxes()[4].trigger('keydown', { key: 'ArrowLeft' });
+    expect(document.activeElement).toBe(boxes()[3].element);
+    await boxes()[3].trigger('keydown', { key: 'ArrowRight' });
+    expect(document.activeElement).toBe(boxes()[4].element);
+    host.unmount();
   });
 });

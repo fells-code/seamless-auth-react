@@ -71,7 +71,7 @@ export class SaOAuthCallback {
         return;
       }
 
-      void this.navigation.toApp(outcome.destination);
+      void this.navigation.toLocation(outcome.destination);
     });
   }
 

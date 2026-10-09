@@ -9,7 +9,14 @@ import { TestBed } from '@angular/core/testing';
 import { firstValueFrom, take, toArray } from 'rxjs';
 
 import { provideSeamlessAuth, SeamlessAuth, type SeamlessAuthConfig } from '../src';
-import { createAdapter, flush, passkeyPort, signedIn, signedOut, user } from './adapter';
+import {
+  createAdapter,
+  flush,
+  passkeyPort,
+  signedIn,
+  signedOut,
+  user,
+} from '../../../test-support/fakeAdapter';
 
 const apiHost = 'https://app.example.com';
 
@@ -190,6 +197,17 @@ describe('SeamlessAuth', () => {
     expect(auth.hasSignedInBefore()).toBe(true);
     expect(auth.client).toBeDefined();
     expect(auth.ports.passkeys).toBeDefined();
+  });
+
+  it('settles a waiting guard when the injector is destroyed first', async () => {
+    const { auth } = setup({
+      'GET /users/me': () => new Promise(() => undefined) as never,
+    });
+    const waiting = auth.whenSettled();
+
+    TestBed.resetTestingModule();
+
+    await expect(waiting).resolves.toMatchObject({ loading: true });
   });
 
   it('tears the store down with its injector', async () => {

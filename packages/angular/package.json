@@ -46,5 +46,7 @@
     "@seamless-auth/client": "^0.4.0",
     "tslib": "^2.7.0"
   },
-  "sideEffects": false
+  "sideEffects": [
+    "*.css"
+  ]
 }

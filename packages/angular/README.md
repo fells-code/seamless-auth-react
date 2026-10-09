@@ -236,7 +236,9 @@ to copy it as a starting point.
 ## Server rendering
 
 On the server the service does not read the session or browser storage, and `loading` stays true
-unless you pass `initialSession`. Resolve the session on your server with your adapter (for example
+unless you pass `initialSession`. Without it, `requireAuth` treats the request as signed out and
+redirects to `loginPath`, so a protected page's data never renders into a response for someone the
+server could not identify; the browser decides again when the application boots. Resolve the session on your server with your adapter (for example
 `getSeamlessUser` in `@seamless-auth/core`) and hand it over through `initialSession`; the browser then
 revalidates it in the background. Never forward the browser's cookies to the adapter's
 `/auth/users/me` from a server.

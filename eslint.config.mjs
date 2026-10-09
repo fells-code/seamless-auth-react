@@ -75,11 +75,13 @@ export default [
                 'react-native',
                 'react-native/*',
                 '@angular/*',
+                'vue',
+                'vue-router',
                 'rxjs',
                 'rxjs/*',
               ],
               message:
-                'The client core must stay framework agnostic. Keep React, Angular and router imports in a binding package. See #64.',
+                'The client core must stay framework agnostic. Keep React, Angular, Vue and router imports in a binding package. See #64.',
             },
             {
               group: [
@@ -87,6 +89,8 @@ export default [
                 '@seamless-auth/react-native',
                 '@seamless-auth/angular',
                 '@seamless-auth/angular/*',
+                '@seamless-auth/vue',
+                '@seamless-auth/vue/*',
                 '../react/*',
               ],
               message: 'The client core must not import from a binding package. See #64.',
@@ -94,6 +98,14 @@ export default [
           ],
         },
       ],
+    },
+  },
+  {
+    // Vue composables are named use* too, and the React hooks rules misread them.
+    files: ['packages/vue/**/*.ts'],
+    rules: {
+      'react-hooks/rules-of-hooks': 'off',
+      'react-hooks/exhaustive-deps': 'off',
     },
   },
   {

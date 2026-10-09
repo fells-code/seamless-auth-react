@@ -13,8 +13,8 @@ This repository is an npm workspace that publishes the client-side packages for
 Most React applications only install `@seamless-auth/react`; it brings the client
 core with it. The client package exists so that the bindings share one
 implementation of the auth flows and session state instead of re-implementing
-them; `@seamless-auth/react-native` and `@seamless-auth/angular` are bindings
-over it too, and so will the Vue and Svelte bindings be.
+them; `@seamless-auth/react-native`, `@seamless-auth/angular` and
+`@seamless-auth/vue` are bindings over it too, and so will the Svelte binding be.
 
 ## Start here
 
@@ -24,7 +24,7 @@ This repo is the client layer: the browser and native SDKs, which talk only to y
 
 ```mermaid
 flowchart LR
-  browser["Browser<br/>@seamless-auth/react or angular"] -- "signed httpOnly cookies" --> backend
+  browser["Browser<br/>@seamless-auth/react, angular, or vue"] -- "signed httpOnly cookies" --> backend
   native["Native app<br/>@seamless-auth/react-native"] -- "bearer tokens" --> backend
   backend["Your backend<br/>@seamless-auth/express, fastify, or nextjs<br/>mounted at /auth"] -- "bearer token + service token" --> api
   api["seamless-auth-api<br/>owns the session"] --> db[("Postgres")]
@@ -45,7 +45,7 @@ npm run build
 ```
 
 Tests run as one Jest project per package from the root. The React, React
-Native and Angular projects resolve `@seamless-auth/client` to the client
+Native, Angular and Vue projects resolve `@seamless-auth/client` to the client
 package's source, so a change in
 the core is exercised by the React suite without a build in between. Releases
 are managed with Changesets; see [RELEASES.md](RELEASES.md) and

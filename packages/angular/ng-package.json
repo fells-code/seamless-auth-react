@@ -5,10 +5,5 @@
     "entryFile": "src/index.ts"
   },
   "allowedNonPeerDependencies": ["@seamless-auth/client"],
-  "assets": [
-    "README.md",
-    "CHANGELOG.md",
-    "LICENSE",
-    { "input": "routes/src", "glob": "seamless-auth.css", "output": "." }
-  ]
+  "assets": ["README.md", "CHANGELOG.md", "LICENSE"]
 }

@@ -1,4 +1,4 @@
-import { readdir, readFile, writeFile } from 'node:fs/promises';
+import { copyFile, readdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 
 // Run from packages/angular after ng-packagr. It finishes the manifest that
@@ -42,6 +42,13 @@ for (const file of bundles) {
     failures.push(`${name} is fully compiled; libraries must ship partial declarations`);
   }
 }
+
+// The screens' stylesheet is shared by the bindings and lives outside the
+// package, where ng-packagr will not copy assets from.
+await copyFile(
+  path.join(process.cwd(), '..', '..', 'resources', 'styles', 'seamless-auth.css'),
+  path.join(dist, 'seamless-auth.css')
+);
 
 const manifestPath = path.join(dist, 'package.json');
 const manifest = JSON.parse(await readFile(manifestPath, 'utf8'));

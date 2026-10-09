@@ -4,30 +4,24 @@
  * See LICENSE file in the project root for full license information
  */
 
-import { inject } from '@angular/core';
-import {
-  Router,
-  type CanActivateFn,
-  type CanMatchFn,
-  type UrlTree,
-} from '@angular/router';
+import type { NavigationGuardWithThis, RouteLocationRaw } from 'vue-router';
 
-import { SeamlessAuth } from './seamless-auth.service';
+import { useSeamlessAuth } from '../plugin';
 
 export interface RequireAuthOptions {
   /** Where to send someone who is signed out. Defaults to the configured `loginPath`. */
-  redirectTo?: string;
+  redirectTo?: RouteLocationRaw;
   /**
    * Roles the user needs, matched the way the auth API matches them (scoped
    * roles such as `org:admin` included). Any one of a list is enough.
    */
   roles?: string | string[];
   /** Where to send a signed-in user without the role. Left out, navigation is refused. */
-  forbiddenRedirectTo?: string;
+  forbiddenRedirectTo?: RouteLocationRaw;
 }
 
-/** A guard usable as `canActivate`, `canActivateChild` or `canMatch`. */
-export type SeamlessAuthGuard = CanActivateFn & CanMatchFn;
+/** A guard for `beforeEnter`, or to call from `router.beforeEach`. */
+export type SeamlessAuthGuard = NavigationGuardWithThis<undefined>;
 
 /**
  * Admits a signed-in user. Waits for the session to be read first, so a page
@@ -35,22 +29,20 @@ export type SeamlessAuthGuard = CanActivateFn & CanMatchFn;
  * session is still loading.
  */
 export function requireAuth(options: RequireAuthOptions = {}): SeamlessAuthGuard {
-  return async (): Promise<boolean | UrlTree> => {
-    const auth = inject(SeamlessAuth);
-    const router = inject(Router);
+  return async () => {
+    // vue-router runs guards inside the application's context, so inject works.
+    const auth = useSeamlessAuth();
     const state = await auth.whenSettled();
 
     // A server render that was not handed the session cannot tell, and treats
     // the visitor as signed out: rendering the page could put its data in the
     // response. The browser decides again once the application boots there.
     if (state.loading || !state.isAuthenticated) {
-      return router.parseUrl(options.redirectTo ?? auth.loginPath);
+      return options.redirectTo ?? auth.loginPath;
     }
 
     if (options.roles !== undefined && !auth.hasScopedRole(options.roles)) {
-      return options.forbiddenRedirectTo
-        ? router.parseUrl(options.forbiddenRedirectTo)
-        : false;
+      return options.forbiddenRedirectTo ?? false;
     }
 
     return true;
@@ -59,21 +51,20 @@ export function requireAuth(options: RequireAuthOptions = {}): SeamlessAuthGuard
 
 /**
  * Admits someone who is signed out, and sends a signed-in user to the
- * configured `signedInPath`. For the sign-in screens.
+ * configured `signedInPath`. For the screens that start a sign-in.
  */
-export function requireGuest(options: { redirectTo?: string } = {}): SeamlessAuthGuard {
-  return async (): Promise<boolean | UrlTree> => {
-    const auth = inject(SeamlessAuth);
-    const router = inject(Router);
+export function requireGuest(
+  options: { redirectTo?: RouteLocationRaw } = {}
+): SeamlessAuthGuard {
+  return async () => {
+    const auth = useSeamlessAuth();
     const state = await auth.whenSettled();
 
     if (state.loading) {
       return true;
     }
 
-    return state.isAuthenticated
-      ? router.parseUrl(options.redirectTo ?? auth.signedInPath)
-      : true;
+    return state.isAuthenticated ? (options.redirectTo ?? auth.signedInPath) : true;
   };
 }
 
