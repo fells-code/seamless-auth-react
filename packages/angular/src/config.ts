@@ -39,6 +39,12 @@ export interface SeamlessAuthConfig {
   ports?: Partial<SeamlessAuthPorts>;
   /** A fetch to send auth requests with. Defaults to the global one. */
   fetch?: typeof fetch;
+  /**
+   * Origins besides `apiHost` that may receive the session cookies, through
+   * `authorizedFetch` or `seamlessAuthInterceptor`. Every other origin is
+   * refused by `authorizedFetch` and gets no credentials from the interceptor.
+   */
+  trustedOrigins?: string[];
   /** Where the bundled screens go once someone is signed in. Defaults to `/`. */
   signedInPath?: string;
   /** Where `requireAuth` sends someone who is signed out. Defaults to `/login`. */

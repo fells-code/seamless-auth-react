@@ -642,3 +642,22 @@ describe('request bodies', () => {
     }
   });
 });
+
+describe('authorizedFetch in a page', () => {
+  it('judges a relative URL by the page origin, as fetch resolves it', async () => {
+    const fetchImpl = jest.fn(async () => ({ ok: true, status: 200 }) as Response);
+    const sameOrigin = createSeamlessAuthClient({
+      apiHost: window.location.origin,
+      transport: { fetch: fetchImpl as unknown as typeof fetch },
+    });
+    const elsewhere = createSeamlessAuthClient({
+      apiHost: 'https://auth.example.com',
+      transport: { fetch: fetchImpl as unknown as typeof fetch },
+    });
+
+    await sameOrigin.authorizedFetch('api/me');
+    expect(fetchImpl).toHaveBeenCalledWith('api/me', expect.anything());
+    await expect(elsewhere.authorizedFetch('api/me')).rejects.toThrow(/trustedOrigins/);
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+  });
+});

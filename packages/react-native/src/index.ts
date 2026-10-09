@@ -43,6 +43,7 @@ export {
   PasskeyCeremonyError,
   roleGrantsAccess,
   SeamlessAuthError,
+  UntrustedOriginError,
 } from '@seamless-auth/client';
 export type {
   Credential,

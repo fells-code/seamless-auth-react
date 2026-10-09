@@ -566,7 +566,11 @@ describe('AuthProvider', () => {
       const Harness = ({ tick }: { tick: number }) => (
         <AuthProvider
           apiHost={apiHost}
-          transport={{ mode: 'bearer', tokenStorage }}
+          transport={{
+            mode: 'bearer',
+            tokenStorage,
+            trustedOrigins: ['https://data.example.com'],
+          }}
           ports={{ passkeys }}
         >
           <Consumer />
@@ -587,6 +591,9 @@ describe('AuthProvider', () => {
 
       // One session, so one client, so one session read on mount.
       expect(createFetchTransport).toHaveBeenCalledTimes(1);
+      expect(createFetchTransport).toHaveBeenCalledWith(
+        expect.objectContaining({ trustedOrigins: ['https://data.example.com'] })
+      );
       expect(mockFetchWithAuthImpl).toHaveBeenCalledTimes(1);
     });
   });

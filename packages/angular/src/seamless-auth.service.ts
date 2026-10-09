@@ -96,7 +96,11 @@ export class SeamlessAuth {
       magicLinkRedirectUri: config.magicLinkRedirectUri,
       // Cookie transport only. `mode` is deliberately not configurable here, so
       // no token is ever handed to page scripts.
-      transport: { basePath: config.basePath, fetch: config.fetch },
+      transport: {
+        basePath: config.basePath,
+        fetch: config.fetch,
+        trustedOrigins: config.trustedOrigins,
+      },
       passkeys: this.ports.passkeys,
       detectPreviousSignIn: config.autoDetectPreviousSignIn ?? true,
       initialSession: config.initialSession,
@@ -165,7 +169,9 @@ export class SeamlessAuth {
 
   /**
    * A fetch for the application's own API that carries the session cookies. A
-   * path resolves on `apiHost`. For `HttpClient`, use `seamlessAuthInterceptor`.
+   * path resolves on `apiHost`. Only `apiHost` and `trustedOrigins` receive the
+   * session; any other origin rejects with `UntrustedOriginError`. For
+   * `HttpClient`, use `seamlessAuthInterceptor`.
    */
   readonly authorizedFetch: SeamlessAuthClient['authorizedFetch'] = (input, init) =>
     this.session.client.authorizedFetch(input, init);

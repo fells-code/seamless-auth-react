@@ -91,6 +91,19 @@ the adapter's own mount (`/auth/sessions`, a passthrough the adapter adds) is
 sent the way the client's own calls are, transport header included, so an
 application can reach every adapter route through the one fetch.
 
+It sends the session only to `apiHost` and the origins listed in the transport's
+`trustedOrigins` option. A URL on any other origin rejects with
+`UntrustedOriginError` before anything is sent, so a cookie or token cannot
+reach a third party through it. Use plain `fetch` for other origins, or list an
+API served from another origin of your own:
+
+```ts
+createSeamlessAuthClient({
+  apiHost: 'https://auth.example.com',
+  transport: { trustedOrigins: ['https://api.example.com'] },
+});
+```
+
 ## Ports
 
 - `PasskeyPort`: who runs the WebAuthn ceremonies. `createBrowserPasskeyPort()`

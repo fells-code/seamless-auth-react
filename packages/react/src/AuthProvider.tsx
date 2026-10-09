@@ -166,11 +166,28 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({
     [providedPorts?.passkeys, providedPorts?.oauthRedirect]
   );
 
-  const { mode, basePath, tokenStorage, fetch: fetchImpl } = transport ?? {};
+  const {
+    mode,
+    basePath,
+    tokenStorage,
+    fetch: fetchImpl,
+    trustedOrigins,
+  } = transport ?? {};
+  // An inline array is a new value on every render, so it is compared by content.
+  const trustedOriginsKey = trustedOrigins?.join('\n');
   const stableTransport = useMemo(
-    () => (transport ? { mode, basePath, tokenStorage, fetch: fetchImpl } : undefined),
+    () =>
+      transport
+        ? {
+            mode,
+            basePath,
+            tokenStorage,
+            fetch: fetchImpl,
+            trustedOrigins: trustedOriginsKey?.split('\n'),
+          }
+        : undefined,
     // eslint-disable-next-line react-hooks/exhaustive-deps -- `transport` itself is deliberately not a dependency
-    [mode, basePath, tokenStorage, fetchImpl]
+    [mode, basePath, tokenStorage, fetchImpl, trustedOriginsKey]
   );
 
   // Seeds the store like a `useState` initialiser. A server component hands over

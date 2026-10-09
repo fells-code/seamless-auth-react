@@ -32,6 +32,45 @@ export interface TransportOptions {
   tokenStorage?: TokenStoragePort;
   /** The fetch to use. Defaults to the global one. */
   fetch?: typeof fetch;
+  /**
+   * Origins besides `apiHost` that `authorizedFetch` may send the session to,
+   * for an application whose own API is served from another origin. Every other
+   * origin is refused, so cookies or the access token never reach a URL the
+   * application did not name.
+   */
+  trustedOrigins?: string[];
+}
+
+/** Rejects an `authorizedFetch` to an origin that may not receive the session. */
+export class UntrustedOriginError extends Error {
+  readonly url: string;
+
+  constructor(url: string) {
+    super(
+      `authorizedFetch sends the session only to apiHost and trustedOrigins, and ${url} is neither. Use fetch for other origins, or add the origin to trustedOrigins.`
+    );
+    this.name = 'UntrustedOriginError';
+    this.url = url;
+  }
+}
+
+/** A URL's origin as fetch would resolve it, or null when it has none. */
+function originOf(url: string): string | null {
+  try {
+    const base = typeof location === 'undefined' ? undefined : location.href;
+    const origin = new URL(url, base).origin;
+    return origin === 'null' ? null : origin;
+  } catch {
+    return null;
+  }
+}
+
+function trustedOriginsFor(options: TransportOptions): Set<string> {
+  return new Set(
+    [options.apiHost, ...(options.trustedOrigins ?? [])]
+      .map(originOf)
+      .filter((origin): origin is string => origin !== null)
+  );
 }
 
 export type FetchWithAuth = (input: string, init?: RequestInit) => Promise<Response>;
@@ -40,9 +79,11 @@ export interface Transport {
   /** A request to the server adapter's auth routes, by path under the mount. */
   fetch: FetchWithAuth;
   /**
-   * A request to any URL, carrying the session the way this transport does:
-   * cookies in cookie transport, the access token (refreshed once on a 401) in
-   * bearer transport. For an application's own API behind `requireAuth`.
+   * A request to the application's own API, carrying the session the way this
+   * transport does: cookies in cookie transport, the access token (refreshed
+   * once on a 401) in bearer transport. Only `apiHost` and `trustedOrigins`
+   * receive it; any other origin rejects with `UntrustedOriginError` and no
+   * request is sent.
    */
   authorizedFetch: (input: string | URL, init?: RequestInit) => Promise<Response>;
   mode: AuthTransportMode;
@@ -181,6 +222,17 @@ export function createTransport(options: TransportOptions): Transport {
   const basePath = options.basePath ?? '/auth';
   const fetchImpl =
     options.fetch ?? ((...args: Parameters<typeof fetch>) => fetch(...args));
+  const trusted = trustedOriginsFor(options);
+
+  // Checked before anything is attached, so a refused request carries neither
+  // a cookie nor a token. Resolved the way fetch resolves it, so a relative URL
+  // is judged by the page's origin.
+  const refuseUntrusted = (url: string): Promise<never> | null => {
+    const origin = originOf(url);
+    return origin !== null && trusted.has(origin)
+      ? null
+      : Promise.reject(new UntrustedOriginError(url));
+  };
 
   if (mode === 'cookie') {
     return {
@@ -191,6 +243,7 @@ export function createTransport(options: TransportOptions): Transport {
           withHeaders({ ...init, credentials: 'include' }, {})
         ),
       authorizedFetch: (input, init) =>
+        refuseUntrusted(String(input)) ??
         fetchImpl(String(input), withHeaders({ ...init, credentials: 'include' }, {})),
       clearTokens: async () => undefined,
     };
@@ -378,6 +431,9 @@ export function createTransport(options: TransportOptions): Transport {
     // mode, so it takes the same road as the client's own calls.
     authorizedFetch: (input, init) => {
       const url = String(input);
+      const refused = refuseUntrusted(url);
+      if (refused) return refused;
+
       return url.startsWith(mount)
         ? fetchUnderMount(url.slice(mount.length - 1), init)
         : sendWithRefresh(url, init, 'access', false);
