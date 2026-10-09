@@ -94,8 +94,12 @@ application can reach every adapter route through the one fetch.
 It sends the session only to `apiHost` and the origins listed in the transport's
 `trustedOrigins` option. A URL on any other origin rejects with
 `UntrustedOriginError` before anything is sent, so a cookie or token cannot
-reach a third party through it. Use plain `fetch` for other origins, or list an
-API served from another origin of your own:
+reach a third party through it. A path starting with `/` resolves on `apiHost`;
+any other relative URL is refused, because `fetch` would resolve it against the
+document's base URL. Each `trustedOrigins` entry must be a bare `https` origin
+(`http` only on localhost), and anything else throws when the client is
+created. Use plain `fetch` for other origins, or list an API served from
+another origin of your own:
 
 ```ts
 createSeamlessAuthClient({

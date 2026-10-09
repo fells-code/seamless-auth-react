@@ -174,7 +174,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({
     trustedOrigins,
   } = transport ?? {};
   // An inline array is a new value on every render, so it is compared by content.
-  const trustedOriginsKey = trustedOrigins?.join('\n');
+  const trustedOriginsKey = trustedOrigins ? JSON.stringify(trustedOrigins) : undefined;
   const stableTransport = useMemo(
     () =>
       transport
@@ -183,7 +183,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({
             basePath,
             tokenStorage,
             fetch: fetchImpl,
-            trustedOrigins: trustedOriginsKey?.split('\n'),
+            trustedOrigins: trustedOriginsKey
+              ? (JSON.parse(trustedOriginsKey) as string[])
+              : undefined,
           }
         : undefined,
     // eslint-disable-next-line react-hooks/exhaustive-deps -- `transport` itself is deliberately not a dependency

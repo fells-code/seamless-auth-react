@@ -88,7 +88,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({
 }) => {
   const { passkeys, oauthRedirect, tokenStorage } = ports;
   // An inline array is a new value on every render, so it is compared by content.
-  const trustedOriginsKey = trustedOrigins?.join('\n');
+  const trustedOriginsKey = trustedOrigins ? JSON.stringify(trustedOrigins) : undefined;
 
   const session = useMemo(
     () =>
@@ -101,7 +101,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({
           basePath,
           tokenStorage: tokenStorage ?? createMemoryTokenStorage(),
           fetch: fetchImpl,
-          trustedOrigins: trustedOriginsKey?.split('\n'),
+          trustedOrigins: trustedOriginsKey
+            ? (JSON.parse(trustedOriginsKey) as string[])
+            : undefined,
         },
         // There is no "seen before" flag on native: the keystore holding a
         // session is the signal, and it is read by the transport itself.

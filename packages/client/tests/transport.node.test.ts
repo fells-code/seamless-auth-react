@@ -100,7 +100,7 @@ describe('cookie transport', () => {
     const transport = createTransport({
       apiHost: API,
       fetch: fetchImpl,
-      trustedOrigins: ['https://data.example.com/ignored/path'],
+      trustedOrigins: ['https://data.example.com'],
     });
 
     await transport.authorizedFetch(`${API}/api/plan`, { method: 'GET' });
@@ -115,6 +115,41 @@ describe('cookie transport', () => {
     expect(calls[1].url).toBe('https://data.example.com/x');
     expect(calls[1].init.credentials).toBe('include');
     expect(headersOf(calls[1])).toEqual({ 'Content-Type': 'application/json' });
+  });
+
+  it('refuses a trustedOrigins entry that is not a bare origin', () => {
+    const { fetchImpl } = scriptedFetch(() => jsonResponse(200, {}));
+    for (const entry of [
+      '',
+      'api.example.com',
+      '*.example.com',
+      'https://api.example.com/v1',
+      'https://api.example.com/?x',
+      'https://user@api.example.com',
+      'http://api.example.com',
+      'ftp://api.example.com',
+    ]) {
+      expect(() =>
+        createTransport({ apiHost: API, fetch: fetchImpl, trustedOrigins: [entry] })
+      ).toThrow(/is not an origin/);
+    }
+    expect(() =>
+      createTransport({
+        apiHost: API,
+        fetch: fetchImpl,
+        trustedOrigins: ['https://data.example.com/', 'http://localhost:4000'],
+      })
+    ).not.toThrow();
+  });
+
+  it('authorizedFetch refuses an input that is not a URL', async () => {
+    const { calls, fetchImpl } = scriptedFetch(() => jsonResponse(200, {}));
+    const transport = createTransport({ apiHost: API, fetch: fetchImpl });
+
+    await expect(
+      transport.authorizedFetch({ url: `${API}/x` } as unknown as string)
+    ).rejects.toBeInstanceOf(TypeError);
+    expect(calls).toHaveLength(0);
   });
 
   it('authorizedFetch refuses any other origin without sending a request', async () => {

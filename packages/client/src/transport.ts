@@ -47,30 +47,75 @@ export class UntrustedOriginError extends Error {
 
   constructor(url: string) {
     super(
-      `authorizedFetch sends the session only to apiHost and trustedOrigins, and ${url} is neither. Use fetch for other origins, or add the origin to trustedOrigins.`
+      `authorizedFetch sends the session only to apiHost and trustedOrigins, and ${url} is neither. Pass a path starting with / to reach apiHost, use fetch for other origins, or add the origin to trustedOrigins.`
     );
     this.name = 'UntrustedOriginError';
     this.url = url;
   }
 }
 
-/** A URL's origin as fetch would resolve it, or null when it has none. */
+/**
+ * An absolute URL's origin, or null for a relative URL or one without an
+ * origin. Never resolved against the page: fetch resolves a relative URL
+ * against the document's base URL, which injected markup can change, so a
+ * relative URL is not something this check can judge.
+ */
 function originOf(url: string): string | null {
   try {
-    const base = typeof location === 'undefined' ? undefined : location.href;
-    const origin = new URL(url, base).origin;
+    const origin = new URL(url).origin;
     return origin === 'null' ? null : origin;
   } catch {
     return null;
   }
 }
 
+const LOOPBACK = new Set(['localhost', '127.0.0.1', '[::1]']);
+
+/**
+ * One `trustedOrigins` entry, which must be a bare https origin (http only on
+ * loopback, for local development). Anything else throws, because the likely
+ * mistakes (a host without a scheme, a wildcard, an origin with a path) would
+ * otherwise be read as something the application did not mean to trust.
+ */
+function trustedOriginOf(entry: string): string {
+  let url: URL | null = null;
+  try {
+    url = new URL(entry);
+  } catch {
+    url = null;
+  }
+
+  const valid =
+    url !== null &&
+    (url.protocol === 'https:' ||
+      (url.protocol === 'http:' && LOOPBACK.has(url.hostname))) &&
+    !url.username &&
+    !url.password &&
+    (url.pathname === '/' || url.pathname === '') &&
+    !url.search &&
+    !url.hash;
+
+  if (!valid || url === null) {
+    throw new TypeError(
+      `trustedOrigins entry "${entry}" is not an origin. Use one such as https://api.example.com.`
+    );
+  }
+
+  return url.origin;
+}
+
 function trustedOriginsFor(options: TransportOptions): Set<string> {
-  return new Set(
-    [options.apiHost, ...(options.trustedOrigins ?? [])]
-      .map(originOf)
-      .filter((origin): origin is string => origin !== null)
-  );
+  const trusted = new Set((options.trustedOrigins ?? []).map(trustedOriginOf));
+  const apiOrigin = originOf(options.apiHost);
+  if (apiOrigin) trusted.add(apiOrigin);
+  return trusted;
+}
+
+/** `authorizedFetch` takes a URL string or a `URL`; anything else is refused. */
+function urlOf(input: unknown): string | null {
+  if (typeof input === 'string') return input;
+  if (input instanceof URL) return input.href;
+  return null;
 }
 
 export type FetchWithAuth = (input: string, init?: RequestInit) => Promise<Response>;
@@ -225,13 +270,23 @@ export function createTransport(options: TransportOptions): Transport {
   const trusted = trustedOriginsFor(options);
 
   // Checked before anything is attached, so a refused request carries neither
-  // a cookie nor a token. Resolved the way fetch resolves it, so a relative URL
-  // is judged by the page's origin.
+  // a cookie nor a token. Only an absolute URL can pass: the client resolves a
+  // path on apiHost before it gets here.
   const refuseUntrusted = (url: string): Promise<never> | null => {
     const origin = originOf(url);
     return origin !== null && trusted.has(origin)
       ? null
       : Promise.reject(new UntrustedOriginError(url));
+  };
+
+  const checkedUrl = (input: unknown): string | Promise<never> => {
+    const url = urlOf(input);
+    if (url === null) {
+      return Promise.reject(
+        new TypeError('authorizedFetch takes a URL string or a URL.')
+      );
+    }
+    return refuseUntrusted(url) ?? url;
   };
 
   if (mode === 'cookie') {
@@ -242,9 +297,12 @@ export function createTransport(options: TransportOptions): Transport {
           buildUrl(options.apiHost, basePath, normalizePath(input)),
           withHeaders({ ...init, credentials: 'include' }, {})
         ),
-      authorizedFetch: (input, init) =>
-        refuseUntrusted(String(input)) ??
-        fetchImpl(String(input), withHeaders({ ...init, credentials: 'include' }, {})),
+      authorizedFetch: (input, init) => {
+        const url = checkedUrl(input);
+        if (typeof url !== 'string') return url;
+
+        return fetchImpl(url, withHeaders({ ...init, credentials: 'include' }, {}));
+      },
       clearTokens: async () => undefined,
     };
   }
@@ -430,9 +488,8 @@ export function createTransport(options: TransportOptions): Transport {
     // adapter's, though, and without the header it would answer in cookie
     // mode, so it takes the same road as the client's own calls.
     authorizedFetch: (input, init) => {
-      const url = String(input);
-      const refused = refuseUntrusted(url);
-      if (refused) return refused;
+      const url = checkedUrl(input);
+      if (typeof url !== 'string') return url;
 
       return url.startsWith(mount)
         ? fetchUnderMount(url.slice(mount.length - 1), init)

@@ -644,20 +644,32 @@ describe('request bodies', () => {
 });
 
 describe('authorizedFetch in a page', () => {
-  it('judges a relative URL by the page origin, as fetch resolves it', async () => {
+  it('resolves a path on apiHost and refuses a relative URL it cannot judge', async () => {
     const fetchImpl = jest.fn(async () => ({ ok: true, status: 200 }) as Response);
-    const sameOrigin = createSeamlessAuthClient({
+    const client = createSeamlessAuthClient({
       apiHost: window.location.origin,
       transport: { fetch: fetchImpl as unknown as typeof fetch },
     });
-    const elsewhere = createSeamlessAuthClient({
-      apiHost: 'https://auth.example.com',
-      transport: { fetch: fetchImpl as unknown as typeof fetch },
-    });
 
-    await sameOrigin.authorizedFetch('api/me');
-    expect(fetchImpl).toHaveBeenCalledWith('api/me', expect.anything());
-    await expect(elsewhere.authorizedFetch('api/me')).rejects.toThrow(/trustedOrigins/);
+    await client.authorizedFetch('/api/me');
+    expect(fetchImpl).toHaveBeenCalledWith(
+      `${window.location.origin}/api/me`,
+      expect.anything()
+    );
+
+    // fetch would resolve these against the document's base URL, which injected
+    // markup can point anywhere, so they are refused even on the page's origin.
+    const base = document.createElement('base');
+    base.href = 'https://evil.example.com/';
+    document.head.append(base);
+    try {
+      await expect(client.authorizedFetch('api/me')).rejects.toThrow(
+        /path starting with/
+      );
+      await expect(client.authorizedFetch('?q=1')).rejects.toThrow(/trustedOrigins/);
+    } finally {
+      base.remove();
+    }
     expect(fetchImpl).toHaveBeenCalledTimes(1);
   });
 });
