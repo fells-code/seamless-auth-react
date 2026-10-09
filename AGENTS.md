@@ -269,6 +269,22 @@ This repository is an npm workspace. Its published packages include:
 - tests run zoneless through jest-preset-angular in the workspace's jsdom
   environment; `typecheck` runs `ngc`, which also checks templates
 
+`@seamless-auth/vue` (#171):
+
+- built with rollup like React: one run with two inputs (`index`, `router`)
+  so the injection key lives in one shared chunk. `scripts/check-vue-dist.mjs`
+  fails the build if `index.js` reaches `vue-router` (an optional peer) or a
+  bundle touches web storage or bearer transport
+- the plugin creates the session in `install`, so each app (and each SSR
+  request's app) gets its own. Cookie transport only, as in Angular
+- screens are render-function components in plain TypeScript, so there is no
+  SFC compiler in the build or the tests. They are named routes
+  (`seamless-auth-<screen>`) and navigate by name, and read navigation state
+  from the router's history so memory and hash history work too
+- the screens' stylesheet is `resources/styles/seamless-auth.css`, shared with
+  Angular; the Vue layout injects it into `<head>` on first mount
+- the fake `/auth` adapter the binding tests share is `test-support/fakeAdapter.ts`
+
 Next.js and server rendering (#78):
 
 - the React build is one rollup run with two inputs (`index`, `routes`) so the

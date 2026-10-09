@@ -4,6 +4,7 @@ export default {
     '<rootDir>/packages/react',
     '<rootDir>/packages/react-native',
     '<rootDir>/packages/angular',
+    '<rootDir>/packages/vue',
   ],
   collectCoverage: true,
   collectCoverageFrom: ['src/**/*.{ts,tsx}', 'routes/src/**/*.ts', '!src/**/*.d.ts'],

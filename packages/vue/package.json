@@ -1,0 +1,69 @@
+{
+  "name": "@seamless-auth/vue",
+  "version": "0.0.0",
+  "description": "Vue bindings for Seamless Auth: a plugin and composable for session state, route guards, and optional sign-in screens.",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./router": {
+      "types": "./dist/router/index.d.ts",
+      "import": "./dist/router.js"
+    },
+    "./seamless-auth.css": "./dist/seamless-auth.css"
+  },
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist",
+    "README.md",
+    "CHANGELOG.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=22",
+    "npm": ">=9.0.0 <13.0.0"
+  },
+  "scripts": {
+    "build": "node ../../scripts/clean-dist.mjs && rollup -c && tsc-alias -p tsconfig.build.json && node ../../scripts/check-vue-dist.mjs",
+    "typecheck": "tsc --noEmit -p tsconfig.dev.json",
+    "check-npm-build": "npm pack --dry-run"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/fells-code/seamless-auth-react.git",
+    "directory": "packages/vue"
+  },
+  "author": "Fells Code, LLC",
+  "license": "Apache-2.0",
+  "bugs": {
+    "url": "https://github.com/fells-code/seamless-auth-react/issues"
+  },
+  "homepage": "https://github.com/fells-code/seamless-auth-react/tree/main/packages/vue#readme",
+  "keywords": [
+    "vue",
+    "authentication",
+    "passkeys",
+    "webauthn",
+    "seamless-auth"
+  ],
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/",
+    "provenance": true
+  },
+  "peerDependencies": {
+    "vue": "^3.5.0",
+    "vue-router": "^4.4.0 || ^5.0.0"
+  },
+  "peerDependenciesMeta": {
+    "vue-router": {
+      "optional": true
+    }
+  },
+  "dependencies": {
+    "@seamless-auth/client": "^0.4.0"
+  },
+  "sideEffects": false
+}
