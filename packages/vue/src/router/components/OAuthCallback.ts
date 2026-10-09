@@ -45,7 +45,7 @@ export const SaOAuthCallback = defineComponent({
         return;
       }
 
-      await navigation.toApp(outcome.destination);
+      await navigation.toLocation(outcome.destination);
     });
 
     return () =>

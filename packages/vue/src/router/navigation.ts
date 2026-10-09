@@ -23,6 +23,19 @@ export function useAuthNavigation() {
       router.push({ name: authRouteName(screen), state }),
     /** Where the application wants a signed-in user, or an in-app path. */
     toApp: (path?: string) => router.push(path ?? auth.signedInPath),
+    /**
+     * A path as the browser sees it, such as the destination an OAuth sign-in
+     * returns. The router's base is part of it, and the router adds its base
+     * again, so it is taken off first.
+     */
+    toLocation: (browserPath: string) => {
+      const base = router.options.history.base.replace(/\/+$/, '');
+      const inApp =
+        base && (browserPath === base || browserPath.startsWith(`${base}/`))
+          ? browserPath.slice(base.length) || '/'
+          : browserPath;
+      return router.push(inApp);
+    },
     /** Navigation state the previous screen handed over. */
     state: <T extends object>(): Partial<T> => {
       // The router's own history, so memory and hash history work as web does.

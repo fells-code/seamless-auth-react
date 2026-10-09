@@ -27,10 +27,12 @@ export const SaRegisterPasskey = defineComponent({
     const auth = useSeamlessAuth();
     const navigation = useAuthNavigation();
     // The OAuth callback hands over the caller's destination when the API asks
-    // for enrolment first.
-    const destination = safeReturnPath(
-      navigation.state<{ returnTo: unknown }>().returnTo
-    );
+    // for enrolment first. Without one, the configured signedInPath applies.
+    const returnTo = navigation.state<{ returnTo: unknown }>().returnTo;
+    const finish = () =>
+      returnTo === undefined
+        ? navigation.toApp()
+        : navigation.toLocation(safeReturnPath(returnTo));
 
     const status = ref<'idle' | 'loading' | 'success' | 'error'>('idle');
     const message = ref('');
@@ -60,12 +62,12 @@ export const SaRegisterPasskey = defineComponent({
 
       status.value = 'success';
       message.value = 'Passkey registered successfully.';
-      await navigation.toApp(destination);
+      await finish();
     };
 
     const finishWithoutPasskey = async () => {
       await auth.refreshSession();
-      await navigation.toApp(destination);
+      await finish();
     };
 
     const busy = () => status.value === 'loading';

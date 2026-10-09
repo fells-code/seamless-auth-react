@@ -159,6 +159,15 @@ describe('createSeamlessAuth', () => {
     );
   });
 
+  it('settles a waiting guard when the app is torn down first', async () => {
+    const { auth, wrapper } = setup({ 'GET /users/me': () => undefined });
+    const waiting = auth().whenSettled();
+
+    wrapper.unmount();
+
+    await expect(waiting).resolves.toMatchObject({ loading: true });
+  });
+
   it('tears the session down with the app', async () => {
     const { auth, wrapper } = setup({ 'GET /users/me': signedOut });
     await auth().whenSettled();

@@ -43,6 +43,14 @@ export interface SeamlessAuthConfig {
    * cookies to. Every other origin is refused.
    */
   trustedOrigins?: string[];
+  /**
+   * Whether the bundled screens add their stylesheet to the page. Defaults to
+   * true. Set false to link `@seamless-auth/vue/seamless-auth.css` yourself,
+   * for example under a CSP that allows no inline styles.
+   */
+  injectStyles?: boolean;
+  /** A CSP nonce for the stylesheet the screens add, when `injectStyles` is on. */
+  cspNonce?: string;
   /** Where the bundled screens go once someone is signed in. Defaults to `/`. */
   signedInPath?: string;
   /** Where `requireAuth` sends someone who is signed out. Defaults to `/login`. */

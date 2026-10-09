@@ -83,6 +83,8 @@ export interface SeamlessAuth extends AuthSessionActions {
   authorizedFetch: SeamlessAuthClient['authorizedFetch'];
   /** The platform ports the bundled screens go through. */
   ports: SeamlessAuthPorts;
+  /** How the bundled screens add their stylesheet. */
+  styles: { inject: boolean; nonce?: string };
   /** Where the bundled screens go once someone is signed in. */
   signedInPath: string;
   /** Where `requireAuth` sends someone who is signed out. */
@@ -132,6 +134,10 @@ function createSeamlessAuthInstance(config: SeamlessAuthConfig): SeamlessAuth & 
   const loginMethodsLoading = ref(true);
   let loginMethodsRequest: Promise<LoginMethod[] | null> | null = null;
 
+  // Settled with the last known state if the app is torn down first, so a
+  // guard still waiting on the session does not hang.
+  const pendingSettles = new Set<() => void>();
+
   const passkeySupported = ref(false);
   const passkeySupportLoading = ref(true);
   let passkeySupportRequest: Promise<boolean> | null = null;
@@ -180,24 +186,29 @@ function createSeamlessAuthInstance(config: SeamlessAuthConfig): SeamlessAuth & 
       }
 
       return new Promise(resolve => {
+        const settle = (next: AuthSessionState) => {
+          stop();
+          pendingSettles.delete(abandon);
+          resolve(next);
+        };
+        const abandon = () => settle(state.value);
         const stop = session.subscribe(() => {
           const next = session.getState();
-
-          if (!next.loading) {
-            stop();
-            resolve(next);
-          }
+          if (!next.loading) settle(next);
         });
+        pendingSettles.add(abandon);
       });
     },
 
     client: session.client,
     authorizedFetch: (input, init) => session.client.authorizedFetch(input, init),
     ports,
+    styles: { inject: config.injectStyles ?? true, nonce: config.cspNonce },
     signedInPath: config.signedInPath ?? '/',
     loginPath: config.loginPath ?? '/login',
 
     destroy() {
+      [...pendingSettles].forEach(abandon => abandon());
       unsubscribe();
       session.destroy();
     },

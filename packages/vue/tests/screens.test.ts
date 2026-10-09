@@ -39,15 +39,19 @@ async function open(
     state?: Record<string, string>;
     oauthRedirect?: OAuthRedirectPort;
     basePath?: string;
+    historyBase?: string;
+    config?: Record<string, unknown>;
   } = {}
 ) {
   const adapter = createAdapter({ 'GET /users/me': signedOut, ...routes });
   const passkeys = passkeyPort(options.passkeys ?? false);
 
   router = createRouter({
-    history: createMemoryHistory(),
+    history: createMemoryHistory(options.historyBase),
     routes: [
       { path: '/', component: Home },
+      { path: '/settings', component: Home },
+      { path: '/home', component: Home },
       ...createSeamlessAuthRoutes({ basePath: options.basePath }),
     ],
   });
@@ -64,6 +68,7 @@ async function open(
             passkeys,
             ...(options.oauthRedirect ? { oauthRedirect: options.oauthRedirect } : {}),
           },
+          ...options.config,
         }),
       ],
     },
@@ -574,6 +579,47 @@ describe('mounted under a base path', () => {
     await router.push('/account/oauth/callback?code=c&state=s');
     await settle();
     expect(url()).toBe('/account/register-passkey');
+  });
+});
+
+describe('review follow-ups', () => {
+  it('does not add the router base twice to an OAuth destination', async () => {
+    sessionStorage.setItem(OAUTH_PROVIDER_STORAGE_KEY, 'mock');
+    await open(
+      '/oauth/callback?code=c&state=s',
+      {
+        'POST /oauth/mock/callback': {
+          body: { returnTo: 'http://localhost/app/settings?tab=2' },
+        },
+      },
+      { historyBase: '/app' }
+    );
+    expect(url()).toBe('/settings?tab=2');
+  });
+
+  it('goes to signedInPath after enrolment when nothing was handed over', async () => {
+    await open(
+      '/register-passkey',
+      {
+        'GET /system-config/public': { body: { loginMethods: ['passkey', 'email_otp'] } },
+      },
+      { config: { signedInPath: '/home' } }
+    );
+    await click('Continue');
+    expect(url()).toBe('/home');
+  });
+
+  it('adds the stylesheet with a nonce, or not at all', async () => {
+    document.getElementById('seamless-auth-styles')?.remove();
+    await open('/login', {}, { config: { cspNonce: 'n0nce' } });
+    expect(
+      (document.getElementById('seamless-auth-styles') as HTMLStyleElement).nonce
+    ).toBe('n0nce');
+    wrapper.unmount();
+
+    document.getElementById('seamless-auth-styles')?.remove();
+    await open('/login', {}, { config: { injectStyles: false } });
+    expect(document.getElementById('seamless-auth-styles')).toBeNull();
   });
 });
 

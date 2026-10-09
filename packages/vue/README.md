@@ -75,6 +75,8 @@ never shares one. The session is read as soon as the application starts in the b
 | `ports`                    | browser          | `passkeys` and `oauthRedirect` ports                        |
 | `fetch`                    | global `fetch`   | The fetch auth requests go through                          |
 | `trustedOrigins`           | none             | Other origins of yours that may receive the session cookies |
+| `injectStyles`             | `true`           | Whether the screens add their stylesheet to the page        |
+| `cspNonce`                 | none             | A CSP nonce for that stylesheet                             |
 | `signedInPath`             | `/`              | Where the bundled screens go after sign-in                  |
 | `loginPath`                | `/login`         | Where `requireAuth` sends someone signed out                |
 
@@ -199,16 +201,24 @@ binding:
 ```
 
 The stylesheet also ships as `@seamless-auth/vue/seamless-auth.css`. Link it yourself when you render
-on the server, so the first paint is already styled.
+on the server, so the first paint is already styled. Under a Content Security Policy, pass
+`cspNonce` so the injected `<style>` carries your nonce, or set `injectStyles: false` and link the
+file instead.
 
 ## Server rendering
 
 On the server the session is not read and no screen starts a request: a server render has none of the
 browser's cookies, and a magic link or OAuth code is single use. `loading` stays true unless you pass
-`initialSession`, and the guards admit, leaving the decision to the browser. Resolve the session on
-your server through your adapter and hand it over as `initialSession`; the browser then revalidates it
-in the background. Never forward the browser's cookies to the adapter's `/auth/users/me` from a
-server.
+`initialSession`. Without it, `requireAuth` treats the request as signed out and redirects to
+`loginPath`, so a protected page's data never renders into a response for someone the server could not
+identify; the browser decides again when the application boots. Resolve the session on your server
+through your adapter and hand it over as `initialSession`, building the plugin's config per request so
+one visitor's session is never another's. The browser then revalidates it in the background. Never
+forward the browser's cookies to the adapter's `/auth/users/me` from a server.
+
+The magic link and OAuth callback URLs carry a single-use secret until the screen drops it. Serve
+those routes with `Referrer-Policy: no-referrer` (or `same-origin`) so it does not leave in a
+`Referer` before then.
 
 ## License
 

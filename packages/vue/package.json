@@ -65,5 +65,7 @@
   "dependencies": {
     "@seamless-auth/client": "^0.4.0"
   },
-  "sideEffects": false
+  "sideEffects": [
+    "*.css"
+  ]
 }

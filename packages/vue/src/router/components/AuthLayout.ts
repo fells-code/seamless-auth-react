@@ -7,14 +7,17 @@
 import styles from '@shared-styles/seamless-auth.css';
 import { defineComponent, h, onMounted } from 'vue';
 
+import { useSeamlessAuth } from '../../plugin';
+
 const STYLE_ID = 'seamless-auth-styles';
 
 /** Adds the screens' stylesheet to the document once, the first time a screen mounts. */
-function installStyles() {
+function installStyles(nonce: string | undefined) {
   if (typeof document === 'undefined' || document.getElementById(STYLE_ID)) return;
 
   const style = document.createElement('style');
   style.id = STYLE_ID;
+  if (nonce) style.nonce = nonce;
   style.textContent = styles;
   // First in <head>, so the application's own stylesheets override it.
   document.head.prepend(style);
@@ -31,7 +34,10 @@ export const SaAuthLayout = defineComponent({
     card: { type: Boolean, default: true },
   },
   setup(props, { slots }) {
-    onMounted(installStyles);
+    const { styles: options } = useSeamlessAuth();
+    onMounted(() => {
+      if (options.inject) installStyles(options.nonce);
+    });
 
     return () =>
       h('div', { class: 'sa-auth' }, [
