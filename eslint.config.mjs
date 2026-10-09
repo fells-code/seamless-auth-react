@@ -77,11 +77,15 @@ export default [
                 '@angular/*',
                 'vue',
                 'vue-router',
+                'svelte',
+                'svelte/*',
+                '@sveltejs/*',
+                '$app/*',
                 'rxjs',
                 'rxjs/*',
               ],
               message:
-                'The client core must stay framework agnostic. Keep React, Angular, Vue and router imports in a binding package. See #64.',
+                'The client core must stay framework agnostic. Keep React, Angular, Vue, Svelte and router imports in a binding package. See #64.',
             },
             {
               group: [
@@ -91,6 +95,8 @@ export default [
                 '@seamless-auth/angular/*',
                 '@seamless-auth/vue',
                 '@seamless-auth/vue/*',
+                '@seamless-auth/svelte',
+                '@seamless-auth/svelte/*',
                 '../react/*',
               ],
               message: 'The client core must not import from a binding package. See #64.',
@@ -101,14 +107,33 @@ export default [
     },
   },
   {
+    // Svelte's runes are compiler keywords in .svelte.ts modules, not imports.
+    files: ['packages/svelte/**/*.svelte.ts'],
+    languageOptions: {
+      globals: {
+        $state: 'readonly',
+        $derived: 'readonly',
+        $effect: 'readonly',
+        $props: 'readonly',
+        $bindable: 'readonly',
+      },
+    },
+  },
+  {
     // Vue composables are named use* too, and the React hooks rules misread them.
-    files: ['packages/vue/**/*.ts'],
+    files: ['packages/vue/**/*.ts', 'packages/svelte/**/*.ts'],
     rules: {
       'react-hooks/rules-of-hooks': 'off',
       'react-hooks/exhaustive-deps': 'off',
     },
   },
   {
-    ignores: ['**/dist/', '**/coverage/', '**/node_modules/'],
+    ignores: [
+      '**/dist/',
+      '**/coverage/',
+      '**/node_modules/',
+      '**/.svelte-kit/',
+      '**/*.generated.ts',
+    ],
   },
 ];

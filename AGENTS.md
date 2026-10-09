@@ -285,6 +285,23 @@ This repository is an npm workspace. Its published packages include:
   Angular; the Vue layout injects it into `<head>` on first mount
 - the fake `/auth` adapter the binding tests share is `test-support/fakeAdapter.ts`
 
+`@seamless-auth/svelte` (#172):
+
+- Svelte 5 only (runes). Built with `svelte-package`, which ships `.svelte`
+  sources for the consumer's compiler and keeps import specifiers as written,
+  so every relative import names its `.js` extension
+- the session is a class whose fields are runes (`src/auth.svelte.ts`). The
+  screens get it and an `AuthNavigator` from Svelte context and never import a
+  router; `./kit` adds `createKitNavigator` and `requireAuth`/`requireGuest`
+  `load` functions, using only the `$app` APIs SvelteKit 2.26+ and 3 share
+  (`goto`, `replaceState`, `page`, `resolve`). `scripts/finalize-svelte-dist.mjs`
+  fails the build if the root entry reaches SvelteKit
+- the shared stylesheet becomes `src/styles.generated.ts` at build, test and
+  typecheck time (`scripts/generate-svelte-styles.mjs`); it is not committed
+- tests run under Vitest (`npm run test -w @seamless-auth/svelte`), not Jest.
+  `scripts/test.mjs` runs Jest and then Vitest, so `npm test` covers both and
+  forwards `--coverage`. The shared fake adapter's `jest.fn` maps to `vi`
+
 Next.js and server rendering (#78):
 
 - the React build is one rollup run with two inputs (`index`, `routes`) so the

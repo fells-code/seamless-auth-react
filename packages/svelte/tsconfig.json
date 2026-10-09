@@ -1,0 +1,15 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "isolatedModules": true,
+    "types": ["@sveltejs/kit", "jest"],
+    "paths": {
+      "@seamless-auth/client": ["../client/src/index.ts"]
+    }
+  },
+  "include": ["src", "tests", "../../test-support", "vite.config.ts"]
+}
