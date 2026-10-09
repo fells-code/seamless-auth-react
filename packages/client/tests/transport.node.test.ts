@@ -142,6 +142,65 @@ describe('cookie transport', () => {
     ).not.toThrow();
   });
 
+  // React Native ships its own URL, which reads the origin with a regex and does
+  // not throw on a relative URL. The check has to hold, and stay usable, with it.
+  it('judges origins the same way under a React Native style URL', async () => {
+    class RegexURL {
+      constructor(private readonly url: string) {}
+      get href() {
+        return this.url;
+      }
+      get origin() {
+        return this.url.match(/^(https?:\/\/[^/]+)/)?.[1] ?? '';
+      }
+      get protocol() {
+        return this.url.match(/^([a-z]+:)/)?.[1] ?? '';
+      }
+      get hostname() {
+        return this.url.match(/^https?:\/\/(?:[^@]+@)?([^:/?#]+)/)?.[1] ?? '';
+      }
+      get username() {
+        return this.url.match(/^https?:\/\/([^:@]+)(?::[^@]*)?@/)?.[1] ?? '';
+      }
+      get password() {
+        return '';
+      }
+      get pathname() {
+        return this.url.match(/https?:\/\/[^/]+(\/[^?#]*)?/)?.[1] ?? '/';
+      }
+      get search() {
+        return this.url.match(/\?[^#]*/)?.[0] ?? '';
+      }
+      get hash() {
+        return this.url.match(/#.*/)?.[0] ?? '';
+      }
+    }
+    const realURL = globalThis.URL;
+    globalThis.URL = RegexURL as unknown as typeof URL;
+    try {
+      const { calls, fetchImpl } = scriptedFetch(() => jsonResponse(200, {}));
+      const transport = createTransport({ apiHost: API, fetch: fetchImpl });
+
+      await transport.authorizedFetch(`${API}/beta_users`);
+      expect(calls).toHaveLength(1);
+
+      for (const url of [
+        'relative/path',
+        '',
+        `${API}@evil.example.com/x`,
+        `${API}.evil.example.com/x`,
+        'https://evil.example.com/x',
+      ]) {
+        await expect(transport.authorizedFetch(url)).rejects.toBeInstanceOf(
+          UntrustedOriginError
+        );
+      }
+      expect(calls).toHaveLength(1);
+    } finally {
+      globalThis.URL = realURL;
+    }
+  });
+
   it('authorizedFetch refuses an input that is not a URL', async () => {
     const { calls, fetchImpl } = scriptedFetch(() => jsonResponse(200, {}));
     const transport = createTransport({ apiHost: API, fetch: fetchImpl });

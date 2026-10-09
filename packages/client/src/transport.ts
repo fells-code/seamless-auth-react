@@ -62,8 +62,10 @@ export class UntrustedOriginError extends Error {
  */
 function originOf(url: string): string | null {
   try {
+    // React Native's URL does not throw on a relative URL and reports an empty
+    // origin instead of "null", so both mean "no origin".
     const origin = new URL(url).origin;
-    return origin === 'null' ? null : origin;
+    return origin && origin !== 'null' ? origin : null;
   } catch {
     return null;
   }
