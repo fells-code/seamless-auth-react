@@ -4,6 +4,12 @@
   See LICENSE file in the project root for full license information
 -->
 <!-- The OAuth redirect URI. Finishes a provider sign-in. -->
+<script module lang="ts">
+  // Codes this page has already spent. A code can be exchanged once, and a screen
+  // that mounts again must not send it a second time.
+  const spent = new Set<string>();
+</script>
+
 <script lang="ts">
   import { completeOAuthCallback } from '@seamless-auth/client';
   import { onMount } from 'svelte';
@@ -25,8 +31,15 @@
         if (value !== null) params.set(name, value);
       }
 
+      const code = params.get('code');
+      if (code !== null && spent.has(code)) {
+        error = 'This sign-in link has already been used.';
+        return;
+      }
+      if (code !== null) spent.add(code);
+
       // The code and state are read; keep them out of history and Referers.
-      void navigator.dropQuery();
+      void navigator.dropQuery().catch(() => undefined);
 
       const outcome = await completeOAuthCallback(auth, params, window.location.origin);
 

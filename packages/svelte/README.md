@@ -34,6 +34,9 @@ npm install @seamless-auth/svelte
 
 ## Quick start with SvelteKit
 
+The examples import from `$lib`, as SvelteKit 2 does. In SvelteKit 3, which renamed it, import from
+`#lib`.
+
 Create the session once, in the browser:
 
 ```ts
@@ -154,8 +157,12 @@ deciding, so reloading a protected page does not bounce a signed-in user to the 
 | `requireAuth(auth, options?)`  | A signed-in user, with `roles` when given | Redirects to `redirectTo` (default `loginPath`), or `forbiddenRedirectTo` (default `signedInPath`) for a missing role |
 | `requireGuest(auth, options?)` | Someone signed out                        | Redirects to `redirectTo` (default `signedInPath`)                                                                    |
 
-A server render cannot see the session, so `requireAuth` treats it as signed out and redirects. Turn
-server rendering off for guarded routes (`export const ssr = false`). `roles` uses the same matching as
+The guards register a dependency on the session and on the URL, so they run again on every
+navigation and whenever the session changes (a sign-out in another tab, an expired session, a
+switched organization), as long as the navigator from `createKitNavigator` is set in the root layout.
+A server render that was not handed an `initialSession` cannot see the session, so `requireAuth`
+treats it as signed out and redirects. Turn server rendering off for guarded routes
+(`export const ssr = false`). `roles` uses the same matching as
 the auth API, scoped roles such as `org:admin` included. A guard is a convenience for navigation, not
 access control: your server still checks every request.
 

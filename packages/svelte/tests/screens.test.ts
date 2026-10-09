@@ -275,12 +275,12 @@ describe('magic link screens', () => {
     try {
       const { adapter } = await open(
         'verifyMagicLink',
-        { 'GET /users/me': signedIn, 'GET /magic-link/verify/t1': ok },
-        { query: 'token=t1' }
+        { 'GET /users/me': signedIn, 'GET /magic-link/verify/t-once': ok },
+        { query: 'token=t-once' }
       );
       await waitSettled();
 
-      expect(adapter.called('GET', '/magic-link/verify/t1')).toHaveLength(1);
+      expect(adapter.called('GET', '/magic-link/verify/t-once')).toHaveLength(1);
       expect(text()).toContain('Login verified. Redirecting...');
       expect(nav.query.has('token')).toBe(false);
 
@@ -291,11 +291,28 @@ describe('magic link screens', () => {
     }
   });
 
+  it('does not send a link twice when the screen mounts again', async () => {
+    const routes = { 'GET /users/me': signedIn, 'GET /magic-link/verify/t-twice': ok };
+    const { adapter } = await open('verifyMagicLink', routes, { query: 'token=t-twice' });
+    await waitSettled();
+    cleanup();
+
+    const again = await open('verifyMagicLink', routes, { query: 'token=t-twice' });
+    await waitSettled();
+
+    expect(adapter.called('GET', '/magic-link/verify/t-twice')).toHaveLength(1);
+    expect(again.adapter.called('GET', '/magic-link/verify/t-twice')).toHaveLength(0);
+    expect(text()).toContain('This sign-in link has already been used.');
+  });
+
   it('says to go back when the link was opened elsewhere, and reports failures', async () => {
     await open(
       'verifyMagicLink',
-      { 'GET /magic-link/verify/t1': ok, 'GET /magic-link/check': { status: 204 } },
-      { query: 'token=t1' }
+      {
+        'GET /magic-link/verify/t-elsewhere': ok,
+        'GET /magic-link/check': { status: 204 },
+      },
+      { query: 'token=t-elsewhere' }
     );
     await waitSettled();
     expect(text()).toContain('Return to the device where you requested this link');
@@ -442,12 +459,12 @@ describe('OAuth', () => {
     const { adapter } = await open(
       'oauthCallback',
       { 'POST /oauth/mock/callback': { body: { returnTo: 'https://evil.test/' } } },
-      { query: 'code=c1&state=s1' }
+      { query: 'code=c-done&state=s1' }
     );
     await waitSettled();
 
     expect(bodyOf(adapter, 'POST', '/oauth/mock/callback')).toMatchObject({
-      code: 'c1',
+      code: 'c-done',
       state: 's1',
     });
     expect(nav.query.has('code')).toBe(false);
@@ -460,7 +477,7 @@ describe('OAuth', () => {
     await open(
       'oauthCallback',
       { 'POST /oauth/mock/callback': { body: { nextStep: 'enroll_passkey' } } },
-      { query: 'code=c1&state=s1' }
+      { query: 'code=c-enroll&state=s1' }
     );
     await waitSettled();
     expect(nav.current).toBe('registerPasskey');
@@ -468,7 +485,7 @@ describe('OAuth', () => {
   });
 
   it('explains a failed callback', async () => {
-    await open('oauthCallback', {}, { query: 'code=c1' });
+    await open('oauthCallback', {}, { query: 'code=c-partial' });
     await waitSettled();
     expect(heading()).toBe('Sign-in failed');
     expect(text()).toContain('missing required information');

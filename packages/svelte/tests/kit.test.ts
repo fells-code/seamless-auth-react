@@ -4,23 +4,50 @@
  * See LICENSE file in the project root for full license information
  */
 
-import { beforeEach, describe, expect, it } from 'vitest';
+import { cleanup, render } from '@testing-library/svelte';
+import { flushSync } from 'svelte';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { createSeamlessAuth } from '../src';
-import { createKitNavigator, requireAuth, requireGuest } from '../src/kit';
-import { createAdapter, signedIn, signedOut } from '../../../test-support/fakeAdapter';
-import { goto, page, replaceState } from './kitStubs';
+import { createSeamlessAuth, type SeamlessAuth } from '../src';
+import {
+  createKitNavigator,
+  requireAuth,
+  requireGuest,
+  type GuardLoadEvent,
+} from '../src/kit';
+import type { AuthNavigator } from '../src/navigation';
+import {
+  createAdapter,
+  signedIn,
+  signedOut,
+  user,
+} from '../../../test-support/fakeAdapter';
+import {
+  afterNavigate,
+  afterNavigateCallbacks,
+  goto,
+  invalidate,
+  page,
+} from './kitStubs';
+import KitProbe from './KitProbe.svelte';
 
-const auth = (session: typeof signedIn) =>
+const auth = (session: typeof signedIn, config: Record<string, unknown> = {}) =>
   createSeamlessAuth({
     apiHost: 'https://app.example.com',
     fetch: createAdapter({ 'GET /users/me': session }).fetch,
     signedInPath: '/home',
+    ...config,
   });
 
-async function redirectOf(run: () => Promise<void>): Promise<string | null> {
+const event = () => {
+  const depends = vi.fn();
+  const load: GuardLoadEvent = { url: new URL('http://localhost/app/orders'), depends };
+  return { load, depends };
+};
+
+async function redirectOf(guard: (event: GuardLoadEvent) => Promise<void>) {
   try {
-    await run();
+    await guard(event().load);
     return null;
   } catch (thrown) {
     const location = (thrown as { location?: string }).location;
@@ -29,12 +56,22 @@ async function redirectOf(run: () => Promise<void>): Promise<string | null> {
   }
 }
 
+function mountNavigator(session: SeamlessAuth): AuthNavigator {
+  let navigator!: AuthNavigator;
+  render(KitProbe, {
+    props: { auth: session, onNavigator: created => (navigator = created) },
+  });
+  return navigator;
+}
+
 beforeEach(() => {
-  goto.mockClear();
-  replaceState.mockClear();
+  vi.clearAllMocks();
+  afterNavigateCallbacks.length = 0;
   page.url = new URL('http://localhost/app/login');
   page.state = {};
 });
+
+afterEach(() => cleanup());
 
 describe('createKitNavigator', () => {
   it('navigates through $app/navigation, under the base path', async () => {
@@ -60,19 +97,59 @@ describe('createKitNavigator', () => {
     );
   });
 
-  it('reads and drops the query without leaving the screen', async () => {
-    page.url = new URL('http://localhost/app/verify-magiclink?token=t1');
+  it('sends a destination outside the base path to signedInPath', async () => {
     const navigator = createKitNavigator(auth(signedOut));
 
-    expect(navigator.query('token')).toBe('t1');
-    await navigator.dropQuery();
+    await navigator.toLocation('/');
+    expect(goto).toHaveBeenLastCalledWith('/app/home');
 
-    expect(replaceState).toHaveBeenCalledWith('/app/verify-magiclink', {});
+    goto.mockRejectedValueOnce(new Error('navigation_route_missing'));
+    await navigator.toLocation('/app/missing');
+    expect(goto).toHaveBeenLastCalledWith('/app/home');
+  });
+
+  it('drops the query with a real replace navigation, once Kit has hydrated', async () => {
+    page.url = new URL('http://localhost/app/verify-magiclink?token=t1');
+    page.state = { flow: 'login' };
+    const navigator = mountNavigator(auth(signedOut));
+    expect(afterNavigate).toHaveBeenCalled();
+    expect(navigator.query('token')).toBe('t1');
+
+    const dropped = navigator.dropQuery();
+    await Promise.resolve();
+    // Still hydrating: no navigation yet.
     expect(goto).not.toHaveBeenCalled();
+
+    afterNavigateCallbacks.forEach(callback => callback());
+    await dropped;
+
+    expect(goto).toHaveBeenCalledWith('/app/verify-magiclink', {
+      replaceState: true,
+      state: { flow: 'login' },
+    });
+    expect(page.url.search).toBe('');
+  });
+
+  it('re-runs the guards when who is signed in changes', async () => {
+    const session = auth(signedIn);
+    await session.whenSettled();
+    mountNavigator(session);
+    flushSync();
+    expect(invalidate).not.toHaveBeenCalled();
+
+    await session.logout();
+    flushSync();
+    expect(invalidate).toHaveBeenCalledWith('seamless-auth:session');
   });
 });
 
 describe('load guards', () => {
+  it('registers the session dependency and runs on every navigation', async () => {
+    const { load, depends } = event();
+    await requireGuest(auth(signedOut))(load);
+    expect(depends).toHaveBeenCalledWith('seamless-auth:session');
+  });
+
   it('sends a signed-out visitor to the login screen after the session is read', async () => {
     expect(await redirectOf(requireAuth(auth(signedOut)))).toBe('/app/login');
     expect(
@@ -84,6 +161,12 @@ describe('load guards', () => {
     expect(await redirectOf(requireAuth(auth(signedIn)))).toBeNull();
     expect(await redirectOf(requireGuest(auth(signedIn)))).toBe('/app/home');
     expect(await redirectOf(requireGuest(auth(signedOut)))).toBeNull();
+  });
+
+  it('decides from a session the server resolved', async () => {
+    expect(
+      await redirectOf(requireAuth(auth(signedOut, { initialSession: { user } })))
+    ).toBeNull();
   });
 
   it('checks roles, scoped roles included', async () => {

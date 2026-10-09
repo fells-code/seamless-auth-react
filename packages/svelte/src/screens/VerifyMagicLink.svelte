@@ -8,6 +8,13 @@
   asked for it, and signs this tab in too when the link was opened in the same
   browser.
 -->
+<script module lang="ts">
+  // Tokens this page has already spent. A link can be used once, and a screen
+  // that mounts again (a Back press, a wrapper that remounts) must not send it
+  // a second time.
+  const spent = new Set<string>();
+</script>
+
 <script lang="ts">
   import { finishMagicLinkSignIn, type MagicLinkOutcome } from '@seamless-auth/client';
   import { onMount } from 'svelte';
@@ -34,8 +41,14 @@
         return;
       }
 
+      if (spent.has(token)) {
+        error = 'This sign-in link has already been used.';
+        return;
+      }
+      spent.add(token);
+
       // The token is read; keep it out of history and Referers from here on.
-      void navigator.dropQuery();
+      void navigator.dropQuery().catch(() => undefined);
 
       // A link can be used once, and a mounted screen verifies it once.
       const result = await auth.client.verifyMagicLink(token);
