@@ -21,7 +21,7 @@ import {
   // One projection slot only: content goes to a single <ng-content>, so a
   // second one in another branch would leave a screen empty.
   template: `<div [class]="card() ? 'sa-card' : 'sa-center'"><ng-content /></div>`,
-  styleUrl: './seamless-auth.css',
+  styleUrl: '../../../../resources/styles/seamless-auth.css',
   encapsulation: ViewEncapsulation.None,
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'sa-auth' },
