@@ -40,13 +40,10 @@ export function requireAuth(options: RequireAuthOptions = {}): SeamlessAuthGuard
     const router = inject(Router);
     const state = await auth.whenSettled();
 
-    if (state.loading) {
-      // A server render that was not handed the session cannot decide. The
-      // browser runs the guard again when the application boots there.
-      return true;
-    }
-
-    if (!state.isAuthenticated) {
+    // A server render that was not handed the session cannot tell, and treats
+    // the visitor as signed out: rendering the page could put its data in the
+    // response. The browser decides again once the application boots there.
+    if (state.loading || !state.isAuthenticated) {
       return router.parseUrl(options.redirectTo ?? auth.loginPath);
     }
 

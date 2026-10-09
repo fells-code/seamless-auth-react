@@ -30,6 +30,13 @@ export function injectAuthNavigation() {
     /** Another bundled screen, with optional navigation state. */
     toScreen: (path: AuthRoutePath, state?: Record<string, unknown>) =>
       router.navigateByUrl(screenTree(path), { state }),
+    /**
+     * A path as the browser sees it, such as the destination an OAuth sign-in
+     * returns. The base href is part of it, and the router adds it again, so
+     * it is taken off first.
+     */
+    toLocation: (browserPath: string, options: { replaceUrl?: boolean } = {}) =>
+      router.navigateByUrl(location.normalize(browserPath) || '/', options),
     /** Where the application wants a signed-in user, or an in-app path. */
     toApp: (path?: string, options: { replaceUrl?: boolean } = {}) =>
       router.navigateByUrl(path ?? auth.signedInPath, options),

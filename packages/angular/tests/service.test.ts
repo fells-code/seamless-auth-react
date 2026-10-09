@@ -199,6 +199,17 @@ describe('SeamlessAuth', () => {
     expect(auth.ports.passkeys).toBeDefined();
   });
 
+  it('settles a waiting guard when the injector is destroyed first', async () => {
+    const { auth } = setup({
+      'GET /users/me': () => new Promise(() => undefined) as never,
+    });
+    const waiting = auth.whenSettled();
+
+    TestBed.resetTestingModule();
+
+    await expect(waiting).resolves.toMatchObject({ loading: true });
+  });
+
   it('tears the store down with its injector', async () => {
     const { auth } = setup({ 'GET /users/me': signedOut });
     await auth.whenSettled();

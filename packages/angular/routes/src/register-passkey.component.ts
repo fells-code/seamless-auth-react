@@ -101,10 +101,8 @@ export class SaRegisterPasskey {
   protected readonly auth = inject(SeamlessAuth);
   private readonly navigation = injectAuthNavigation();
   // The OAuth callback hands over the caller's destination when the API asks
-  // for enrolment first.
-  private readonly destination = safeReturnPath(
-    this.navigation.state<{ returnTo: unknown }>().returnTo
-  );
+  // for enrolment first. Without one, the configured signedInPath applies.
+  private readonly returnTo = this.navigation.state<{ returnTo: unknown }>().returnTo;
 
   readonly status = signal<'idle' | 'loading' | 'success' | 'error'>('idle');
   readonly message = signal('');
@@ -136,11 +134,17 @@ export class SaRegisterPasskey {
 
     this.status.set('success');
     this.message.set('Passkey registered successfully.');
-    await this.navigation.toApp(this.destination);
+    await this.finish();
+  }
+
+  private finish() {
+    return this.returnTo === undefined
+      ? this.navigation.toApp()
+      : this.navigation.toLocation(safeReturnPath(this.returnTo));
   }
 
   async finishWithoutPasskey() {
     await this.auth.refreshSession();
-    await this.navigation.toApp(this.destination);
+    await this.finish();
   }
 }

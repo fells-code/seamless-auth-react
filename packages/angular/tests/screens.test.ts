@@ -4,7 +4,7 @@
  * See LICENSE file in the project root for full license information
  */
 
-import { Location } from '@angular/common';
+import { APP_BASE_HREF, Location } from '@angular/common';
 import { Component, signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { provideRouter, Router } from '@angular/router';
@@ -41,6 +41,7 @@ async function open(
     passkeys?: boolean;
     state?: Record<string, unknown>;
     oauthRedirect?: OAuthRedirectPort;
+    baseHref?: string;
   } = {}
 ) {
   const adapter = createAdapter({ 'GET /users/me': signedOut, ...routes });
@@ -56,7 +57,14 @@ async function open(
           ...(options.oauthRedirect ? { oauthRedirect: options.oauthRedirect } : {}),
         },
       }),
-      provideRouter([{ path: '', component: Home }, ...seamlessAuthRoutes]),
+      provideRouter([
+        { path: '', component: Home },
+        { path: 'settings', component: Home },
+        ...seamlessAuthRoutes,
+      ]),
+      ...(options.baseHref
+        ? [{ provide: APP_BASE_HREF, useValue: options.baseHref }]
+        : []),
     ],
   });
 
@@ -623,6 +631,22 @@ describe('one-time code input', () => {
     expect(document.activeElement).toBe(boxes()[3]);
     boxes()[3].dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight' }));
     expect(document.activeElement).toBe(boxes()[4]);
+  });
+});
+
+describe('base href', () => {
+  it('does not add the base href twice to an OAuth destination', async () => {
+    sessionStorage.setItem(OAUTH_PROVIDER_STORAGE_KEY, 'mock');
+    await open(
+      '/oauth/callback?code=c1&state=s1',
+      {
+        'POST /oauth/mock/callback': {
+          body: { returnTo: 'http://localhost/app/settings?tab=2' },
+        },
+      },
+      { baseHref: '/app/' }
+    );
+    expect(url()).toBe('/settings?tab=2');
   });
 });
 

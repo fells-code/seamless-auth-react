@@ -81,10 +81,11 @@ describe('guards', () => {
     expect(await visit('/login')).toBe('/');
   });
 
-  it('does not hold a server render waiting for a session it will never read', async () => {
-    setup(signedOut, 'server');
-    // The browser runs the guards again when the application boots there.
-    expect(await visit('/')).toBe('/');
+  it('does not hold a server render, and keeps protected pages out of it', async () => {
+    setup(signedIn, 'server');
+    // Without initialSession the server cannot know, so it renders as signed
+    // out; the browser runs the guards again when the application boots there.
+    expect(await visit('/')).toBe('/login');
     expect(await visit('/login')).toBe('/login');
   });
 
