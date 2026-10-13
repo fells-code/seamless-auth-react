@@ -1,5 +1,12 @@
 # @seamless-auth/react
 
+## 0.16.1
+
+### Patch Changes
+
+- bd62b41: Point the README's Next.js section at `@seamless-auth/nextjs`, which serves the `/auth` routes from a route handler and resolves the session with `getSeamlessSession`. It no longer says a Next.js server package is still planned.
+- 9852bd4: The README's Next.js example reads the service token from `SEAMLESS_SERVICE_TOKEN` instead of `API_SERVICE_TOKEN`. The auth server still reads `API_SERVICE_TOKEN`; both hold the same value.
+
 ## 0.16.0
 
 ### Minor Changes
