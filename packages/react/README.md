@@ -135,7 +135,7 @@ export const { GET, POST, PUT, PATCH, DELETE } = createSeamlessAuthHandler({
   authServerUrl: process.env.AUTH_SERVER_URL!,
   audience: process.env.AUTH_SERVER_URL!,
   cookieSecret: process.env.COOKIE_SIGNING_KEY!,
-  serviceSecret: process.env.API_SERVICE_TOKEN!,
+  serviceSecret: process.env.SEAMLESS_SERVICE_TOKEN!,
   jwksKid: process.env.JWKS_KID,
 });
 ```
@@ -152,7 +152,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   const session = await getSeamlessSession(await cookies(), {
     authServerUrl: process.env.AUTH_SERVER_URL!,
     cookieSecret: process.env.COOKIE_SIGNING_KEY!,
-    serviceSecret: process.env.API_SERVICE_TOKEN!,
+    serviceSecret: process.env.SEAMLESS_SERVICE_TOKEN!,
     jwksKid: process.env.JWKS_KID,
     userAgent: (await headers()).get('user-agent') ?? undefined,
   });
@@ -173,6 +173,9 @@ export default async function RootLayout({ children }: { children: React.ReactNo
 handler above. The full guide, including route protection in `proxy.ts`, is at
 [docs.seamlessauth.com/build/nextjs](https://docs.seamlessauth.com/build/nextjs/), and
 `seamless init my-app --nextjs` scaffolds a working starter.
+
+The auth server reads the service token from `API_SERVICE_TOKEN` and the app reads it from
+`SEAMLESS_SERVICE_TOKEN`; both hold the same value.
 
 Things to know:
 
