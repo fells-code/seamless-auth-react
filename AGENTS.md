@@ -320,8 +320,9 @@ Next.js and server rendering (#78):
   `refreshSession({ background: true })`. Never document forwarding browser
   cookies to the adapter's `/auth/users/me` from a server: an expired access
   cookie makes the adapter rotate the refresh token in a response the browser
-  never sees. Server reads go through `getSeamlessUser` in `@seamless-auth/core`
-- the server half (a route-handler adapter and session helpers) belongs in a
+  never sees. Next.js server reads go through `getSeamlessSession` in
+  `@seamless-auth/nextjs` (other servers use `getSeamlessUser` in `@seamless-auth/core`)
+- the server half (the route-handler adapter and session helpers) is the
   `@seamless-auth/nextjs` package in `seamless-auth-server`, not here
 
 Tests live in each package's `tests/` directory and run as two Jest projects

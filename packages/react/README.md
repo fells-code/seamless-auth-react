@@ -119,15 +119,48 @@ The package works in the Next.js App Router. Every module ships with a `'use cli
 `AuthProvider` can be rendered straight from a server layout, and nothing touches `window` or
 storage while rendering on the server.
 
+The server half is [`@seamless-auth/nextjs`](https://www.npmjs.com/package/@seamless-auth/nextjs).
+It serves the `/auth` routes from a route handler on the application's own origin and reads the
+session in server components, so a Next.js app needs no separate backend for auth:
+
+```bash
+npm install @seamless-auth/nextjs @seamless-auth/react
+```
+
+```ts
+// app/auth/[...seamless]/route.ts
+import { createSeamlessAuthHandler } from '@seamless-auth/nextjs';
+
+export const { GET, POST, PUT, PATCH, DELETE } = createSeamlessAuthHandler({
+  authServerUrl: process.env.AUTH_SERVER_URL!,
+  audience: process.env.AUTH_SERVER_URL!,
+  cookieSecret: process.env.COOKIE_SIGNING_KEY!,
+  serviceSecret: process.env.API_SERVICE_TOKEN!,
+  jwksKid: process.env.JWKS_KID,
+});
+```
+
 ```tsx
 // app/layout.tsx
+import { cookies, headers } from 'next/headers';
+import { getSeamlessSession } from '@seamless-auth/nextjs';
 import { AuthProvider } from '@seamless-auth/react';
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export const dynamic = 'force-dynamic';
+
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  const session = await getSeamlessSession(await cookies(), {
+    authServerUrl: process.env.AUTH_SERVER_URL!,
+    cookieSecret: process.env.COOKIE_SIGNING_KEY!,
+    serviceSecret: process.env.API_SERVICE_TOKEN!,
+    jwksKid: process.env.JWKS_KID,
+    userAgent: (await headers()).get('user-agent') ?? undefined,
+  });
+
   return (
     <html lang="en">
       <body>
-        <AuthProvider apiHost={process.env.NEXT_PUBLIC_API_HOST!}>
+        <AuthProvider apiHost="" initialSession={session}>
           {children}
         </AuthProvider>
       </body>
@@ -135,6 +168,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   );
 }
 ```
+
+`apiHost=""` sends every auth request to `/auth` on the page's own origin, which is the route
+handler above. The full guide, including route protection in `proxy.ts`, is at
+[docs.seamlessauth.com/build/nextjs](https://docs.seamlessauth.com/build/nextjs/), and
+`seamless init my-app --nextjs` scaffolds a working starter.
 
 Things to know:
 
@@ -167,13 +205,13 @@ Only `user` is required. The provider still revalidates in the background, witho
 server could not see (for example an expired access cookie with a live refresh cookie) still signs
 in. `initialSession` is read once, when the provider creates its session.
 
-Resolve the user on the server with `getSeamlessUser()` from `@seamless-auth/core`, which verifies
-the access cookie locally and asks the auth API directly. It needs your adapter's cookie secret, and
-the session cookies have to reach the Next.js server, so serve the adapter from the same site. Do not forward the browser's cookies to
-your adapter's `/auth/users/me` from the server: when the access cookie has expired the adapter
-rotates the refresh token in a response the browser never receives, and the browser's next refresh
-is then treated as a replay and revokes the session. A dedicated server package for Next.js is tracked in
-[seamless-auth-server#170](https://github.com/fells-code/seamless-auth-server/issues/170).
+`getSeamlessSession` from `@seamless-auth/nextjs` resolves the session on the server: it verifies
+the adapter's access cookie locally and asks the auth API directly. It never refreshes, so it returns
+`null` for an expired access cookie and the provider renews the session in the browser. The session cookies have to reach the Next.js server, which they do when the route handler
+serves `/auth` from the same origin. Do not forward the browser's cookies to `/auth/users/me` from
+the server: when the access cookie has expired the adapter rotates the refresh token in a response
+the browser never receives, and the browser's next refresh is then treated as a replay and revokes
+the session.
 
 `refreshSession({ background: true })` is public, for revalidating a session your UI already shows
 (on window focus, for example) without flashing a loading state.
