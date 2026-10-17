@@ -339,6 +339,25 @@ describe('createSeamlessAuthClient', () => {
     );
   });
 
+  it('confirms a held magic link with a preflighted POST to its own path', async () => {
+    mockFetchWithAuth.mockResolvedValue({
+      ok: true,
+      json: async () => ({ message: 'Success' }),
+    });
+
+    const client = createSeamlessAuthClient({
+      apiHost: 'https://api.example.com',
+    });
+
+    const { data } = await client.confirmMagicLink('../../users/delete');
+
+    const [path, init] = mockFetchWithAuth.mock.calls[0];
+
+    expect(data).toEqual({ message: 'Success' });
+    expect(path).toBe('/magic-link/verify/..%2F..%2Fusers%2Fdelete/confirm');
+    expect(init).toEqual({ method: 'POST', body: '{}' });
+  });
+
   it('uses organization endpoints', async () => {
     const response = { ok: true };
     mockFetchWithAuth.mockResolvedValue(response);

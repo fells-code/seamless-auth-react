@@ -16,6 +16,7 @@ import { createMemoryHistory, createRouter, RouterView, type Router } from 'vue-
 import { createSeamlessAuth } from '../src';
 import { createSeamlessAuthRoutes, SaOtpInput } from '../src/router';
 import {
+  confirmationRequired,
   createAdapter,
   passkeyPort,
   signedIn,
@@ -314,6 +315,51 @@ describe('magic link screens', () => {
       'GET /magic-link/check': { status: 204 },
     });
     expect(text()).toContain('Return to the device where you requested this link');
+  });
+
+  it('asks before signing in the device a link opened elsewhere came from', async () => {
+    const { adapter } = await open('/verify-magiclink?token=t1', {
+      'GET /magic-link/verify/t1': confirmationRequired,
+      'POST /magic-link/verify/t1/confirm': ok,
+    });
+
+    expect(heading()).toBe('Confirm this sign-in');
+    expect(text()).toContain('A sign-in was requested from an Android device on ');
+    expect(text()).not.toContain('Failed to verify token');
+    expect(adapter.called('GET', '/magic-link/check')).toHaveLength(0);
+
+    await click('Yes, sign in that device');
+
+    expect(adapter.called('POST', '/magic-link/verify/t1/confirm')).toHaveLength(1);
+    expect(wrapper.find('[role="status"]').text()).toContain(
+      'You can return to your other device'
+    );
+    expect(url()).toBe('/verify-magiclink');
+  });
+
+  it('reports a confirmation the server refuses', async () => {
+    await open('/verify-magiclink?token=t1', {
+      'GET /magic-link/verify/t1': confirmationRequired,
+      'POST /magic-link/verify/t1/confirm': { status: 400, body: { error: 'Invalid' } },
+    });
+
+    await click('Yes, sign in that device');
+
+    expect(wrapper.find('[role="alert"]').text()).toContain(
+      'We could not confirm this sign-in'
+    );
+    expect(button('Yes, sign in that device').attributes('disabled')).toBeUndefined();
+  });
+
+  it('leaves a link alone when the reader declines', async () => {
+    const { adapter } = await open('/verify-magiclink?token=t1', {
+      'GET /magic-link/verify/t1': confirmationRequired,
+    });
+
+    await click("No, this wasn't me");
+
+    expect(text()).toContain('You can ignore the email');
+    expect(adapter.called('POST', '/magic-link/verify/t1/confirm')).toHaveLength(0);
   });
 
   it('reports a link that cannot be verified, or no link at all', async () => {

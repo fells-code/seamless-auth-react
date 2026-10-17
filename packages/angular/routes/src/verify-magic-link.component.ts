@@ -14,7 +14,13 @@ import {
 } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
 import { SeamlessAuth } from '@seamless-auth/angular';
-import { finishMagicLinkSignIn, type MagicLinkOutcome } from '@seamless-auth/client';
+import {
+  confirmMagicLinkSignIn,
+  finishMagicLinkSignIn,
+  getMagicLinkConfirmation,
+  magicLinkConfirmationPrompt,
+  type MagicLinkOutcome,
+} from '@seamless-auth/client';
 
 import { SaAuthLayout } from './auth-layout.component';
 import { injectAuthNavigation } from './navigation';
@@ -22,35 +28,84 @@ import { injectAuthNavigation } from './navigation';
 /**
  * Where an emailed magic link lands. Verifies the link once, tells the tab that
  * asked for it, and signs this tab in too when the link was opened in the same
- * browser.
+ * browser. Opened on another device, the link is held and the screen asks
+ * whether to sign the requesting device in.
  */
 @Component({
   selector: 'sa-verify-magic-link',
   imports: [SaAuthLayout],
   template: `
     <sa-auth-layout>
-      <div class="sa-center">
-        <h1 class="sa-heading">Verifying your login</h1>
+      @if (prompt()) {
+        <div class="sa-center">
+          <h1 class="sa-heading">Confirm this sign-in</h1>
 
-        @if (!outcome() && !error()) {
-          <div class="sa-spinner" aria-hidden="true"></div>
-          <p class="sa-helper-text">
-            Please wait while we securely verify your sign-in link.
-          </p>
+          @if (decision() === 'pending' || decision() === 'confirming') {
+            <p class="sa-description">{{ prompt() }}</p>
+            <p class="sa-helper-text">
+              This link was opened on a different device from the one that asked for it.
+              Only continue if you made that request.
+            </p>
+          }
+          @if (decision() === 'confirmed') {
+            <p class="sa-success" role="status">
+              Sign-in approved. You can return to your other device to continue.
+            </p>
+          }
+          @if (decision() === 'declined') {
+            <p class="sa-helper-text" role="status">
+              No one has been signed in. You can ignore the email and close this page.
+            </p>
+          }
+        </div>
+
+        @if (decision() === 'pending' || decision() === 'confirming') {
+          <div class="sa-actions">
+            <button
+              type="button"
+              class="sa-button"
+              [disabled]="decision() === 'confirming'"
+              (click)="confirm()"
+            >
+              Yes, sign in that device
+            </button>
+            <button
+              type="button"
+              class="sa-secondary"
+              [disabled]="decision() === 'confirming'"
+              (click)="decision.set('declined')"
+            >
+              No, this wasn't me
+            </button>
+          </div>
+          @if (confirmError()) {
+            <p class="sa-error" role="alert">{{ confirmError() }}</p>
+          }
         }
-        @if (outcome() === 'signed-in') {
-          <p class="sa-success" role="status">Login verified. Redirecting...</p>
-        }
-        @if (outcome() === 'elsewhere') {
-          <p class="sa-success" role="status">
-            Login verified. Return to the device where you requested this link to
-            continue.
-          </p>
-        }
-        @if (error()) {
-          <p class="sa-error" role="alert">{{ error() }}</p>
-        }
-      </div>
+      } @else {
+        <div class="sa-center">
+          <h1 class="sa-heading">Verifying your login</h1>
+
+          @if (!outcome() && !error()) {
+            <div class="sa-spinner" aria-hidden="true"></div>
+            <p class="sa-helper-text">
+              Please wait while we securely verify your sign-in link.
+            </p>
+          }
+          @if (outcome() === 'signed-in') {
+            <p class="sa-success" role="status">Login verified. Redirecting...</p>
+          }
+          @if (outcome() === 'elsewhere') {
+            <p class="sa-success" role="status">
+              Login verified. Return to the device where you requested this link to
+              continue.
+            </p>
+          }
+          @if (error()) {
+            <p class="sa-error" role="alert">{{ error() }}</p>
+          }
+        </div>
+      }
     </sa-auth-layout>
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -62,6 +117,33 @@ export class SaVerifyMagicLink {
 
   readonly outcome = signal<MagicLinkOutcome | null>(null);
   readonly error = signal('');
+  readonly prompt = signal('');
+  readonly decision = signal<'pending' | 'confirming' | 'confirmed' | 'declined'>(
+    'pending'
+  );
+  readonly confirmError = signal('');
+
+  async confirm() {
+    if (!this.token || this.decision() === 'confirming') return;
+
+    this.decision.set('confirming');
+    this.confirmError.set('');
+
+    const { error } = await confirmMagicLinkSignIn({
+      client: this.auth.client,
+      token: this.token,
+    });
+
+    if (error) {
+      this.decision.set('pending');
+      this.confirmError.set(
+        'We could not confirm this sign-in. The link may have expired or already been used.'
+      );
+      return;
+    }
+
+    this.decision.set('confirmed');
+  }
 
   constructor() {
     let active = true;
@@ -91,6 +173,12 @@ export class SaVerifyMagicLink {
       if (!active) return;
 
       if (error) {
+        const held = getMagicLinkConfirmation(error);
+        if (held) {
+          this.prompt.set(magicLinkConfirmationPrompt(held));
+          return;
+        }
+
         this.error.set('Failed to verify token');
         return;
       }

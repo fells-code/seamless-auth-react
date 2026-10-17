@@ -132,9 +132,18 @@ rather than a user agent.
 
 Request one with `client.requestMagicLink()`, then poll
 `client.checkMagicLink()` every few seconds; the poll returns the session once
-the link has been opened anywhere. If the app also receives the link as a
-universal link, call `client.verifyMagicLink(token)` and then
-`checkMagicLink()`.
+the link has been used. If the app also receives the link as a universal link,
+call `client.verifyMagicLink(token)` and then `checkMagicLink()`. Bearer mode
+sends the sign-in's ephemeral token with the verify call, which is how the API
+knows this is the device that asked for the link.
+
+Opened on any other device, the link is not used until someone there approves
+it: `verifyMagicLink` fails with an error `getMagicLinkConfirmation(error)`
+recognises, carrying the requesting device's platform and request time
+(`magicLinkConfirmationPrompt(held)` phrases both). If the app handles links it
+did not ask for, show that and call `confirmMagicLinkSignIn({ client, token })`
+only when the person agrees. The requesting device is then signed in by its
+poll, and this one is not.
 
 ### OAuth
 

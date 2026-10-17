@@ -203,8 +203,8 @@ The screens never import a router. They navigate through an `AuthNavigator` set 
 ## Headless use
 
 Every screen is a thin view over a flow in `@seamless-auth/client` (`beginSignIn`,
-`registerWithEmail`, `verifyOtp`, `watchMagicLink`, `finishMagicLinkSignIn`, `startOAuthSignIn`,
-`completeOAuthCallback`, `enrollPasskey`, and helpers). A custom screen calls the same flows with the
+`registerWithEmail`, `verifyOtp`, `watchMagicLink`, `finishMagicLinkSignIn`,
+`confirmMagicLinkSignIn`, `startOAuthSignIn`, `completeOAuthCallback`, `enrollPasskey`, and helpers). A custom screen calls the same flows with the
 session as its actions:
 
 ```ts

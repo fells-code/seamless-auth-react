@@ -185,8 +185,8 @@ renders, and the guard would send them on before they could add a passkey.
 ## Headless use
 
 Every screen is a thin view over a flow in `@seamless-auth/client` (`beginSignIn`,
-`registerWithEmail`, `verifyOtp`, `watchMagicLink`, `finishMagicLinkSignIn`, `startOAuthSignIn`,
-`completeOAuthCallback`, `enrollPasskey`, and helpers). A custom screen calls the same flows with the
+`registerWithEmail`, `verifyOtp`, `watchMagicLink`, `finishMagicLinkSignIn`,
+`confirmMagicLinkSignIn`, `startOAuthSignIn`, `completeOAuthCallback`, `enrollPasskey`, and helpers). A custom screen calls the same flows with the
 service as its actions:
 
 ```ts

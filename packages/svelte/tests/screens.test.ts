@@ -15,6 +15,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createSeamlessAuth } from '../src';
 import type { AuthScreen } from '../src/navigation';
 import {
+  confirmationRequired,
   createAdapter,
   passkeyPort,
   signedIn,
@@ -303,6 +304,62 @@ describe('magic link screens', () => {
     expect(adapter.called('GET', '/magic-link/verify/t-twice')).toHaveLength(1);
     expect(again.adapter.called('GET', '/magic-link/verify/t-twice')).toHaveLength(0);
     expect(text()).toContain('This sign-in link has already been used.');
+  });
+
+  it('asks before signing in the device a link opened elsewhere came from', async () => {
+    const { adapter } = await open(
+      'verifyMagicLink',
+      {
+        'GET /magic-link/verify/t-held': confirmationRequired,
+        'POST /magic-link/verify/t-held/confirm': ok,
+      },
+      { query: 'token=t-held' }
+    );
+    await waitSettled();
+
+    expect(heading()).toBe('Confirm this sign-in');
+    expect(text()).toContain('A sign-in was requested from an Android device on ');
+    expect(text()).not.toContain('Failed to verify token');
+    expect(adapter.called('GET', '/magic-link/check')).toHaveLength(0);
+
+    await click('Yes, sign in that device');
+    await waitSettled();
+
+    expect(adapter.called('POST', '/magic-link/verify/t-held/confirm')).toHaveLength(1);
+    expect(screen.getByRole('status').textContent).toContain(
+      'You can return to your other device'
+    );
+    expect(nav.current).toBe('verifyMagicLink');
+  });
+
+  it('reports a confirmation the server refuses, and changes nothing on decline', async () => {
+    const { adapter } = await open(
+      'verifyMagicLink',
+      {
+        'GET /magic-link/verify/t-refused': confirmationRequired,
+        'POST /magic-link/verify/t-refused/confirm': {
+          status: 400,
+          body: { error: 'Invalid' },
+        },
+      },
+      { query: 'token=t-refused' }
+    );
+    await waitSettled();
+
+    await click('Yes, sign in that device');
+    await waitSettled();
+
+    expect(screen.getByRole('alert').textContent).toContain(
+      'We could not confirm this sign-in'
+    );
+    expect(button('Yes, sign in that device')).not.toBeDisabled();
+
+    await click("No, this wasn't me");
+
+    expect(text()).toContain('You can ignore the email');
+    expect(adapter.called('POST', '/magic-link/verify/t-refused/confirm')).toHaveLength(
+      1
+    );
   });
 
   it('says to go back when the link was opened elsewhere, and reports failures', async () => {

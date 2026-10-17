@@ -4,7 +4,8 @@
  * See LICENSE file in the project root for full license information
  */
 
-import { render, screen, act } from '@testing-library/react';
+import { render, screen, act, fireEvent } from '@testing-library/react';
+import { SeamlessAuthError } from '@seamless-auth/client';
 import { StrictMode } from 'react';
 import VerifyMagicLink from '@/views/VerifyMagicLink';
 
@@ -30,6 +31,15 @@ describe('VerifyMagicLink', () => {
   const mockAuthClient = {
     verifyMagicLink: jest.fn(),
     checkMagicLink: jest.fn(),
+    confirmMagicLink: jest.fn(),
+  };
+  const heldElsewhere = {
+    data: null,
+    error: new SeamlessAuthError('Confirm this sign-in.', 409, {
+      error: 'confirmation_required',
+      message: 'Confirm this sign-in.',
+      requestedFrom: { deviceClass: 'macos', requestedAt: '2026-10-16T14:05:00.000Z' },
+    }),
   };
   const postMessage = jest.fn();
   const close = jest.fn();
@@ -302,6 +312,82 @@ describe('VerifyMagicLink', () => {
 
     await screen.findByText(/login verified\. redirecting/i);
     expect(refreshSession).toHaveBeenCalledWith({ background: true });
+  });
+
+  describe('a link opened on another device', () => {
+    beforeEach(() => {
+      (useSearchParams as jest.Mock).mockReturnValue([
+        new URLSearchParams('?token=abc123'),
+      ]);
+      mockAuthClient.verifyMagicLink.mockResolvedValue(heldElsewhere);
+    });
+
+    test('asks before signing in the device that requested it', async () => {
+      render(<VerifyMagicLink />);
+
+      expect(
+        await screen.findByRole('heading', { name: /confirm this sign-in/i })
+      ).toBeInTheDocument();
+      expect(screen.getByText(/requested from a Mac on /)).toBeInTheDocument();
+      expect(
+        screen.getByRole('button', { name: /yes, sign in that device/i })
+      ).toBeInTheDocument();
+      expect(screen.queryByText(/failed to verify token/i)).not.toBeInTheDocument();
+      expect(refreshSession).not.toHaveBeenCalled();
+      expect(mockAuthClient.checkMagicLink).not.toHaveBeenCalled();
+      expect(postMessage).not.toHaveBeenCalled();
+    });
+
+    test('confirms and sends the reader back to the other device', async () => {
+      mockAuthClient.confirmMagicLink.mockResolvedValue({
+        data: { message: 'Success' },
+        error: null,
+      });
+      render(<VerifyMagicLink />);
+
+      fireEvent.click(
+        await screen.findByRole('button', { name: /yes, sign in that device/i })
+      );
+
+      expect(await screen.findByRole('status')).toHaveTextContent(
+        /return to your other device/i
+      );
+      expect(mockAuthClient.confirmMagicLink).toHaveBeenCalledWith('abc123');
+      expect(refreshSession).not.toHaveBeenCalled();
+
+      act(() => {
+        jest.advanceTimersByTime(900);
+      });
+      expect(navigate).not.toHaveBeenCalled();
+    });
+
+    test('reports a confirmation the server refuses', async () => {
+      mockAuthClient.confirmMagicLink.mockResolvedValue({
+        data: null,
+        error: new SeamlessAuthError('Invalid token', 400),
+      });
+      render(<VerifyMagicLink />);
+
+      fireEvent.click(
+        await screen.findByRole('button', { name: /yes, sign in that device/i })
+      );
+
+      expect(await screen.findByRole('alert')).toHaveTextContent(
+        /could not confirm this sign-in/i
+      );
+      expect(
+        screen.getByRole('button', { name: /yes, sign in that device/i })
+      ).toBeEnabled();
+    });
+
+    test('declining changes nothing', async () => {
+      render(<VerifyMagicLink />);
+
+      fireEvent.click(await screen.findByRole('button', { name: /this wasn't me/i }));
+
+      expect(screen.getByRole('status')).toHaveTextContent(/ignore the email/i);
+      expect(mockAuthClient.confirmMagicLink).not.toHaveBeenCalled();
+    });
   });
 
   test('shows spinner during verification', () => {

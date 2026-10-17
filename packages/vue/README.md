@@ -164,8 +164,8 @@ it, so a single-use secret does not stay in history or travel in a `Referer`.
 ## Headless use
 
 Every screen is a thin view over a flow in `@seamless-auth/client` (`beginSignIn`,
-`registerWithEmail`, `verifyOtp`, `watchMagicLink`, `finishMagicLinkSignIn`, `startOAuthSignIn`,
-`completeOAuthCallback`, `enrollPasskey`, and helpers). A custom screen calls the same flows with the
+`registerWithEmail`, `verifyOtp`, `watchMagicLink`, `finishMagicLinkSignIn`,
+`confirmMagicLinkSignIn`, `startOAuthSignIn`, `completeOAuthCallback`, `enrollPasskey`, and helpers). A custom screen calls the same flows with the
 session as its actions:
 
 ```ts

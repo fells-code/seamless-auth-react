@@ -85,6 +85,16 @@ export const signedOut: AdapterReply = {
   body: { error: 'unauthenticated' },
 };
 
+/** A magic link opened on a device other than the one that asked for it. */
+export const confirmationRequired: AdapterReply = {
+  status: 409,
+  body: {
+    error: 'confirmation_required',
+    message: 'Confirm this sign-in.',
+    requestedFrom: { deviceClass: 'android', requestedAt: '2026-10-16T14:05:00.000Z' },
+  },
+};
+
 export const flush = () => new Promise(resolve => setTimeout(resolve, 0));
 
 export const passkeyPort = (supported: boolean) => ({
