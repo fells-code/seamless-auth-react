@@ -1,5 +1,24 @@
 # @seamless-auth/react
 
+## 0.17.0
+
+### Minor Changes
+
+- 59802e2: Add a confirmation step for magic links opened on another device.
+
+  A magic link opened on a device other than the one that asked for it now waits for the reader to approve it (auth API 0.19.0 and later). The bundled verify screens show which kind of device asked and when, and offer "Yes, sign in that device" or "No, this wasn't me". Approving signs in the requesting device and tells the reader to return to it; declining changes nothing.
+
+  `@seamless-auth/client` adds `client.confirmMagicLink(token)`, the `getMagicLinkConfirmation`, `isMagicLinkConfirmationRequired`, `describeMagicLinkDevice`, `magicLinkConfirmationPrompt` and `confirmMagicLinkSignIn` helpers, and the `MagicLinkConfirmation` and `MagicLinkDeviceClass` types. In bearer mode the verify call now sends the sign-in's ephemeral token when one is held. A custom verify screen that treats every failure as an invalid link should check `getMagicLinkConfirmation(error)` first.
+
+  The React Native README describes the new step for apps that handle magic links.
+
+### Patch Changes
+
+- bd62b41: Point the README's Next.js section at `@seamless-auth/nextjs`, which serves the `/auth` routes from a route handler and resolves the session with `getSeamlessSession`. It no longer says a Next.js server package is still planned.
+- 9852bd4: The README's Next.js example reads the service token from `SEAMLESS_SERVICE_TOKEN` instead of `API_SERVICE_TOKEN`. The auth server still reads `API_SERVICE_TOKEN`; both hold the same value.
+- Updated dependencies [59802e2]
+  - @seamless-auth/client@0.6.0
+
 ## 0.16.0
 
 ### Minor Changes
