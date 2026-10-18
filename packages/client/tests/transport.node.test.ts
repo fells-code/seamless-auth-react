@@ -17,6 +17,7 @@ import {
   createTransport,
   resolveRouteRule,
   UntrustedOriginError,
+  UntrustedRedirectError,
 } from '../src/transport';
 
 const API = 'https://api.example.com';
@@ -729,5 +730,136 @@ describe('bearer transport', () => {
       bearer(fetchImpl, storage).fetch('/magic-link/check', { method: 'GET' })
     ).resolves.toBeInstanceOf(Response);
     expect(await storage.get()).toBeNull();
+  });
+});
+
+describe('bearer transport redirects', () => {
+  const signedIn = async (fetchImpl: typeof fetch) => {
+    const tokenStorage = createMemoryTokenStorage();
+    await tokenStorage.set({ accessToken: 'access-1', refreshToken: 'refresh-1' });
+    return createTransport({
+      apiHost: API,
+      mode: 'bearer',
+      fetch: fetchImpl,
+      tokenStorage,
+    });
+  };
+
+  const redirect = (status: number, location: string) =>
+    new Response(null, { status, headers: { location } });
+
+  const with_ = (
+    response: Response,
+    props: Partial<Record<'redirected' | 'url' | 'type', unknown>>
+  ) => {
+    for (const [key, value] of Object.entries(props)) {
+      Object.defineProperty(response, key, { value });
+    }
+    return response;
+  };
+
+  it('does not follow a redirect to another origin with the token', async () => {
+    const { calls, fetchImpl } = scriptedFetch(() =>
+      redirect(302, 'https://elsewhere.example.com/steal')
+    );
+    const transport = await signedIn(fetchImpl);
+
+    await expect(transport.authorizedFetch(`${API}/api/plan`)).rejects.toBeInstanceOf(
+      UntrustedRedirectError
+    );
+
+    expect(calls).toHaveLength(1);
+    expect(calls[0].init.redirect).toBe('manual');
+    expect(calls.some(call => call.url.startsWith('https://elsewhere.example.com'))).toBe(
+      false
+    );
+  });
+
+  it('follows a redirect that stays on a trusted origin, keeping the token', async () => {
+    const { calls, fetchImpl } = scriptedFetch((_call, index) =>
+      index === 0 ? redirect(307, '/api/plan/') : jsonResponse(200, { ok: true })
+    );
+    const transport = await signedIn(fetchImpl);
+
+    const response = await transport.authorizedFetch(`${API}/api/plan`);
+
+    expect(response.status).toBe(200);
+    expect(calls.map(call => call.url)).toEqual([`${API}/api/plan`, `${API}/api/plan/`]);
+    expect(headersOf(calls[1]).Authorization).toBe('Bearer access-1');
+  });
+
+  it('turns a POST into a GET without a body on 303, as fetch would', async () => {
+    const { calls, fetchImpl } = scriptedFetch((_call, index) =>
+      index === 0 ? redirect(303, `${API}/api/done`) : jsonResponse(200, {})
+    );
+    const transport = await signedIn(fetchImpl);
+
+    await transport.authorizedFetch(`${API}/api/submit`, { method: 'POST', body: '{}' });
+
+    expect(calls[1].init.method).toBe('GET');
+    expect(calls[1].init.body).toBeUndefined();
+  });
+
+  it('stops after five redirects', async () => {
+    const { calls, fetchImpl } = scriptedFetch((_call, index) =>
+      redirect(302, `${API}/loop/${index + 1}`)
+    );
+    const transport = await signedIn(fetchImpl);
+
+    await expect(transport.authorizedFetch(`${API}/loop/0`)).rejects.toBeInstanceOf(
+      UntrustedRedirectError
+    );
+    expect(calls).toHaveLength(5);
+  });
+
+  // React Native's fetch ignores redirect: 'manual' and follows on its own. The
+  // token may already have gone, but the response is not handed back as if it
+  // came from the API.
+  it('refuses a response a platform followed to another origin', async () => {
+    const { fetchImpl } = scriptedFetch(() =>
+      with_(jsonResponse(200, { secret: true }), {
+        redirected: true,
+        url: 'https://elsewhere.example.com/landing',
+      })
+    );
+    const transport = await signedIn(fetchImpl);
+
+    await expect(transport.authorizedFetch(`${API}/api/plan`)).rejects.toBeInstanceOf(
+      UntrustedRedirectError
+    );
+  });
+
+  it('does not follow a redirect a browser hides', async () => {
+    const { fetchImpl } = scriptedFetch(() =>
+      with_(new Response(null, { status: 200 }), { type: 'opaqueredirect' })
+    );
+    const transport = await signedIn(fetchImpl);
+
+    await expect(transport.authorizedFetch(`${API}/api/plan`)).rejects.toBeInstanceOf(
+      UntrustedRedirectError
+    );
+  });
+
+  it("leaves the caller's own redirect choice alone, but still checks where it ended", async () => {
+    const { calls, fetchImpl } = scriptedFetch(() =>
+      with_(jsonResponse(200, {}), { redirected: true, url: `${API}/api/moved` })
+    );
+    const transport = await signedIn(fetchImpl);
+
+    const response = await transport.authorizedFetch(`${API}/api/plan`, {
+      redirect: 'follow',
+    });
+
+    expect(response.status).toBe(200);
+    expect(calls[0].init.redirect).toBe('follow');
+  });
+
+  it('does not change a request that carries no token', async () => {
+    const { calls, fetchImpl } = scriptedFetch(() => jsonResponse(200, {}));
+    const transport = createTransport({ apiHost: API, mode: 'bearer', fetch: fetchImpl });
+
+    await transport.fetch('/system-config/public', { method: 'GET' });
+
+    expect(calls[0].init.redirect).toBeUndefined();
   });
 });

@@ -52,6 +52,7 @@ import {
   PasskeyPolicyErrorCode,
   SeamlessAuthError,
   UntrustedOriginError,
+  UntrustedRedirectError,
   WebAuthnErrorDetail,
 } from '@seamless-auth/client';
 import type { SeamlessAuthResult } from '@seamless-auth/client';
@@ -99,6 +100,7 @@ export {
   roleGrantsAccess,
   SeamlessAuthError,
   UntrustedOriginError,
+  UntrustedRedirectError,
   useAuth,
   useAuthClient,
   useAuthorizedFetch,

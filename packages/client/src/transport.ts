@@ -55,6 +55,28 @@ export class UntrustedOriginError extends Error {
 }
 
 /**
+ * Rejects a bearer request that a server redirected to an origin outside
+ * `apiHost` and `trustedOrigins`. Where the platform honours
+ * `redirect: 'manual'` the redirect is not followed, so the token never leaves;
+ * where it does not (React Native follows redirects itself), the response is
+ * refused once it is known to have come from somewhere else.
+ */
+export class UntrustedRedirectError extends Error {
+  readonly url: string;
+
+  constructor(url: string) {
+    super(
+      `A bearer request was redirected to ${url}, which is not apiHost or one of trustedOrigins, so the redirect was not followed with the session.`
+    );
+    this.name = 'UntrustedRedirectError';
+    this.url = url;
+  }
+}
+
+const MAX_REDIRECTS = 5;
+const REDIRECT_STATUSES = new Set([301, 302, 303, 307, 308]);
+
+/**
  * An absolute URL's origin, or null for a relative URL or one without an
  * origin. Never resolved against the page: fetch resolves a relative URL
  * against the document's base URL, which injected markup can change, so a
@@ -289,12 +311,13 @@ export function createTransport(options: TransportOptions): Transport {
   // Checked before anything is attached, so a refused request carries neither
   // a cookie nor a token. Only an absolute URL can pass: the client resolves a
   // path on apiHost before it gets here.
-  const refuseUntrusted = (url: string): Promise<never> | null => {
+  const isTrusted = (url: string): boolean => {
     const origin = originOf(url);
-    return origin !== null && trusted.has(origin)
-      ? null
-      : Promise.reject(new UntrustedOriginError(url));
+    return origin !== null && trusted.has(origin);
   };
+
+  const refuseUntrusted = (url: string): Promise<never> | null =>
+    isTrusted(url) ? null : Promise.reject(new UntrustedOriginError(url));
 
   const checkedUrl = (input: unknown): string | Promise<never> => {
     const url = urlOf(input);
@@ -446,14 +469,69 @@ export function createTransport(options: TransportOptions): Transport {
     markTransport: boolean
   ) {
     const authorization = await authorizationFor(identity);
+    const headers = {
+      ...(markTransport ? { [AUTH_TRANSPORT_HEADER]: 'bearer' } : {}),
+      ...(authorization ? { Authorization: authorization } : {}),
+    };
 
-    return fetchImpl(
-      url,
-      withHeaders(init, {
-        ...(markTransport ? { [AUTH_TRANSPORT_HEADER]: 'bearer' } : {}),
-        ...(authorization ? { Authorization: authorization } : {}),
-      })
-    );
+    if (!authorization) {
+      return fetchImpl(url, withHeaders(init, headers));
+    }
+
+    // fetch follows redirects by default, and whether a platform drops
+    // Authorization on a cross-origin hop is up to its networking stack (iOS
+    // NSURLSession is not known to). So a request carrying a token follows a
+    // redirect itself, and only to an origin the session may go to.
+    const callerChoseRedirect = init?.redirect !== undefined;
+    let current = url;
+    let currentInit: RequestInit | undefined = callerChoseRedirect
+      ? init
+      : { ...init, redirect: 'manual' };
+
+    for (let hop = 0; ; hop++) {
+      const response: Response = await fetchImpl(
+        current,
+        withHeaders(currentInit, headers)
+      );
+
+      if (response.redirected && response.url && !isTrusted(response.url)) {
+        throw new UntrustedRedirectError(response.url);
+      }
+
+      if (callerChoseRedirect) {
+        return response;
+      }
+
+      if (response.type === 'opaqueredirect') {
+        // A browser hides where a manual redirect points, so it cannot be
+        // judged and is not followed.
+        throw new UntrustedRedirectError(current);
+      }
+
+      const location = REDIRECT_STATUSES.has(response.status)
+        ? response.headers.get('location')
+        : null;
+
+      if (!location) {
+        return response;
+      }
+
+      const target = new URL(location, current).href;
+
+      if (!isTrusted(target) || hop + 1 >= MAX_REDIRECTS) {
+        throw new UntrustedRedirectError(target);
+      }
+
+      const method = (currentInit?.method ?? 'GET').toUpperCase();
+      const becomesGet: boolean =
+        response.status === 303 ||
+        ((response.status === 301 || response.status === 302) && method === 'POST');
+
+      current = target;
+      currentInit = becomesGet
+        ? { ...currentInit, method: 'GET', body: undefined }
+        : currentInit;
+    }
   }
 
   // An expired access token is the one 401 this layer can do something about.

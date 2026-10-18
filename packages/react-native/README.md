@@ -99,7 +99,8 @@ token and refreshes it once on a 401; a path resolves on `apiHost`, and a path
 under the adapter's mount (`/auth/sessions`) is sent as an adapter call. The
 token goes only to `apiHost` and the origins in the provider's `trustedOrigins`
 prop; any other origin rejects with `UntrustedOriginError` before anything is
-sent:
+sent. A response that a redirect took to any other origin rejects with
+`UntrustedRedirectError`, and the client never follows such a redirect itself:
 
 ```ts
 const authorizedFetch = useAuthorizedFetch();
