@@ -105,6 +105,24 @@ describe('createSeamlessAuthClient', () => {
     );
   });
 
+  it('authorizedFetch resolves a path on the page origin when apiHost is empty', async () => {
+    const authorizedFetch = jest.fn().mockResolvedValue({ ok: true });
+    (createFetchTransport as jest.Mock).mockImplementation(() => ({
+      fetch: mockFetchWithAuth,
+      authorizedFetch,
+      mode: 'cookie',
+      clearTokens: jest.fn(),
+    }));
+    const client = createSeamlessAuthClient({ apiHost: '' });
+
+    await client.authorizedFetch('/api/beta-users');
+
+    expect(authorizedFetch).toHaveBeenCalledWith(
+      `${window.location.origin}/api/beta-users`,
+      undefined
+    );
+  });
+
   it('forwards login requests through the shared auth fetch helper', async () => {
     const response = { ok: true };
     mockFetchWithAuth.mockResolvedValueOnce(response);

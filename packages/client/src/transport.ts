@@ -71,6 +71,17 @@ function originOf(url: string): string | null {
   }
 }
 
+/**
+ * The page's own origin when there is a page, for an `apiHost` of `""`, which
+ * means "this origin". `location.origin` is the document's real origin, which an
+ * injected `<base>` element cannot change, unlike the base URL a relative fetch
+ * resolves against.
+ */
+export function pageOrigin(): string | null {
+  const origin = (globalThis as { location?: { origin?: unknown } }).location?.origin;
+  return typeof origin === 'string' && origin !== 'null' && origin !== '' ? origin : null;
+}
+
 const LOOPBACK = new Set(['localhost', '127.0.0.1', '[::1]']);
 
 /**
@@ -108,7 +119,8 @@ function trustedOriginOf(entry: string): string {
 
 function trustedOriginsFor(options: TransportOptions): Set<string> {
   const trusted = new Set((options.trustedOrigins ?? []).map(trustedOriginOf));
-  const apiOrigin = originOf(options.apiHost);
+  const apiOrigin =
+    options.apiHost.trim() === '' ? pageOrigin() : originOf(options.apiHost);
   if (apiOrigin) trusted.add(apiOrigin);
   return trusted;
 }
