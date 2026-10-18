@@ -96,6 +96,40 @@ describe('cookie transport', () => {
     expect(transport.mode).toBe('cookie');
   });
 
+  // An empty apiHost is the same-origin setup (an app serving /auth itself), so
+  // the page's own origin is apiHost's origin.
+  it('authorizedFetch trusts the page origin when apiHost is empty', async () => {
+    const { calls, fetchImpl } = scriptedFetch(() => jsonResponse(200, {}));
+    const previous = (globalThis as { location?: unknown }).location;
+    (globalThis as { location?: unknown }).location = {
+      origin: 'https://app.example.com',
+    };
+
+    try {
+      const transport = createTransport({ apiHost: '', fetch: fetchImpl });
+
+      await transport.authorizedFetch('https://app.example.com/api/beta-users');
+      await expect(
+        transport.authorizedFetch('https://other.example.com/x')
+      ).rejects.toBeInstanceOf(UntrustedOriginError);
+
+      expect(calls).toHaveLength(1);
+      expect(calls[0].init.credentials).toBe('include');
+    } finally {
+      (globalThis as { location?: unknown }).location = previous;
+    }
+  });
+
+  it('authorizedFetch with an empty apiHost and no page trusts nothing', async () => {
+    const { calls, fetchImpl } = scriptedFetch(() => jsonResponse(200, {}));
+    const transport = createTransport({ apiHost: '', fetch: fetchImpl });
+
+    await expect(
+      transport.authorizedFetch('https://app.example.com/api/beta-users')
+    ).rejects.toBeInstanceOf(UntrustedOriginError);
+    expect(calls).toHaveLength(0);
+  });
+
   it('authorizedFetch sends credentials to apiHost and trusted origins only', async () => {
     const { calls, fetchImpl } = scriptedFetch(() => jsonResponse(200, {}));
     const transport = createTransport({

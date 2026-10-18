@@ -43,7 +43,7 @@ import type {
 import { createFetchTransport } from '../fetchWithAuth';
 import { createBrowserPasskeyPort } from '../ports/browserPasskeys';
 import { isPasskeyCeremonyError, type PasskeyPort } from '../ports/passkeys';
-import type { TransportOptions } from '../transport';
+import { pageOrigin, type TransportOptions } from '../transport';
 import { getWebAuthnErrorDetail } from './errors';
 import {
   NETWORK_ERROR_STATUS,
@@ -454,7 +454,10 @@ export const createSeamlessAuthClient = (
   const fetchWithAuth = transport.fetch;
   const passkeys = opts.passkeys ?? createBrowserPasskeyPort();
 
-  const host = opts.apiHost.replace(/\/+$/, '');
+  // An empty apiHost is the same-origin setup, so a path goes to this page's
+  // origin. Without a page (server rendering, React Native) it stays relative,
+  // and authorizedFetch refuses it rather than guess.
+  const host = opts.apiHost.replace(/\/+$/, '') || (pageOrigin() ?? '');
 
   return {
     authorizedFetch: (input, init) =>
