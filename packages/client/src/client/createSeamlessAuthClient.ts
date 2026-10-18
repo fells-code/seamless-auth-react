@@ -288,7 +288,17 @@ export interface SeamlessAuthClient {
    */
   requestMagicLink: (redirectUri?: string) => Promise<SeamlessAuthResult<MessageResult>>;
   checkMagicLink: () => Promise<SeamlessAuthResult<MessageResult>>;
+  /**
+   * Opened on a device other than the one that asked for it, the link is not
+   * used: the error is a `409` that `getMagicLinkConfirmation()` reads, and the
+   * link waits for `confirmMagicLink()`.
+   */
   verifyMagicLink: (token: string) => Promise<SeamlessAuthResult<MessageResult>>;
+  /**
+   * Approves a link `verifyMagicLink()` held for confirmation. This signs in
+   * the device that asked for the link, through its poll, not this one.
+   */
+  confirmMagicLink: (token: string) => Promise<SeamlessAuthResult<MessageResult>>;
   listOAuthProviders: () => Promise<SeamlessAuthResult<OAuthProvidersResult>>;
   getPublicSystemConfig: () => Promise<SeamlessAuthResult<PublicSystemConfigResult>>;
   startOAuthLogin: (
@@ -657,6 +667,15 @@ export const createSeamlessAuthClient = (
           method: 'GET',
         }),
         'Failed to verify the magic link.'
+      ),
+
+    confirmMagicLink: token =>
+      requestResult<MessageResult>(
+        fetchWithAuth(`/magic-link/verify/${encodeURIComponent(token)}/confirm`, {
+          method: 'POST',
+          body: JSON.stringify({}),
+        }),
+        'Failed to confirm the magic link.'
       ),
 
     listOAuthProviders: () =>

@@ -53,6 +53,8 @@ any framework can call them directly.
 | `requestOtp` / `verifyOtp`                                                  | Sends and checks a code for a channel (`email`, `phone`) and flow (`login`, `register`), and says where to go next |
 | `watchMagicLink({ client, refreshSession, onSignedIn })`                    | In the tab that asked for a link, waits for it to be used (cross-tab message or poll). Returns a stop function     |
 | `finishMagicLinkSignIn({ client, refreshSession })`                         | On the page the link lands on, after `client.verifyMagicLink(token)` succeeds                                      |
+| `getMagicLinkConfirmation(error)`, `magicLinkConfirmationPrompt(held)`      | When verifying fails because the link was opened on another device: who asked for it, and when                     |
+| `confirmMagicLinkSignIn({ client, token })`                                 | Approves that link once the reader agrees. Signs in the device that asked for it, not this one                     |
 | `startOAuthSignIn` / `completeOAuthCallback`                                | Starts a provider sign-in and finishes it on the redirect URI                                                      |
 | `enrollPasskey({ client, refreshSession }, attachment?)`                    | Enrols a passkey for the signed-in user, labelled with this device                                                 |
 | `loadLoginMethods`, `fallbackSignInOptions`, `hasNonPasskeyLoginMethod`     | What the instance allows, and what to offer a user                                                                 |

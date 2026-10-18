@@ -9,17 +9,23 @@ import { SeamlessAuthError } from '../src/client/errors';
 import {
   beginSignIn,
   completeOAuthCallback,
+  confirmMagicLinkSignIn,
+  describeMagicLinkDevice,
   detectPasskeySupport,
   enrollPasskey,
   fallbackSignInOptions,
   finishMagicLinkSignIn,
   formatCountdown,
+  getMagicLinkConfirmation,
   hasFallbackSignInOption,
   hasNonPasskeyLoginMethod,
   inAppPath,
+  isMagicLinkConfirmationRequired,
   isOtpCharacter,
   loadLoginMethods,
   MAGIC_LINK_SUCCESS_MESSAGE,
+  type MagicLinkConfirmation,
+  magicLinkConfirmationPrompt,
   OAUTH_PROVIDER_STORAGE_KEY,
   oauthErrorMessage,
   otpCharacters,
@@ -360,6 +366,98 @@ describe('magic link', () => {
         refreshSession,
       })
     ).toBe('elsewhere');
+  });
+});
+
+describe('magic link confirmation', () => {
+  const held = (body: unknown, status = 409) =>
+    new SeamlessAuthError('Confirm this sign-in.', status, body);
+  const requestedFrom: MagicLinkConfirmation = {
+    deviceClass: 'macos',
+    requestedAt: '2026-10-16T14:05:00.000Z',
+  };
+  const body = {
+    error: 'confirmation_required',
+    message: 'Confirm this sign-in.',
+    requestedFrom,
+  };
+
+  it('reads who asked for a link opened on another device', () => {
+    expect(getMagicLinkConfirmation(held(body))).toEqual({
+      deviceClass: 'macos',
+      requestedAt: '2026-10-16T14:05:00.000Z',
+    });
+    expect(isMagicLinkConfirmationRequired(held(body))).toBe(true);
+  });
+
+  it('accepts a body a proxy nested under details', () => {
+    expect(getMagicLinkConfirmation(held({ error: 'Conflict', details: body }))).toEqual(
+      body.requestedFrom
+    );
+  });
+
+  it('ignores every other failure', () => {
+    expect(getMagicLinkConfirmation(held(body, 400))).toBeUndefined();
+    expect(getMagicLinkConfirmation(held({ error: 'Invalid token' }))).toBeUndefined();
+    expect(getMagicLinkConfirmation(new Error('nope'))).toBeUndefined();
+    expect(isMagicLinkConfirmationRequired(null)).toBe(false);
+  });
+
+  it('treats a device class it does not know as unknown', () => {
+    expect(
+      getMagicLinkConfirmation(
+        held({ ...body, requestedFrom: { deviceClass: 'toaster', requestedAt: 1 } })
+      )
+    ).toEqual({ deviceClass: 'unknown', requestedAt: '' });
+  });
+
+  it.each([
+    ['ios', 'an iPhone or iPad'],
+    ['android', 'an Android device'],
+    ['macos', 'a Mac'],
+    ['windows', 'a Windows PC'],
+    ['linux', 'a Linux computer'],
+    ['chromeos', 'a Chromebook'],
+    ['bot', 'an automated client'],
+    ['unknown', 'an unknown device'],
+  ] as const)('describes %s as %s', (deviceClass, label) => {
+    expect(describeMagicLinkDevice(deviceClass)).toBe(label);
+  });
+
+  it('says where and when the link was asked for', () => {
+    const prompt = magicLinkConfirmationPrompt(requestedFrom, 'en-US');
+    const when = new Date(requestedFrom.requestedAt).toLocaleString('en-US', {
+      dateStyle: 'medium',
+      timeStyle: 'short',
+    });
+
+    expect(prompt).toBe(`A sign-in was requested from a Mac on ${when}.`);
+    expect(
+      magicLinkConfirmationPrompt({ deviceClass: 'ios', requestedAt: 'not a date' })
+    ).toBe('A sign-in was requested from an iPhone or iPad.');
+  });
+
+  it('confirms the link and tells a requesting tab in this browser', async () => {
+    const confirmMagicLink = jest.fn().mockResolvedValue(ok({ message: 'Success' }));
+
+    const result = await confirmMagicLinkSignIn({
+      client: { confirmMagicLink },
+      token: 'tok',
+    });
+
+    expect(result.error).toBeNull();
+    expect(confirmMagicLink).toHaveBeenCalledWith('tok');
+    expect(FakeChannel.posted).toEqual([{ type: MAGIC_LINK_SUCCESS_MESSAGE }]);
+  });
+
+  it('reports a refused confirmation without announcing a sign-in', async () => {
+    const result = await confirmMagicLinkSignIn({
+      client: { confirmMagicLink: jest.fn().mockResolvedValue(failed(400)) },
+      token: 'tok',
+    });
+
+    expect(result.error).toBeInstanceOf(SeamlessAuthError);
+    expect(FakeChannel.posted).toEqual([]);
   });
 });
 

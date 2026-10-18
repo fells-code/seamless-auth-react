@@ -170,7 +170,10 @@ const ROUTE_RULES: readonly RouteRule[] = [
   { match: /^\/oauth\/[^/]+\/start$/, identity: 'none' },
   { match: /^\/oauth\/[^/]+\/callback$/, identity: 'none', effect: 'issue' },
   { match: /^\/system-config\/public$/, identity: 'none' },
-  { match: /^\/magic-link\/verify\/[^/]+$/, identity: 'none' },
+  // The ephemeral token, when this process holds one, is how the API tells the
+  // device that asked for the link from one that merely opened it.
+  { match: /^\/magic-link\/verify\/[^/]+$/, identity: 'preAuth' },
+  { match: /^\/magic-link\/verify\/[^/]+\/confirm$/, identity: 'none' },
   { match: /^\/magic-link$/, identity: 'preAuth' },
   { match: /^\/magic-link\/check$/, identity: 'preAuth', effect: 'issue' },
   { match: /^\/otp\/generate-/, identity: 'preAuth' },

@@ -357,13 +357,26 @@ The built-in flows and exported client assume these route families exist:
 - `/otp/verify-phone-otp`, `/otp/verify-email-otp`, and their `-login-` variants
 - `POST /magic-link`
 - `/magic-link/check`
-- `/magic-link/verify/:token`
+- `/magic-link/verify/:token` and `POST /magic-link/verify/:token/confirm`
 - `/oauth/providers`, `/oauth/:providerId/start`, `/oauth/:providerId/callback`
 - `/step-up/status`, `/step-up/webauthn/start`, `/step-up/webauthn/finish`
 - `/organizations` and `/organizations/:organizationId` (plus `/switch` and `/members` subroutes)
 - `/users/me`
 - `/users/credentials`
 - `/users/delete`
+
+`/magic-link/verify/:token` uses the link only on the device that asked for it,
+which the API recognises from the ephemeral token (bearer mode sends it on that
+route when it holds one) or from the address and user agent the adapter
+forwards. Opened anywhere else it answers `409` with `error:
+'confirmation_required'` and a `requestedFrom` (`deviceClass`, `requestedAt`),
+and leaves the link unused. `getMagicLinkConfirmation()` reads that, and
+`confirmMagicLinkSignIn()` posts to `/confirm` once the reader approves, which
+signs in the requesting device through its poll rather than this one. Every
+bundled verify screen asks first; never confirm without the reader's say-so.
+`confirmationRequired` in `test-support/fakeAdapter.ts` is the 409 the binding
+tests share. The shape is local to `packages/client/src/flows/magicLink.ts`
+until `@seamless-auth/types` publishes it.
 
 The `@seamless-auth/express` adapter mounts the WebAuthn routes as `/webAuthn`
 (camelCase), and its cookie middleware matches request paths case-sensitively.

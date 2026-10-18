@@ -55,7 +55,8 @@ describe('resolveRouteRule', () => {
     ['/oauth/google/start', 'none', undefined],
     ['/oauth/google/callback', 'none', 'issue'],
     ['/system-config/public', 'none', undefined],
-    ['/magic-link/verify/abc', 'none', undefined],
+    ['/magic-link/verify/abc', 'preAuth', undefined],
+    ['/magic-link/verify/abc/confirm', 'none', undefined],
     ['/magic-link', 'preAuth', undefined],
     ['/magic-link/check', 'preAuth', 'issue'],
     ['/otp/generate-login-email-otp', 'preAuth', undefined],
@@ -338,6 +339,40 @@ describe('bearer transport', () => {
       body: '{}',
     });
     expect(headersOf(calls[4]).Authorization).toBeUndefined();
+  });
+
+  it('verifies a magic link with the ephemeral token only when one is held', async () => {
+    const { calls, fetchImpl } = scriptedFetch(call =>
+      call.url.endsWith('/login')
+        ? jsonResponse(200, { message: 'Login continued', token: 'ephemeral-1' })
+        : jsonResponse(200, { message: 'Success' })
+    );
+    const cold = bearer(fetchImpl, createMemoryTokenStorage());
+
+    const opened = await cold.fetch('/magic-link/verify/tok', { method: 'GET' });
+    expect(opened.status).toBe(200);
+    expect(headersOf(calls[0])).toEqual({ [AUTH_TRANSPORT_HEADER]: 'bearer' });
+
+    const requester = bearer(fetchImpl, createMemoryTokenStorage());
+    await requester.fetch('/login', { method: 'POST', body: '{}' });
+    await requester.fetch('/magic-link/verify/tok', { method: 'GET' });
+    expect(headersOf(calls[2]).Authorization).toBe('Bearer ephemeral-1');
+  });
+
+  it('confirms a magic link without sending any session', async () => {
+    const storage = createMemoryTokenStorage();
+    await storage.set({ accessToken: 'access-1', refreshToken: 'refresh-1' });
+    const { calls, fetchImpl } = scriptedFetch(call =>
+      call.url.endsWith('/login')
+        ? jsonResponse(200, { token: 'ephemeral-1' })
+        : jsonResponse(200, { message: 'Success' })
+    );
+    const transport = bearer(fetchImpl, storage);
+
+    await transport.fetch('/login', { method: 'POST', body: '{}' });
+    await transport.fetch('/magic-link/verify/tok/confirm', { method: 'POST' });
+
+    expect(headersOf(calls[1]).Authorization).toBeUndefined();
   });
 
   it('holds nothing when a pre-auth step returns no session yet', async () => {

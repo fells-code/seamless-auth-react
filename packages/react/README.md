@@ -1047,8 +1047,11 @@ The landing route verifies the token from the query string, then refreshes its o
 
 ```tsx
 function CustomMagicLinkLanding() {
-  const { refreshSession } = useAuth(); // plus: import { useEffect } from 'react'
+  // plus: import { useEffect, useState } from 'react', and
+  // getMagicLinkConfirmation, magicLinkConfirmationPrompt from '@seamless-auth/client'
+  const { refreshSession } = useAuth();
   const authClient = useAuthClient();
+  const [prompt, setPrompt] = useState('');
 
   useEffect(() => {
     const token = new URLSearchParams(window.location.search).get('token');
@@ -1059,13 +1062,26 @@ function CustomMagicLinkLanding() {
         // Refresh here too. This tab set the cookie, but its provider state
         // was loaded before the cookie existed.
         await refreshSession();
+        return;
       }
+
+      const held = getMagicLinkConfirmation(error);
+      if (held) setPrompt(magicLinkConfirmationPrompt(held));
     });
   }, [authClient, refreshSession]);
 
-  return <p>Finishing sign-in...</p>;
+  // Opened on another device: ask before calling confirmMagicLinkSignIn.
+  return <p>{prompt || 'Finishing sign-in...'}</p>;
 }
 ```
+
+A link opened on a device other than the one that asked for it is not used straight away. The
+verify call fails with a `409` that `getMagicLinkConfirmation(error)` (from `@seamless-auth/client`)
+reads, giving the requesting device's platform and when it asked. Show that to the reader, and only
+if they approve call `confirmMagicLinkSignIn({ client: authClient, token })`. That signs in the
+device that asked for the link, through its poll, not this one, so tell the reader to go back to
+it. The bundled `/verify-magiclink` screen does all of this, with a "No, this wasn't me" option that
+changes nothing.
 
 The auth API emails a link pointing at `/verify-magiclink?token=...`, so a custom app must serve that
 path.
@@ -1258,6 +1274,7 @@ The built-in flows assume compatible endpoints for:
 - `POST /magic-link`
 - `/magic-link/check`
 - `/magic-link/verify/:token`
+- `POST /magic-link/verify/:token/confirm`
 - `/oauth/providers`
 - `/oauth/:providerId/start`
 - `/oauth/:providerId/callback`
