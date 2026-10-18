@@ -100,8 +100,13 @@ reach a third party through it. A path starting with `/` resolves on `apiHost`;
 any other relative URL is refused, because `fetch` would resolve it against the
 document's base URL. Each `trustedOrigins` entry must be a bare `https` origin
 (`http` only on localhost), and anything else throws when the client is
-created. Use plain `fetch` for other origins, or list an API served from
-another origin of your own:
+created. In bearer transport a request that carries a token follows a redirect
+only to one of those origins: it asks `fetch` for `redirect: 'manual'`, follows
+a trusted hop itself (up to five), and rejects any other with
+`UntrustedRedirectError` without sending the token on. React Native's `fetch`
+follows redirects on its own, so there a response that ended on another origin
+is rejected instead. Set `redirect` yourself to opt out. Use plain `fetch` for
+other origins, or list an API served from another origin of your own:
 
 ```ts
 createSeamlessAuthClient({

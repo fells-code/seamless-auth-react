@@ -44,6 +44,7 @@ export {
   roleGrantsAccess,
   SeamlessAuthError,
   UntrustedOriginError,
+  UntrustedRedirectError,
 } from '@seamless-auth/client';
 export type {
   Credential,
