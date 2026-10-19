@@ -1,5 +1,13 @@
 # @seamless-auth/svelte
 
+## 0.2.1
+
+### Patch Changes
+
+- Updated dependencies [782583c]
+- Updated dependencies [e3cf1f9]
+  - @seamless-auth/client@0.7.0
+
 ## 0.2.0
 
 ### Minor Changes
