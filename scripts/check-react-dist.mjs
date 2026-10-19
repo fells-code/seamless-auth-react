@@ -45,6 +45,13 @@ for (const file of await emittedModules(dist)) {
   }
 }
 
+for (const file of await emittedModules(dist)) {
+  // The browser binding is cookie transport only; bearer belongs to react-native.
+  if (/mode:\s*["']bearer["']/.test(await readFile(file, 'utf8'))) {
+    failures.push(`${path.relative(dist, file)} configures bearer transport`);
+  }
+}
+
 const reachableFromIndex = await staticImports(path.join(dist, 'index.js'));
 if (reachableFromIndex.has('react-router-dom')) {
   failures.push(
