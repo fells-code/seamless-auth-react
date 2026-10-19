@@ -511,13 +511,8 @@ describe('AuthProvider', () => {
       expect(typeof (seen[0] as { login: unknown }).login).toBe('function');
     });
 
-    it('passes transport and passkey ports through to the client', async () => {
+    it('passes transport options and passkey ports through to the client, as cookie transport', async () => {
       mockFetchWithAuthImpl.mockResolvedValue(signedIn());
-      const tokenStorage = {
-        get: jest.fn(async () => null),
-        set: jest.fn(async () => undefined),
-        remove: jest.fn(async () => undefined),
-      };
       const passkeys = {
         isSupported: () => true,
         isPlatformAuthenticatorAvailable: async () => true,
@@ -535,7 +530,7 @@ describe('AuthProvider', () => {
         render(
           <AuthProvider
             apiHost={apiHost}
-            transport={{ mode: 'bearer', tokenStorage }}
+            transport={{ basePath: '/identity' }}
             ports={{ passkeys }}
           >
             <Probe />
@@ -544,18 +539,39 @@ describe('AuthProvider', () => {
       });
 
       expect(createFetchTransport).toHaveBeenCalledWith(
-        expect.objectContaining({ authHost: apiHost, mode: 'bearer', tokenStorage })
+        expect.objectContaining({
+          authHost: apiHost,
+          mode: 'cookie',
+          basePath: '/identity',
+        })
+      );
+      expect(createFetchTransport).not.toHaveBeenCalledWith(
+        expect.objectContaining({ tokenStorage: expect.anything() })
       );
       expect((ports as { passkeys: unknown }).passkeys).toBe(passkeys);
     });
 
+    // The browser binding keeps tokens out of page script. A JavaScript caller
+    // can still pass bearer, and quietly using cookies instead would hide that.
+    it('refuses bearer transport', () => {
+      const spy = jest.spyOn(console, 'error').mockImplementation(() => undefined);
+
+      expect(() =>
+        render(
+          <AuthProvider
+            apiHost={apiHost}
+            transport={{ mode: 'bearer' } as unknown as { basePath?: string }}
+          >
+            <Consumer />
+          </AuthProvider>
+        )
+      ).toThrow(/cookie transport only/);
+
+      spy.mockRestore();
+    });
+
     it('keeps one session across re-renders that pass fresh but equal prop objects', async () => {
       mockFetchWithAuthImpl.mockResolvedValue(signedIn());
-      const tokenStorage = {
-        get: jest.fn(async () => null),
-        set: jest.fn(async () => undefined),
-        remove: jest.fn(async () => undefined),
-      };
       const passkeys = {
         isSupported: () => true,
         isPlatformAuthenticatorAvailable: async () => true,
@@ -567,8 +583,6 @@ describe('AuthProvider', () => {
         <AuthProvider
           apiHost={apiHost}
           transport={{
-            mode: 'bearer',
-            tokenStorage,
             trustedOrigins: ['https://data.example.com'],
           }}
           ports={{ passkeys }}

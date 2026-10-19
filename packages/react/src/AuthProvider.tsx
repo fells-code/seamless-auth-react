@@ -130,10 +130,13 @@ interface AuthProviderProps {
    */
   magicLinkRedirectUri?: string;
   /**
-   * How the session travels to the server adapter. Defaults to cookie
-   * transport, which is what a browser application wants.
+   * Where the adapter is mounted, the fetch to use, and the extra origins
+   * `authorizedFetch` may reach. Always cookie transport: the server adapter
+   * holds the tokens and the browser only HttpOnly cookies, so a script on the
+   * page can ride the session but never read it. Bearer transport is for
+   * native apps, through `@seamless-auth/react-native`.
    */
-  transport?: Omit<TransportOptions, 'apiHost'>;
+  transport?: Omit<TransportOptions, 'apiHost' | 'mode' | 'tokenStorage'>;
   /** Platform ports. Each one left out falls back to the browser's. */
   ports?: Partial<AuthPorts>;
   /**
@@ -166,22 +169,24 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({
     [providedPorts?.passkeys, providedPorts?.oauthRedirect]
   );
 
-  const {
-    mode,
-    basePath,
-    tokenStorage,
-    fetch: fetchImpl,
-    trustedOrigins,
-  } = transport ?? {};
+  // The type no longer offers bearer, but a JavaScript caller can still pass it,
+  // and quietly switching it to cookies would hide that their tokens were never
+  // where they thought.
+  if ((transport as { mode?: unknown } | undefined)?.mode === 'bearer') {
+    throw new TypeError(
+      '@seamless-auth/react is cookie transport only, so the browser never holds the tokens. Use @seamless-auth/react-native for bearer transport in a native app.'
+    );
+  }
+
+  const { basePath, fetch: fetchImpl, trustedOrigins } = transport ?? {};
   // An inline array is a new value on every render, so it is compared by content.
   const trustedOriginsKey = trustedOrigins ? JSON.stringify(trustedOrigins) : undefined;
   const stableTransport = useMemo(
     () =>
       transport
         ? {
-            mode,
+            mode: 'cookie' as const,
             basePath,
-            tokenStorage,
             fetch: fetchImpl,
             trustedOrigins: trustedOriginsKey
               ? (JSON.parse(trustedOriginsKey) as string[])
@@ -189,7 +194,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({
           }
         : undefined,
     // eslint-disable-next-line react-hooks/exhaustive-deps -- `transport` itself is deliberately not a dependency
-    [mode, basePath, tokenStorage, fetchImpl, trustedOriginsKey]
+    [basePath, fetchImpl, trustedOriginsKey]
   );
 
   // Seeds the store like a `useState` initialiser. A server component hands over

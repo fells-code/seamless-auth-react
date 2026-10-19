@@ -318,25 +318,24 @@ Custom UIs get the same default through `useAuthClient()`, and can still overrid
 
 Everything that differs between a browser and another platform sits behind a port on
 `AuthProvider`. A web application configures nothing; the browser implementations are the
-defaults. A binding for another platform (React Native is the first) supplies its own:
+defaults. A port can be swapped, for example to drive the passkey ceremonies yourself:
 
 ```tsx
 <AuthProvider
   apiHost={apiHost}
-  transport={{ mode: 'bearer', tokenStorage: keystoreTokenStorage }}
-  ports={{ passkeys: nativePasskeys, oauthRedirect: inAppBrowserRedirect }}
+  transport={{ basePath: '/identity', trustedOrigins: ['https://data.example.com'] }}
+  ports={{ passkeys: customPasskeys }}
 >
   <App />
 </AuthProvider>
 ```
 
-- `transport` selects how the session travels. Cookie transport, the default, is the browser
-  contract: the server adapter holds the tokens in `httpOnly` cookies and the client never sees
-  them. Bearer transport is the native contract: the client holds the auth API's own tokens,
-  presents the one a route needs in `Authorization`, stores the pair a sign-in returns through
-  `tokenStorage`, and refreshes once through `POST /auth/refresh` when a request answers 401. At
-  most one refresh is in flight at a time, because the auth API treats a replayed refresh token as
-  theft and revokes the chain.
+- `transport` sets where the adapter is mounted (`basePath`, default `/auth`), the `fetch` to use,
+  and the extra origins `authorizedFetch` may reach (`trustedOrigins`). It is always cookie
+  transport: the server adapter holds the tokens in `httpOnly` cookies and the browser never sees
+  them, so a script on the page can ride the session but not read it. Passing `mode: 'bearer'`
+  throws. Native apps that need bearer transport, where the client holds the tokens in a keystore,
+  use `@seamless-auth/react-native`.
 - `ports.passkeys` runs the WebAuthn ceremonies (`create`, `get`, and the two support checks).
   `usePasskeySupport()` and every passkey flow go through it.
 - `ports.oauthRedirect` opens the provider. The browser navigates away and the callback route
