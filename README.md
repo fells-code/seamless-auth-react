@@ -9,6 +9,8 @@ This repository is an npm workspace that publishes the client-side packages for
 | [`@seamless-auth/react`](packages/react/README.md)               | React binding: `AuthProvider`, hooks, and optional prebuilt auth screens. Depends on the client package.                                    |
 | [`@seamless-auth/react-native`](packages/react-native/README.md) | Headless React Native binding: provider, hooks, and the native ports for passkeys, keystore token storage, and in-app browser OAuth.        |
 | [`@seamless-auth/angular`](packages/angular/README.md)           | Angular binding: a signal-based `SeamlessAuth` service, route guards, an `HttpClient` interceptor, and optional standalone sign-in screens. |
+| [`@seamless-auth/vue`](packages/vue/README.md)                   | Vue binding: a plugin and a `useSeamlessAuth()` composable, `vue-router` guards, and optional sign-in screens.                              |
+| [`@seamless-auth/svelte`](packages/svelte/README.md)             | Svelte binding: a rune-based session with every auth action, SvelteKit `load` guards, and optional sign-in screens.                         |
 
 Most React applications only install `@seamless-auth/react`; it brings the client
 core with it. The client package exists so that the bindings share one
