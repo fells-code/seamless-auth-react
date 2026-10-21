@@ -66,7 +66,7 @@ const TermsModal: React.FC<TermsModalProps> = ({ isOpen, onClose }) => {
             <strong>2. Frequency:</strong> Based on login and account activity.
           </p>
           <p>
-            <strong>3. Opt-Out:</strong> Contact support@seamlessauth.com to opt out.
+            <strong>3. Opt-Out:</strong> Contact support@fellscode.com to opt out.
           </p>
           <p>
             <strong>4. Fees:</strong> Message and data rates may apply.
@@ -84,8 +84,8 @@ const TermsModal: React.FC<TermsModalProps> = ({ isOpen, onClose }) => {
           </p>
           <p>
             Questions? Email us at{' '}
-            <a className={styles.link} href="mailto:support@seamlessauth.com">
-              support@seamlessauth.com
+            <a className={styles.link} href="mailto:support@fellscode.com">
+              support@fellscode.com
             </a>
             .
           </p>
