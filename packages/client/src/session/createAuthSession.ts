@@ -28,6 +28,7 @@ import type { SeamlessAuthResult } from '../client/result';
 import { PasskeyPrfInput } from '../client/webauthnPrf';
 import { hasScopedRole as rolesGrantScopedAccess } from '../scopedRoles';
 import { Credential, Organization, User } from '../types';
+import { createOAuthBindingStore } from './oauthBinding';
 import { createDefaultStorage, SessionStoragePort } from './storage';
 
 const PREVIOUS_SIGN_IN_KEY = 'seamlessauth_seen';
@@ -176,6 +177,7 @@ export function createAuthSession(options: AuthSessionOptions): AuthSession {
     providedClient ?? createSeamlessAuthClient({ ...clientOptions, apiHost });
   const storage = providedStorage ?? createDefaultStorage();
   const listeners = new Set<() => void>();
+  const oauthBindings = createOAuthBindingStore();
 
   let destroyed = false;
   // Guards against a slow earlier session read overwriting a newer one, which
@@ -358,8 +360,31 @@ export function createAuthSession(options: AuthSessionOptions): AuthSession {
       refreshAfter(() => client.switchOrganization(organizationId)),
 
     listOAuthProviders: () => client.listOAuthProviders(),
-    startOAuthLogin: input => client.startOAuthLogin(input),
-    finishOAuthLogin: input => refreshAfter(() => client.finishOAuthLogin(input)),
+    startOAuthLogin: async input => {
+      const result = await client.startOAuthLogin(input);
+
+      if (!result.error) {
+        if (result.data.binding) {
+          oauthBindings.save({ state: result.data.state, binding: result.data.binding });
+        } else {
+          oauthBindings.clear();
+        }
+      }
+
+      return result;
+    },
+
+    finishOAuthLogin: async input => {
+      const binding = input.binding ?? oauthBindings.read(input.state);
+
+      try {
+        return await refreshAfter(() =>
+          client.finishOAuthLogin(binding ? { ...input, binding } : input)
+        );
+      } finally {
+        oauthBindings.clear();
+      }
+    },
 
     refreshStepUpStatus: async () => {
       const result = await client.getStepUpStatus();

@@ -9,9 +9,12 @@ import type { AuthSessionActions } from '../session/createAuthSession';
 import { oauthErrorMessage } from './messages';
 import { inAppPath } from './redirects';
 
+export { OAUTH_BINDING_STORAGE_KEY } from '../session/oauthBinding';
+
 /**
  * Where the provider being signed in with is kept across the redirect. Only the
- * provider id is stored: never a code, state, or token.
+ * provider id is stored here. The session actions keep the OAuth state's binding
+ * under `OAUTH_BINDING_STORAGE_KEY`; no code or token is stored.
  */
 export const OAUTH_PROVIDER_STORAGE_KEY = 'seamless:oauth:provider';
 
@@ -70,10 +73,15 @@ export async function startOAuthSignIn(
   const outcome = await deps.oauthRedirect.open(data.authorizationUrl, redirectUri);
 
   if (outcome.type === 'callback') {
+    if (outcome.state !== data.state) {
+      return { error: 'Could not finish sign-in with this provider.' };
+    }
+
     const finished = await deps.actions.finishOAuthLogin({
       providerId,
       code: outcome.code,
       state: outcome.state,
+      ...(data.binding ? { binding: data.binding } : {}),
     });
 
     if (finished.error) {

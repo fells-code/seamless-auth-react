@@ -554,6 +554,24 @@ describe('createSeamlessAuthClient', () => {
     });
   });
 
+  it('sends the OAuth binding in the callback body only', async () => {
+    mockFetchWithAuth.mockResolvedValueOnce({ ok: true });
+
+    const client = createSeamlessAuthClient({ apiHost: 'https://api.example.com' });
+
+    await client.finishOAuthLogin({
+      providerId: 'google',
+      code: 'code',
+      state: 'state',
+      binding: 'binding',
+    });
+
+    expect(mockFetchWithAuth).toHaveBeenCalledWith('/oauth/google/callback', {
+      method: 'POST',
+      body: JSON.stringify({ code: 'code', state: 'state', binding: 'binding' }),
+    });
+  });
+
   it('returns a successful passkey login result when both WebAuthn steps succeed', async () => {
     mockFetchWithAuth
       .mockResolvedValueOnce({

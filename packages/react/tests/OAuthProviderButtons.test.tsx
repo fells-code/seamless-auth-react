@@ -123,7 +123,11 @@ describe('OAuthProviderButtons', () => {
       error: null,
     });
     startOAuthLogin.mockResolvedValue({
-      data: { authorizationUrl: 'http://idp.test/authorize' },
+      data: {
+        authorizationUrl: 'http://idp.test/authorize',
+        state: 's-1',
+        binding: 'b-1',
+      },
       error: null,
     });
     open.mockResolvedValue({ type: 'callback', code: 'c-1', state: 's-1' });
@@ -139,6 +143,7 @@ describe('OAuthProviderButtons', () => {
         providerId: 'mock',
         code: 'c-1',
         state: 's-1',
+        binding: 'b-1',
       })
     );
   });

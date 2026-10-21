@@ -414,6 +414,12 @@ handles it or excludes it deliberately. Listing the wanted names would drop a ne
 code on the floor and leave the map compiling, which is the silent drift the
 union exists to prevent.
 
+`POST /oauth/:providerId/start` can return a `binding` that the callback must send
+back (fells-code/seamless-auth-api#463). The session actions store it with its
+state (`packages/client/src/session/oauthBinding.ts`) and attach it in
+`finishOAuthLogin`, so callers of those actions get it without code changes. It
+never goes to the provider or into a URL.
+
 Before documenting new flow behavior, verify the route contract in `seamless-auth-server` or `seamless-auth-api`.
 
 ## Migration Status

@@ -506,7 +506,9 @@ describe('OAuth', () => {
     const result = await startOAuthSignIn(
       {
         actions: {
-          startOAuthLogin: jest.fn().mockResolvedValue(ok({ authorizationUrl: 'u' })),
+          startOAuthLogin: jest
+            .fn()
+            .mockResolvedValue(ok({ authorizationUrl: 'u', state: 's' })),
           finishOAuthLogin,
         },
         oauthRedirect: {
@@ -520,6 +522,53 @@ describe('OAuth', () => {
       code: 'c',
       state: 's',
     });
+    expect(result.error).toBe('Could not finish sign-in with this provider.');
+  });
+
+  it('passes the binding from the start when finishing in place', async () => {
+    const finishOAuthLogin = jest.fn().mockResolvedValue(ok({}));
+    const result = await startOAuthSignIn(
+      {
+        actions: {
+          startOAuthLogin: jest
+            .fn()
+            .mockResolvedValue(ok({ authorizationUrl: 'u', state: 's', binding: 'b' })),
+          finishOAuthLogin,
+        },
+        oauthRedirect: {
+          open: jest.fn().mockResolvedValue({ type: 'callback', code: 'c', state: 's' }),
+        },
+      },
+      { providerId: 'mock', redirectUri: 'x' }
+    );
+    expect(finishOAuthLogin).toHaveBeenCalledWith({
+      providerId: 'mock',
+      code: 'c',
+      state: 's',
+      binding: 'b',
+    });
+    expect(result.error).toBeNull();
+  });
+
+  it('refuses a callback whose state is not the one it started', async () => {
+    const finishOAuthLogin = jest.fn();
+    const result = await startOAuthSignIn(
+      {
+        actions: {
+          startOAuthLogin: jest
+            .fn()
+            .mockResolvedValue(ok({ authorizationUrl: 'u', state: 's', binding: 'b' })),
+          finishOAuthLogin,
+        },
+        oauthRedirect: {
+          open: jest
+            .fn()
+            .mockResolvedValue({ type: 'callback', code: 'c', state: 'other' }),
+        },
+      },
+      { providerId: 'mock', redirectUri: 'x' }
+    );
+    expect(finishOAuthLogin).not.toHaveBeenCalled();
     expect(result.error).toBe('Could not finish sign-in with this provider.');
   });
 

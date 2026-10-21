@@ -156,6 +156,11 @@ export interface FinishOAuthLoginInput {
   providerId: string;
   code: string;
   state: string;
+  /**
+   * The `binding` from the matching start. The session actions attach the one
+   * they stored when this is left out.
+   */
+  binding?: string;
 }
 
 /**
@@ -712,6 +717,7 @@ export const createSeamlessAuthClient = (
           body: JSON.stringify({
             code: input.code,
             state: input.state,
+            ...(input.binding ? { binding: input.binding } : {}),
           }),
         }),
         'Failed to finish OAuth login.'
