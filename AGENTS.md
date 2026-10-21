@@ -418,9 +418,7 @@ union exists to prevent.
 back (fells-code/seamless-auth-api#463). The session actions store it with its
 state (`packages/client/src/session/oauthBinding.ts`) and attach it in
 `finishOAuthLogin`, so callers of those actions get it without code changes. It
-never goes to the provider or into a URL. The optional `binding` field is declared
-locally on `StartOAuthLoginResult` and `FinishOAuthLoginInput` until
-`@seamless-auth/types` publishes it.
+never goes to the provider or into a URL.
 
 Before documenting new flow behavior, verify the route contract in `seamless-auth-server` or `seamless-auth-api`.
 

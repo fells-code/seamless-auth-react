@@ -46,7 +46,7 @@
   },
   "dependencies": {
     "@seamless-auth/client": "^0.7.0",
-    "@seamless-auth/types": "^0.28.0"
+    "@seamless-auth/types": "^0.29.0"
   },
   "sideEffects": false
 }

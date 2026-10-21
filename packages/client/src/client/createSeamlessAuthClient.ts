@@ -150,12 +150,7 @@ export interface StartOAuthLoginInput {
   returnTo?: string;
 }
 
-/**
- * `binding` is returned by auth servers that tie the OAuth state to the client
- * that started sign-in, and must come back with the callback. Older servers omit
- * it. Declared here until `@seamless-auth/types` publishes it.
- */
-export type StartOAuthLoginResult = StartOAuthLoginResponse & { binding?: string };
+export type StartOAuthLoginResult = StartOAuthLoginResponse;
 
 export interface FinishOAuthLoginInput {
   providerId: string;
