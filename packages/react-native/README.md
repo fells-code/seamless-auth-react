@@ -153,6 +153,13 @@ it with `ports.oauthRedirect.open(url, redirectUri)`, which resolves with the
 callback's `code` and `state`, and finish with `finishOAuthLogin`.
 `redirectUri` must be registered with the provider and allowed by the auth API.
 
+Newer auth servers also return a `binding` from `startOAuthLogin` and refuse a
+callback without it. The session actions keep it in memory with its `state` and
+send it from `finishOAuthLogin`, so this needs nothing from you. If you finish
+with another client, pass `binding` yourself, and check that the callback's
+`state` matches the one `startOAuthLogin` returned. Never put the binding in a
+URL or send it to the provider.
+
 ## License
 
 Apache-2.0. See [LICENSE](LICENSE).

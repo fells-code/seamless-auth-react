@@ -574,6 +574,14 @@ function OAuthCallback() {
 }
 ```
 
+Auth servers that bind the OAuth state to the client that started sign-in (API 0.19.x with
+fells-code/seamless-auth-api#463) return a `binding` from `startOAuthLogin` and refuse a callback
+without it (`400`, `Invalid OAuth state`). The `useAuth()` actions handle this for you:
+`startOAuthLogin` keeps the binding in `sessionStorage` under `seamless:oauth:binding`, keyed to its
+`state`, and `finishOAuthLogin` sends it with the matching callback and then clears it. Only pass
+`binding` yourself if you start and finish on different `useAuth()` instances or with the headless
+client, and keep it out of URLs: it goes to your auth server, never to the provider.
+
 Some callback failures are the user's to fix, so the API returns a stable `code` alongside the error
 message. `getOAuthErrorCode()` narrows it to the codes this SDK knows about and returns `undefined`
 for everything else, so unexpected failures keep your generic message:

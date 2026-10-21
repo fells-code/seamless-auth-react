@@ -63,9 +63,23 @@ any framework can call them directly.
 | `isValidEmail`, `isValidPhoneNumber`, `parseUserAgent`, `formatCountdown`   | Small shared helpers                                                                                               |
 
 None of them store a token. In a browser the session lives in HttpOnly cookies the
-server adapter sets; the only thing written to browser storage is the id of the
-OAuth provider in flight (`sessionStorage`) and a flag that this browser has
-signed in before (`localStorage`).
+server adapter sets; the only things written to browser storage are the id of the
+OAuth provider in flight and that sign-in's state binding (`sessionStorage`), and a
+flag that this browser has signed in before (`localStorage`).
+
+### OAuth state binding
+
+Auth servers that bind the OAuth state to the client that started sign-in return a
+`binding` from `POST /oauth/:providerId/start` and refuse a callback that does not
+send it back (`400`, `Invalid OAuth state`). The session actions handle it:
+`actions.startOAuthLogin` stores the binding with its `state` (`sessionStorage`
+under `OAUTH_BINDING_STORAGE_KEY`, or memory where there is none), and
+`actions.finishOAuthLogin` attaches it when the callback's `state` matches, then
+clears it whether or not the callback succeeds. A `binding` passed to
+`finishOAuthLogin` takes precedence. Code that calls `createSeamlessAuthClient`'s
+`startOAuthLogin` and `finishOAuthLogin` directly must carry the binding itself.
+It goes only to the auth server, never to the provider or into a URL. Older servers
+return no binding, and nothing is sent.
 
 ## Transport
 
