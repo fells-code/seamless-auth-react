@@ -20,8 +20,24 @@ jest.mock('@/fetchWithAuth', () => ({
 }));
 
 // React Native has no sessionStorage. Its callback returns to the same process,
-// so the in-memory copy is enough.
+// so the in-memory copy is enough. Newer Node versions define a global
+// sessionStorage, so it is hidden here to stand in for React Native.
 describe('OAuth state binding without sessionStorage', () => {
+  const original = Object.getOwnPropertyDescriptor(globalThis, 'sessionStorage');
+
+  beforeAll(() => {
+    Object.defineProperty(globalThis, 'sessionStorage', {
+      value: undefined,
+      configurable: true,
+      writable: true,
+    });
+  });
+
+  afterAll(() => {
+    if (original) Object.defineProperty(globalThis, 'sessionStorage', original);
+    else delete (globalThis as { sessionStorage?: unknown }).sessionStorage;
+  });
+
   it('keeps the binding in memory for the callback, then clears it', async () => {
     expect(typeof sessionStorage).toBe('undefined');
 
