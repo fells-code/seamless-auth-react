@@ -34,9 +34,11 @@ type Verification = ReturnType<ReturnType<typeof useAuthClient>['verifyMagicLink
  * rather than used, and the screen asks whether to sign that device in.
  */
 const VerifyMagicLink: React.FC = () => {
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
-  const token = searchParams.get('token');
+  // Read once: the query is dropped below, and the token is still needed to
+  // confirm a sign-in held for another device.
+  const [token] = useState(() => searchParams.get('token'));
 
   const [error, setError] = useState('');
   const [outcome, setOutcome] = useState<'signed-in' | 'elsewhere' | null>(null);
@@ -53,6 +55,13 @@ const VerifyMagicLink: React.FC = () => {
   // and a second request would find the link spent and report a failure, so the
   // remount waits on the first request instead of sending another.
   const verification = useRef<{ token: string; result: Verification } | null>(null);
+
+  // The token is a one-time secret; keep it out of history and Referers.
+  useEffect(() => {
+    if (searchParams.has('token')) {
+      setSearchParams(new URLSearchParams(), { replace: true });
+    }
+  }, [searchParams, setSearchParams]);
 
   useEffect(() => {
     let mounted = true;
