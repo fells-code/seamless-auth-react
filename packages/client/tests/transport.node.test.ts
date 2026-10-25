@@ -829,6 +829,38 @@ describe('bearer transport redirects', () => {
     );
   });
 
+  // whatwg-fetch, React Native's fetch, sets `url` from the XHR but never
+  // `redirected`.
+  it('refuses a followed response on another origin when redirected is not set', async () => {
+    const { fetchImpl } = scriptedFetch(() =>
+      with_(jsonResponse(200, { secret: true }), {
+        redirected: undefined,
+        url: 'https://elsewhere.example.com/landing',
+      })
+    );
+    const transport = await signedIn(fetchImpl);
+
+    await expect(transport.authorizedFetch(`${API}/api/plan`)).rejects.toBeInstanceOf(
+      UntrustedRedirectError
+    );
+    await expect(transport.fetch('/users/me')).rejects.toBeInstanceOf(
+      UntrustedRedirectError
+    );
+  });
+
+  it('accepts a followed response that stayed on a trusted origin', async () => {
+    const { fetchImpl } = scriptedFetch(() =>
+      with_(jsonResponse(200, { ok: true }), {
+        redirected: undefined,
+        url: `${API}/api/plan/`,
+      })
+    );
+    const transport = await signedIn(fetchImpl);
+
+    const response = await transport.authorizedFetch(`${API}/api/plan`);
+    expect(response.status).toBe(200);
+  });
+
   it('does not follow a redirect a browser hides', async () => {
     const { fetchImpl } = scriptedFetch(() =>
       with_(new Response(null, { status: 200 }), { type: 'opaqueredirect' })

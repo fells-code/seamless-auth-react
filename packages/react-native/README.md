@@ -100,7 +100,10 @@ under the adapter's mount (`/auth/sessions`) is sent as an adapter call. The
 token goes only to `apiHost` and the origins in the provider's `trustedOrigins`
 prop; any other origin rejects with `UntrustedOriginError` before anything is
 sent. A response that a redirect took to any other origin rejects with
-`UntrustedRedirectError`, and the client never follows such a redirect itself:
+`UntrustedRedirectError`, and the client never follows such a redirect itself.
+React Native's `fetch` follows redirects before the client sees the response,
+though, so this detects a redirect to another origin after it happened rather
+than preventing it, and the token may already have been sent on that hop:
 
 ```ts
 const authorizedFetch = useAuthorizedFetch();

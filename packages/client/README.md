@@ -119,7 +119,9 @@ only to one of those origins: it asks `fetch` for `redirect: 'manual'`, follows
 a trusted hop itself (up to five), and rejects any other with
 `UntrustedRedirectError` without sending the token on. React Native's `fetch`
 follows redirects on its own, so there a response that ended on another origin
-is rejected instead. Set `redirect` yourself to opt out. Use plain `fetch` for
+is rejected instead: the guard detects such a redirect after it happened rather
+than preventing it, and the token may already have been sent on the followed
+hop. Set `redirect` yourself to opt out. Use plain `fetch` for
 other origins, or list an API served from another origin of your own:
 
 ```ts

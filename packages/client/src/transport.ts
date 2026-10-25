@@ -316,6 +316,15 @@ export function createTransport(options: TransportOptions): Transport {
     return origin !== null && trusted.has(origin);
   };
 
+  // React Native's fetch (whatwg-fetch over XHR) follows redirects whatever
+  // `redirect` says and never sets `response.redirected`, so a final URL that
+  // differs from the one requested is the only sign a redirect happened.
+  const refuseFollowedRedirect = (requested: string, response: Response): void => {
+    if (response.url && response.url !== requested && !isTrusted(response.url)) {
+      throw new UntrustedRedirectError(response.url);
+    }
+  };
+
   const refuseUntrusted = (url: string): Promise<never> | null =>
     isTrusted(url) ? null : Promise.reject(new UntrustedOriginError(url));
 
@@ -494,9 +503,7 @@ export function createTransport(options: TransportOptions): Transport {
         withHeaders(currentInit, headers)
       );
 
-      if (response.redirected && response.url && !isTrusted(response.url)) {
-        throw new UntrustedRedirectError(response.url);
-      }
+      refuseFollowedRedirect(current, response);
 
       if (callerChoseRedirect) {
         return response;
