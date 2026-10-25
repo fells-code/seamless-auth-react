@@ -76,6 +76,15 @@ export class UntrustedRedirectError extends Error {
 const MAX_REDIRECTS = 5;
 const REDIRECT_STATUSES = new Set([301, 302, 303, 307, 308]);
 
+function redirectTarget(location: string | null, from: string): string {
+  if (!location) return from;
+  try {
+    return new URL(location, from).href;
+  } catch {
+    return from;
+  }
+}
+
 /**
  * An absolute URL's origin, or null for a relative URL or one without an
  * origin. Never resolved against the page: fetch resolves a relative URL
@@ -443,16 +452,36 @@ export function createTransport(options: TransportOptions): Transport {
         const tokens = await readTokens();
         if (!tokens) return false;
 
+        const url = buildUrl(options.apiHost, basePath, '/refresh');
+        // The refresh token is never sent on a redirect, even to a trusted
+        // origin: the refresh route does not redirect, so one is refused.
         const response = await fetchImpl(
-          buildUrl(options.apiHost, basePath, '/refresh'),
+          url,
           withHeaders(
-            { method: 'POST' },
+            { method: 'POST', redirect: 'manual' },
             {
               [AUTH_TRANSPORT_HEADER]: 'bearer',
               Authorization: `Bearer ${tokens.refreshToken}`,
             }
           )
         );
+
+        try {
+          refuseFollowedRedirect(url, response);
+          if (
+            response.type === 'opaqueredirect' ||
+            (response.status >= 300 && response.status < 400)
+          ) {
+            throw new UntrustedRedirectError(
+              redirectTarget(response.headers.get('location'), url)
+            );
+          }
+        } catch (error) {
+          // As with a refused refresh, nothing is left that this session can
+          // be renewed with, and on React Native the token may have gone.
+          await clearTokens();
+          throw error;
+        }
 
         if (!response.ok) {
           // Whether the chain was revoked or the token merely expired, there is
