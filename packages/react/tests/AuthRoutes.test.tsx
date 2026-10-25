@@ -16,6 +16,10 @@ jest.mock('@/views/PhoneRegistration', () => () => <div>Verify Phone Page</div>)
 jest.mock('@/views/EmailRegistration', () => () => <div>Verify Email Page</div>);
 jest.mock('@/views/OAuthCallback', () => () => <div>OAuth Callback Page</div>);
 jest.mock('@/components/MagicLinkSent', () => () => <div>Magic Link Sent Page</div>);
+jest.mock('@/views/RecoveryCodeLogin', () => () => <div>Recovery Code Page</div>);
+jest.mock('@/views/RecoveryCodes', () => () => <div>Recovery Codes Page</div>);
+jest.mock('@/views/AccountRecovery', () => () => <div>Account Recovery Page</div>);
+jest.mock('@/views/RecoveryCancel', () => () => <div>Recovery Cancel Page</div>);
 
 // Reports where the router ended up, so alias redirects can be asserted on the
 // resulting location rather than only on the rendered screen.
@@ -70,6 +74,10 @@ describe('AuthRoutes canonical paths', () => {
     [authRoutePaths.oauthCallback, 'OAuth Callback Page'],
     [authRoutePaths.registerPasskey, 'Register Passkey Page'],
     [authRoutePaths.magicLinkSent, 'Magic Link Sent Page'],
+    [authRoutePaths.recoveryCode, 'Recovery Code Page'],
+    [authRoutePaths.recoveryCodes, 'Recovery Codes Page'],
+    [authRoutePaths.accountRecovery, 'Account Recovery Page'],
+    [authRoutePaths.recoveryCancel, 'Recovery Cancel Page'],
   ];
 
   it.each(cases)('renders %s', (path, expected) => {
@@ -95,6 +103,14 @@ describe('externally owned paths', () => {
 
     expect(screen.getByText('Verify Magic Link Page')).toBeInTheDocument();
     expect(screen.getByTestId('search')).toHaveTextContent('?token=abc123');
+  });
+
+  // The auth API links here from every account recovery notice
+  // (`${FRONTEND_URL}/recovery/cancel#<token>`, docs/account-recovery.md).
+  it('serves the cancel link in account recovery notices', () => {
+    renderAt('/recovery/cancel');
+
+    expect(screen.getByText('Recovery Cancel Page')).toBeInTheDocument();
   });
 
   // Registered with OAuth providers as an allowed redirect URI.

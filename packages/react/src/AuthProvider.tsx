@@ -15,6 +15,7 @@ import {
   PasskeyLoginData,
   PasskeyMetadata,
   PasskeyRegistrationData,
+  RecoverySessionResult,
   RegisterPasskeyOptions,
   StartOAuthLoginInput,
   StartOAuthLoginResult,
@@ -81,6 +82,17 @@ export interface AuthContextType {
     passkeyAvailable: boolean
   ) => Promise<SeamlessAuthResult<LoginStartResult>>;
   handlePasskeyLogin: () => Promise<SeamlessAuthResult<PasskeyLoginData>>;
+  /**
+   * True while the session is a recovery session, which can only enroll a passkey
+   * or authenticator app. Enrolling one through `registerPasskey` lifts it.
+   */
+  recoverySession: boolean;
+  /** Signs in with a recovery code, on the sign-in `login` started. */
+  redeemRecoveryCode: (
+    code: string
+  ) => Promise<SeamlessAuthResult<RecoverySessionResult>>;
+  /** Completes an account recovery whose waiting period has passed. */
+  completeAccountRecovery: () => Promise<SeamlessAuthResult<RecoverySessionResult>>;
   registerPasskey: (
     input: PasskeyMetadata | RegisterPasskeyOptions
   ) => Promise<SeamlessAuthResult<PasskeyRegistrationData>>;

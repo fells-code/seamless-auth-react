@@ -16,11 +16,12 @@ import { useAuthClient } from '@/hooks/useAuthClient';
 import { useLoginMethods } from '@/hooks/useLoginMethods';
 import { usePasskeySupport } from '@/hooks/usePasskeySupport';
 import { useLocation, useNavigate } from 'react-router-dom';
+import { authRoutePaths } from '@/authRoutePaths';
 
 import styles from '@/styles/registerPasskey.module.css';
 
 const PasskeyRegistration: React.FC = () => {
-  const { refreshSession } = useAuth();
+  const { refreshSession, recoverySession } = useAuth();
   const authClient = useAuthClient();
   const { passkeySupported, loading: passkeySupportLoading } = usePasskeySupport();
   const { loginMethods, loading: loginMethodsLoading } = useLoginMethods();
@@ -41,7 +42,10 @@ const PasskeyRegistration: React.FC = () => {
   //
   // Gated on another method being enabled. With passkey as the only one, a user
   // who skipped would have no way back into the account they just made.
-  const canSkip = hasNonPasskeyLoginMethod(loginMethods);
+  //
+  // A recovery session cannot skip either: it can do nothing else until a factor
+  // is enrolled.
+  const canSkip = !recoverySession && hasNonPasskeyLoginMethod(loginMethods);
 
   const finishWithoutPasskey = async () => {
     await refreshSession();
@@ -64,7 +68,7 @@ const PasskeyRegistration: React.FC = () => {
 
     setStatus('success');
     setMessage('Passkey registered successfully.');
-    navigate(destination);
+    navigate(authRoutePaths.recoveryCodes, { state: { returnTo: destination } });
   };
 
   return (
@@ -99,9 +103,15 @@ const PasskeyRegistration: React.FC = () => {
           </div>
         ) : (
           <div className={styles.supported}>
-            <h2 className={styles.title}>Secure Your Account with a Passkey</h2>
+            <h2 className={styles.title}>
+              {recoverySession
+                ? 'Add a New Passkey'
+                : 'Secure Your Account with a Passkey'}
+            </h2>
             <p className={styles.description}>
-              Your device supports passkeys! Register one to skip passwords forever.
+              {recoverySession
+                ? 'You are signed in to recover your account. Add a new passkey to finish, and you will be able to use it to sign in from now on.'
+                : 'Your device supports passkeys! Register one to skip passwords forever.'}
             </p>
 
             <button
