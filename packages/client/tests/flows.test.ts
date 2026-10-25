@@ -39,6 +39,7 @@ import {
   verifyOtp,
   watchMagicLink,
 } from '../src/flows';
+import { createBrowserOAuthRedirect } from '../src/ports/oauthRedirect';
 
 const ok = <T>(data: T) => ({ data, error: null });
 const failed = (status = 400, code?: string) => ({
@@ -485,6 +486,43 @@ describe('OAuth', () => {
       'https://idp/authorize',
       `${origin}/oauth/callback`
     );
+  });
+
+  it('reports an authorization URL the port refuses to open', async () => {
+    const navigate = jest.fn();
+    const result = await startOAuthSignIn(
+      {
+        actions: {
+          startOAuthLogin: jest
+            .fn()
+            .mockResolvedValue(ok({ authorizationUrl: 'javascript:alert(1)' })),
+          finishOAuthLogin: jest.fn(),
+        },
+        oauthRedirect: createBrowserOAuthRedirect(navigate),
+      },
+      { providerId: 'mock', redirectUri: `${origin}/oauth/callback` }
+    );
+
+    expect(result.error).toBe('Could not start sign-in with this provider.');
+    expect(navigate).not.toHaveBeenCalled();
+  });
+
+  it('still throws what a port throws for another reason', async () => {
+    const failure = new Error('port broke');
+    await expect(
+      startOAuthSignIn(
+        {
+          actions: {
+            startOAuthLogin: jest
+              .fn()
+              .mockResolvedValue(ok({ authorizationUrl: 'https://idp/authorize' })),
+            finishOAuthLogin: jest.fn(),
+          },
+          oauthRedirect: { open: jest.fn().mockRejectedValue(failure) },
+        },
+        { providerId: 'mock', redirectUri: `${origin}/oauth/callback` }
+      )
+    ).rejects.toBe(failure);
   });
 
   it('reports a provider that will not start', async () => {

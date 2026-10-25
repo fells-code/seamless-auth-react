@@ -4,7 +4,10 @@
  * See LICENSE file in the project root for full license information
  */
 
-import type { OAuthRedirectPort } from '@seamless-auth/client';
+import {
+  assertNavigableAuthorizationUrl,
+  type OAuthRedirectPort,
+} from '@seamless-auth/client';
 
 /**
  * The part of `expo-web-browser` this port uses. Passed in rather than
@@ -60,6 +63,7 @@ export function createWebBrowserOAuthRedirect(
 ): OAuthRedirectPort {
   return {
     async open(authorizationUrl, redirectUri) {
+      assertNavigableAuthorizationUrl(authorizationUrl);
       const result = await browser.openAuthSessionAsync(
         authorizationUrl,
         redirectUri,

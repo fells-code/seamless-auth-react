@@ -7,7 +7,11 @@
 import { startAuthentication, startRegistration } from '@simplewebauthn/browser';
 
 import { createBrowserPasskeyPort } from '../src/ports/browserPasskeys';
-import { createBrowserOAuthRedirect } from '../src/ports/oauthRedirect';
+import {
+  assertNavigableAuthorizationUrl,
+  createBrowserOAuthRedirect,
+  UnsafeAuthorizationUrlError,
+} from '../src/ports/oauthRedirect';
 import { isPasskeyCeremonyError, PasskeyCeremonyError } from '../src/ports/passkeys';
 import { createMemoryTokenStorage } from '../src/ports/tokenStorage';
 
@@ -100,5 +104,50 @@ describe('createBrowserOAuthRedirect', () => {
 
     expect(navigate).toHaveBeenCalledWith('https://idp.example.com/authorize?state=s');
     expect(outcome).toEqual({ type: 'navigated' });
+  });
+
+  it.each([
+    'javascript:alert(document.cookie)',
+    'JaVaScRiPt:alert(1)',
+    ' \u0001java\tscript:alert(1)',
+    'java\nscript:alert(1)',
+    '%6Aavascript:alert(1)',
+    'data:text/html,<script>alert(1)</script>',
+    'DATA:text/html;base64,PHNjcmlwdD5hbGVydCgxKTwvc2NyaXB0Pg==',
+    'vbscript:msgbox(1)',
+    'file:///etc/passwd',
+    '//idp.example.com/authorize',
+    '/oauth/authorize',
+    'http://idp.example.com/authorize',
+    'http://localhost.evil.example/authorize',
+    'http://localhost@evil.example/authorize',
+    'http://evil.example\\@localhost/authorize',
+    'https://',
+  ])('refuses to navigate to %j', async url => {
+    const navigate = jest.fn();
+
+    await expect(
+      createBrowserOAuthRedirect(navigate).open(url, 'https://app.example.com/cb')
+    ).rejects.toBeInstanceOf(UnsafeAuthorizationUrlError);
+    expect(navigate).not.toHaveBeenCalled();
+  });
+
+  it('names the refused scheme without echoing the URL', () => {
+    expect(() => assertNavigableAuthorizationUrl('JavaScript:alert(1)')).toThrow(
+      'Refused to open an OAuth authorization URL with the javascript: scheme. It must use https, or http on localhost.'
+    );
+  });
+
+  it.each([
+    'https://idp.example.com/authorize?x=1',
+    'HTTPS://IDP.EXAMPLE.COM/authorize',
+    '  https://idp.example.com/authorize',
+    'http://localhost:4000/authorize',
+    'http://LOCALHOST/authorize',
+    'http://127.0.0.1:8080/authorize',
+    'http://[::1]:8080/authorize',
+    'http://user@localhost/authorize',
+  ])('allows %j', url => {
+    expect(() => assertNavigableAuthorizationUrl(url)).not.toThrow();
   });
 });

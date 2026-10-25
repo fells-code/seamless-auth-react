@@ -155,6 +155,9 @@ poll, and this one is not.
 it with `ports.oauthRedirect.open(url, redirectUri)`, which resolves with the
 callback's `code` and `state`, and finish with `finishOAuthLogin`.
 `redirectUri` must be registered with the provider and allowed by the auth API.
+The port opens only an `https` authorization URL (`http` only on a loopback
+host) and otherwise throws `UnsafeAuthorizationUrlError` without opening a
+browser.
 
 Newer auth servers also return a `binding` from `startOAuthLogin` and refuse a
 callback without it. The session actions keep it in memory with its `state` and

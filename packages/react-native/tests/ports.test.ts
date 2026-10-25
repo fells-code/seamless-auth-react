@@ -4,7 +4,7 @@
  * See LICENSE file in the project root for full license information
  */
 
-import { PasskeyCeremonyError } from '@seamless-auth/client';
+import { PasskeyCeremonyError, UnsafeAuthorizationUrlError } from '@seamless-auth/client';
 
 import { describeDevice } from '../src/deviceInfo';
 import { createNativePasskeyPort } from '../src/ports/nativePasskeys';
@@ -241,6 +241,35 @@ describe('createWebBrowserOAuthRedirect', () => {
         'roxtarget://cb'
       )
     ).resolves.toEqual({ type: 'cancelled' });
+  });
+});
+
+describe('createWebBrowserOAuthRedirect URL check', () => {
+  it.each([
+    'javascript:alert(1)',
+    'JaVaScRiPt:alert(1)',
+    '\tjava\nscript:alert(1)',
+    '%6Aavascript:alert(1)',
+    'data:text/html,<script>alert(1)</script>',
+    'http://idp.example.com/authorize',
+  ])('refuses to open %j', async url => {
+    const browser = { openAuthSessionAsync: jest.fn() };
+
+    await expect(
+      createWebBrowserOAuthRedirect(browser).open(url, 'roxtarget://cb')
+    ).rejects.toBeInstanceOf(UnsafeAuthorizationUrlError);
+    expect(browser.openAuthSessionAsync).not.toHaveBeenCalled();
+  });
+
+  it('opens http on a loopback host, for local development', async () => {
+    const browser = { openAuthSessionAsync: jest.fn(async () => ({ type: 'cancel' })) };
+
+    await createWebBrowserOAuthRedirect(browser).open(
+      'http://127.0.0.1:4000/authorize',
+      'roxtarget://cb'
+    );
+
+    expect(browser.openAuthSessionAsync).toHaveBeenCalled();
   });
 });
 

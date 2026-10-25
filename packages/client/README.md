@@ -81,6 +81,15 @@ clears it whether or not the callback succeeds. A `binding` passed to
 It goes only to the auth server, never to the provider or into a URL. Older servers
 return no binding, and nothing is sent.
 
+### OAuth authorization URL
+
+The redirect ports open only an `https` authorization URL, or `http` on
+`localhost`, `127.0.0.1` or `[::1]`. Anything else (a `javascript:` or `data:`
+URL, a relative URL) throws `UnsafeAuthorizationUrlError` without navigating,
+and `startOAuthSignIn` reports it as a provider that would not start. A custom
+`OAuthRedirectPort` can apply the same check with
+`assertNavigableAuthorizationUrl(url)`.
+
 ## Transport
 
 `createSeamlessAuthClient` takes a `transport` option:
