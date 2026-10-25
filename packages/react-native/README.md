@@ -100,7 +100,10 @@ under the adapter's mount (`/auth/sessions`) is sent as an adapter call. The
 token goes only to `apiHost` and the origins in the provider's `trustedOrigins`
 prop; any other origin rejects with `UntrustedOriginError` before anything is
 sent. A response that a redirect took to any other origin rejects with
-`UntrustedRedirectError`, and the client never follows such a redirect itself:
+`UntrustedRedirectError`, and the client never follows such a redirect itself.
+React Native's `fetch` follows redirects before the client sees the response,
+though, so this detects a redirect to another origin after it happened rather
+than preventing it, and the token may already have been sent on that hop:
 
 ```ts
 const authorizedFetch = useAuthorizedFetch();
@@ -152,6 +155,9 @@ poll, and this one is not.
 it with `ports.oauthRedirect.open(url, redirectUri)`, which resolves with the
 callback's `code` and `state`, and finish with `finishOAuthLogin`.
 `redirectUri` must be registered with the provider and allowed by the auth API.
+The port opens only an `https` authorization URL (`http` only on a loopback
+host) and otherwise throws `UnsafeAuthorizationUrlError` without opening a
+browser.
 
 Newer auth servers also return a `binding` from `startOAuthLogin` and refuse a
 callback without it. The session actions keep it in memory with its `state` and

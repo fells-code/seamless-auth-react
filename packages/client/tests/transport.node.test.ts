@@ -829,6 +829,38 @@ describe('bearer transport redirects', () => {
     );
   });
 
+  // whatwg-fetch, React Native's fetch, sets `url` from the XHR but never
+  // `redirected`.
+  it('refuses a followed response on another origin when redirected is not set', async () => {
+    const { fetchImpl } = scriptedFetch(() =>
+      with_(jsonResponse(200, { secret: true }), {
+        redirected: undefined,
+        url: 'https://elsewhere.example.com/landing',
+      })
+    );
+    const transport = await signedIn(fetchImpl);
+
+    await expect(transport.authorizedFetch(`${API}/api/plan`)).rejects.toBeInstanceOf(
+      UntrustedRedirectError
+    );
+    await expect(transport.fetch('/users/me')).rejects.toBeInstanceOf(
+      UntrustedRedirectError
+    );
+  });
+
+  it('accepts a followed response that stayed on a trusted origin', async () => {
+    const { fetchImpl } = scriptedFetch(() =>
+      with_(jsonResponse(200, { ok: true }), {
+        redirected: undefined,
+        url: `${API}/api/plan/`,
+      })
+    );
+    const transport = await signedIn(fetchImpl);
+
+    const response = await transport.authorizedFetch(`${API}/api/plan`);
+    expect(response.status).toBe(200);
+  });
+
   it('does not follow a redirect a browser hides', async () => {
     const { fetchImpl } = scriptedFetch(() =>
       with_(new Response(null, { status: 200 }), { type: 'opaqueredirect' })
@@ -852,6 +884,79 @@ describe('bearer transport redirects', () => {
 
     expect(response.status).toBe(200);
     expect(calls[0].init.redirect).toBe('follow');
+  });
+
+  const expiredThen = (refresh: (call: Call) => Response) =>
+    scriptedFetch(call =>
+      call.url.endsWith('/auth/refresh')
+        ? refresh(call)
+        : jsonResponse(401, { error: 'expired' })
+    );
+
+  it('sends the refresh with redirect manual and refuses a 3xx', async () => {
+    const { calls, fetchImpl } = expiredThen(() =>
+      redirect(307, 'https://elsewhere.example.com/refresh')
+    );
+    const tokenStorage = createMemoryTokenStorage();
+    await tokenStorage.set({ accessToken: 'access-1', refreshToken: 'refresh-1' });
+    const transport = createTransport({
+      apiHost: API,
+      mode: 'bearer',
+      fetch: fetchImpl,
+      tokenStorage,
+    });
+
+    await expect(transport.fetch('/users/me')).rejects.toEqual(
+      new UntrustedRedirectError('https://elsewhere.example.com/refresh')
+    );
+
+    const refreshes = calls.filter(call => call.url.endsWith('/refresh'));
+    expect(refreshes).toHaveLength(1);
+    expect(refreshes[0].init.redirect).toBe('manual');
+    expect(calls.some(call => call.url.startsWith('https://elsewhere'))).toBe(false);
+    await expect(tokenStorage.get()).resolves.toBeNull();
+  });
+
+  it('refuses a refresh redirect even to a trusted origin', async () => {
+    const { calls, fetchImpl } = expiredThen(() => redirect(302, `${API}/auth/refresh2`));
+    const transport = await signedIn(fetchImpl);
+
+    await expect(transport.fetch('/users/me')).rejects.toBeInstanceOf(
+      UntrustedRedirectError
+    );
+    expect(calls.filter(call => call.url.endsWith('/refresh2'))).toHaveLength(0);
+  });
+
+  it('refuses a refresh redirect a browser hides', async () => {
+    const { fetchImpl } = expiredThen(() =>
+      with_(new Response(null, { status: 200 }), { type: 'opaqueredirect' })
+    );
+    const transport = await signedIn(fetchImpl);
+
+    await expect(transport.fetch('/users/me')).rejects.toEqual(
+      new UntrustedRedirectError(`${API}/auth/refresh`)
+    );
+  });
+
+  it('refuses a refresh that a platform followed to another origin', async () => {
+    const { fetchImpl } = expiredThen(() =>
+      with_(jsonResponse(200, { token: 'stolen', refreshToken: 'stolen' }), {
+        url: 'https://elsewhere.example.com/refresh',
+      })
+    );
+    const tokenStorage = createMemoryTokenStorage();
+    await tokenStorage.set({ accessToken: 'access-1', refreshToken: 'refresh-1' });
+    const transport = createTransport({
+      apiHost: API,
+      mode: 'bearer',
+      fetch: fetchImpl,
+      tokenStorage,
+    });
+
+    await expect(transport.fetch('/users/me')).rejects.toBeInstanceOf(
+      UntrustedRedirectError
+    );
+    await expect(tokenStorage.get()).resolves.toBeNull();
   });
 
   it('does not change a request that carries no token', async () => {

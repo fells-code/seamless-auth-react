@@ -15,7 +15,7 @@ import styles from '@/styles/verifyMagiclink.module.css';
 const OAuthCallback: React.FC = () => {
   const { finishOAuthLogin } = useAuth();
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [error, setError] = useState('');
   const startedRef = useRef(false);
 
@@ -23,26 +23,31 @@ const OAuthCallback: React.FC = () => {
     if (startedRef.current) return;
     startedRef.current = true;
 
-    void completeOAuthCallback(
-      { finishOAuthLogin },
-      searchParams,
-      window.location.origin
-    ).then(outcome => {
-      if (outcome.kind === 'error') {
-        setError(outcome.message);
-        return;
-      }
+    const params = new URLSearchParams(searchParams);
 
-      if (outcome.kind === 'enroll_passkey') {
-        navigate(authRoutePaths.registerPasskey, {
-          state: { returnTo: outcome.returnTo },
-        });
-        return;
-      }
+    // The code and state are read; keep them out of history and Referers.
+    if (params.toString() !== '') {
+      setSearchParams(new URLSearchParams(), { replace: true });
+    }
 
-      navigate(outcome.destination);
-    });
-  }, [finishOAuthLogin, navigate, searchParams]);
+    void completeOAuthCallback({ finishOAuthLogin }, params, window.location.origin).then(
+      outcome => {
+        if (outcome.kind === 'error') {
+          setError(outcome.message);
+          return;
+        }
+
+        if (outcome.kind === 'enroll_passkey') {
+          navigate(authRoutePaths.registerPasskey, {
+            state: { returnTo: outcome.returnTo },
+          });
+          return;
+        }
+
+        navigate(outcome.destination);
+      }
+    );
+  }, [finishOAuthLogin, navigate, searchParams, setSearchParams]);
 
   return (
     <div className={styles.container}>

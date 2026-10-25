@@ -4,13 +4,37 @@
  * See LICENSE file in the project root for full license information
  */
 
+import { createSeamlessAuthClient } from '@/client/createSeamlessAuthClient';
 import { SeamlessAuthError } from '@/client/errors';
 import { requestResult, resultOf, resultError } from '@/client/result';
+import { UntrustedRedirectError } from '@/transport';
 
 const res = (init: Partial<Response> & { json?: () => Promise<unknown> }) =>
   init as unknown as Response;
 
 describe('requestResult', () => {
+  it('keeps the thrown error as the cause of a transport failure', async () => {
+    const thrown = new TypeError('Network request failed');
+    const r = await requestResult(Promise.reject(thrown), 'fallback');
+
+    expect(r.error?.status).toBe(0);
+    expect(r.error?.message).toBe('fallback');
+    expect(r.error?.cause).toBe(thrown);
+  });
+
+  it('hands a client method the UntrustedRedirectError behind its failure', async () => {
+    const thrown = new UntrustedRedirectError('https://elsewhere.example.com/');
+    const client = createSeamlessAuthClient({
+      apiHost: 'https://api.example.com',
+      transport: { fetch: jest.fn().mockRejectedValue(thrown) },
+    });
+
+    const { error } = await client.getCurrentUser();
+
+    expect(error?.status).toBe(0);
+    expect(error?.cause).toBe(thrown);
+  });
+
   it('returns parsed data on success', async () => {
     const r = await requestResult<{ a: number }>(
       Promise.resolve(res({ ok: true, status: 200, json: async () => ({ a: 1 }) })),
