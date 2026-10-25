@@ -177,6 +177,92 @@ export function isUnauthenticated(error: unknown): boolean {
   return error instanceof SeamlessAuthError && error.status === 401;
 }
 
+function topLevelError(body: unknown): string | undefined {
+  if (typeof body !== 'object' || body === null) {
+    return undefined;
+  }
+
+  const code = (body as { error?: unknown }).error;
+  return typeof code === 'string' ? code : undefined;
+}
+
+/**
+ * The machine codes on an error body: the API's own `error`, then the one a proxy
+ * that rewrites `error` into a sentence keeps under `details`.
+ */
+function errorCodesOf(body: unknown): string[] {
+  const nested =
+    typeof body === 'object' && body !== null
+      ? topLevelError((body as { details?: unknown }).details)
+      : undefined;
+
+  return [topLevelError(body), nested].filter(
+    (code): code is string => code !== undefined
+  );
+}
+
+function hasErrorCode(error: unknown, status: number, code: string): boolean {
+  return (
+    error instanceof SeamlessAuthError &&
+    error.status === status &&
+    errorCodesOf(error.body).includes(code)
+  );
+}
+
+/**
+ * Whether a request was refused for want of a fresh step-up, for example replacing
+ * an existing set of recovery codes. Verify with `verifyStepUpWithPasskey()` (or
+ * TOTP) and send the request again.
+ */
+export function isStepUpRequired(error: unknown): boolean {
+  return hasErrorCode(error, 403, 'step_up_required');
+}
+
+/**
+ * Whether a request was refused because the session is a recovery session that
+ * has not enrolled a new passkey or authenticator app yet.
+ */
+export function isEnrollmentRequired(error: unknown): boolean {
+  return hasErrorCode(error, 403, 'enrollment_required');
+}
+
+/**
+ * Machine codes the recovery code and account recovery routes answer with. Local
+ * until `@seamless-auth/types` publishes them.
+ */
+export type RecoveryErrorCode =
+  | 'invalid_recovery_code'
+  | 'recovery_codes_disabled'
+  | 'account_recovery_disabled'
+  | 'recovery_notice_failed'
+  | 'recovery_not_found'
+  | 'recovery_not_ready'
+  | 'cancel_token_required';
+
+const RECOVERY_ERROR_CODES: Record<RecoveryErrorCode, true> = {
+  invalid_recovery_code: true,
+  recovery_codes_disabled: true,
+  account_recovery_disabled: true,
+  recovery_notice_failed: true,
+  recovery_not_found: true,
+  recovery_not_ready: true,
+  cancel_token_required: true,
+};
+
+/**
+ * Read the recovery failure code off a result error. Returns `undefined` for
+ * anything unrecognized, so callers keep their generic messaging.
+ */
+export function getRecoveryErrorCode(error: unknown): RecoveryErrorCode | undefined {
+  if (!(error instanceof SeamlessAuthError)) {
+    return undefined;
+  }
+
+  return errorCodesOf(error.body).find(code =>
+    Object.prototype.hasOwnProperty.call(RECOVERY_ERROR_CODES, code)
+  ) as RecoveryErrorCode | undefined;
+}
+
 /**
  * Detail recovered from a failed WebAuthn ceremony.
  *

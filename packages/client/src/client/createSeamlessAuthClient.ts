@@ -12,6 +12,10 @@ import type {
 } from '@simplewebauthn/browser';
 
 import type {
+  AccountRecoveryChannel as AccountRecoveryChannelShape,
+  AccountRecoveryStartResponse,
+  AccountRecoveryState as AccountRecoveryStateShape,
+  AccountRecoveryStatus,
   AddOrganizationMemberRequest,
   AuthenticatorAttachmentPolicy,
   CreateOrganizationRequest,
@@ -30,6 +34,9 @@ import type {
   OrganizationSwitchResponse,
   PublicOAuthProvider,
   PublicSystemConfigResponse,
+  RecoveryCodesGenerated,
+  RecoveryCodesStatus,
+  RecoverySessionResponse,
   RegistrationRequest,
   StartOAuthLoginResponse,
   StepUpMethod as StepUpMethodShape,
@@ -237,6 +244,46 @@ export interface StepUpPrfData extends StepUpStatus {
   prf: PasskeyPrfResult;
 }
 
+/** `GET /recovery-codes`: how many of the current set are unused. */
+export type RecoveryCodeStatus = RecoveryCodesStatus;
+
+/** A new set of recovery codes. The only time they are ever returned. */
+export type RecoveryCodesResult = RecoveryCodesGenerated;
+
+/**
+ * The session a recovery code or a completed account recovery issues, minus its
+ * session material. `recovery` is always true and `nextStep` says what lifts the
+ * restriction: until a passkey or authenticator app is enrolled, the session can
+ * only enroll one, manage recovery codes, read the user and sign out.
+ */
+export type RecoverySessionResult = Omit<
+  RecoverySessionResponse,
+  'token' | 'refreshToken' | 'sub'
+>;
+
+export type AccountRecoveryChannel = AccountRecoveryChannelShape;
+
+export type AccountRecoveryState = AccountRecoveryStateShape;
+
+export type AccountRecoveryStartResult = AccountRecoveryStartResponse;
+
+/** Where a recovery request stands: `pending` until `completesAt`, then `ready`. */
+export type AccountRecoveryStatusResult = AccountRecoveryStatus;
+
+/**
+ * An open recovery request on the signed-in account. Composed from the upstream
+ * status and channel shapes because `@seamless-auth/types` 0.31.0 does not publish
+ * the list response of `GET /recovery/requests`.
+ */
+export type AccountRecoveryRequest = AccountRecoveryStatus & {
+  id: string;
+  channel: AccountRecoveryChannel;
+};
+
+export interface AccountRecoveryRequestsResult {
+  requests: AccountRecoveryRequest[];
+}
+
 export type LogoutScope = LogoutScopeShape;
 
 export interface LogoutOptions {
@@ -326,6 +373,57 @@ export interface SeamlessAuthClient {
   verifyTotpEnrollment: (code: string) => Promise<SeamlessAuthResult<MessageResult>>;
   disableTotp: (code: string) => Promise<SeamlessAuthResult<MessageResult>>;
   verifyStepUpWithTotp: (code: string) => Promise<SeamlessAuthResult<StepUpStatus>>;
+  /**
+   * Whether this client holds a recovery session: one a recovery code or a
+   * completed account recovery issued, which has not enrolled a factor since.
+   * Kept in memory, so it does not survive a reload.
+   */
+  isRecoverySession: () => boolean;
+  getRecoveryCodeStatus: () => Promise<SeamlessAuthResult<RecoveryCodeStatus>>;
+  /**
+   * Creates a new set and invalidates the old one. Replacing an existing set
+   * needs a fresh step-up: without one this fails with a `403` that
+   * `isStepUpRequired()` recognizes.
+   */
+  generateRecoveryCodes: () => Promise<SeamlessAuthResult<RecoveryCodesResult>>;
+  /**
+   * Signs in with a recovery code, on the sign-in `login()` started. Issues a
+   * recovery session, so the next step is enrolling a passkey.
+   */
+  redeemRecoveryCode: (
+    code: string
+  ) => Promise<SeamlessAuthResult<RecoverySessionResult>>;
+  /** Sends a recovery code to the verified address on file for the channel. */
+  startAccountRecovery: (
+    channel: AccountRecoveryChannel
+  ) => Promise<SeamlessAuthResult<AccountRecoveryStartResult>>;
+  /** Opens (or resumes) the recovery request with the code `startAccountRecovery()` sent. */
+  verifyAccountRecovery: (
+    code: string
+  ) => Promise<SeamlessAuthResult<AccountRecoveryStatusResult>>;
+  getAccountRecoveryStatus: () => Promise<
+    SeamlessAuthResult<AccountRecoveryStatusResult>
+  >;
+  /**
+   * Completes a `ready` request: signs out every session on the account and
+   * issues a recovery session.
+   */
+  completeAccountRecovery: () => Promise<SeamlessAuthResult<RecoverySessionResult>>;
+  /**
+   * Cancels a recovery request with the token from the notice's link. Needs no
+   * session, and answers the same whether or not the token matched.
+   */
+  cancelAccountRecovery: (
+    cancelToken: string
+  ) => Promise<SeamlessAuthResult<MessageResult>>;
+  /** The signed-in account's open recovery requests. */
+  listAccountRecoveryRequests: () => Promise<
+    SeamlessAuthResult<AccountRecoveryRequestsResult>
+  >;
+  /** Cancels one of the signed-in account's open recovery requests. */
+  cancelAccountRecoveryRequest: (
+    id: string
+  ) => Promise<SeamlessAuthResult<MessageResult>>;
   updateCredential: (input: {
     id: string;
     friendlyName: string | null;
@@ -459,6 +557,44 @@ export const createSeamlessAuthClient = (
   const fetchWithAuth = transport.fetch;
   const passkeys = opts.passkeys ?? createBrowserPasskeyPort();
 
+  let recoverySession = false;
+
+  // The API lifts a recovery session's restriction as soon as a factor is enrolled,
+  // but the access token keeps its recovery claim until it is rotated, and the
+  // adapters' guards refuse that claim. A failed refresh leaves the enrollment
+  // standing, so it is not reported as the enrollment failing.
+  async function afterEnrollment() {
+    if (!recoverySession) return;
+
+    try {
+      if (await transport.refresh()) {
+        recoverySession = false;
+      }
+    } catch {
+      // The next refresh, silent or explicit, rotates the token instead.
+    }
+  }
+
+  async function issuedRecoverySession(
+    request: Promise<Response>,
+    fallbackMessage: string
+  ): Promise<SeamlessAuthResult<RecoverySessionResult>> {
+    const result = await requestResult<RecoverySessionResponse>(request, fallbackMessage);
+
+    if (result.error) {
+      return result as SeamlessAuthResult<RecoverySessionResult>;
+    }
+
+    // Bearer transport has already stored the pair; nothing else needs it.
+    const session: Partial<RecoverySessionResponse> = { ...result.data };
+    delete session.token;
+    delete session.refreshToken;
+    delete session.sub;
+    recoverySession = result.data.recovery === true;
+
+    return resultOf(session as RecoverySessionResult);
+  }
+
   // An empty apiHost is the same-origin setup, so a path goes to this page's
   // origin. Without a page (server rendering, React Native) it stays relative,
   // and authorizedFetch refuses it rather than guess.
@@ -529,19 +665,25 @@ export const createSeamlessAuthClient = (
       return resultOf(prf ? { prf } : {});
     },
 
-    logout: (options = {}) =>
-      requestResult<MessageResult>(
+    logout: (options = {}) => {
+      recoverySession = false;
+
+      return requestResult<MessageResult>(
         fetchWithAuth(options.scope === 'all_sessions' ? `/logout/all` : `/logout`, {
           method: 'DELETE',
         }),
         'Failed to sign out.'
-      ),
+      );
+    },
 
-    logoutAllSessions: () =>
-      requestResult<MessageResult>(
+    logoutAllSessions: () => {
+      recoverySession = false;
+
+      return requestResult<MessageResult>(
         fetchWithAuth(`/logout/all`, { method: 'DELETE' }),
         'Failed to sign out of all sessions.'
-      ),
+      );
+    },
 
     deleteUser: () =>
       requestResult<MessageResult>(
@@ -769,6 +911,8 @@ export const createSeamlessAuthClient = (
         return verified as SeamlessAuthResult<PasskeyRegistrationData>;
       }
 
+      await afterEnrollment();
+
       return resultOf({ credentialId: attestationResponse.id, prfCapable });
     },
 
@@ -882,14 +1026,21 @@ export const createSeamlessAuthClient = (
         'Failed to start authenticator enrollment.'
       ),
 
-    verifyTotpEnrollment: code =>
-      requestResult<MessageResult>(
+    verifyTotpEnrollment: async code => {
+      const result = await requestResult<MessageResult>(
         fetchWithAuth(`/totp/enroll/verify`, {
           method: 'POST',
           body: JSON.stringify({ code }),
         }),
         'Failed to verify the authenticator code.'
-      ),
+      );
+
+      if (!result.error) {
+        await afterEnrollment();
+      }
+
+      return result;
+    },
 
     disableTotp: code =>
       requestResult<MessageResult>(
@@ -915,6 +1066,88 @@ export const createSeamlessAuthClient = (
 
       return toStepUpStatus(verified.data ?? {}, 'totp');
     },
+
+    isRecoverySession: () => recoverySession,
+
+    getRecoveryCodeStatus: () =>
+      requestResult<RecoveryCodeStatus>(
+        fetchWithAuth(`/recovery-codes`, { method: 'GET' }),
+        'Failed to load recovery code status.'
+      ),
+
+    generateRecoveryCodes: () =>
+      requestResult<RecoveryCodesResult>(
+        fetchWithAuth(`/recovery-codes`, {
+          method: 'POST',
+          body: JSON.stringify({}),
+        }),
+        'Failed to generate recovery codes.'
+      ),
+
+    redeemRecoveryCode: code =>
+      issuedRecoverySession(
+        fetchWithAuth(`/recovery-codes/redeem`, {
+          method: 'POST',
+          body: JSON.stringify({ code }),
+        }),
+        'Failed to sign in with the recovery code.'
+      ),
+
+    startAccountRecovery: channel =>
+      requestResult<AccountRecoveryStartResult>(
+        fetchWithAuth(`/recovery/start`, {
+          method: 'POST',
+          body: JSON.stringify({ channel }),
+        }),
+        'Failed to start account recovery.'
+      ),
+
+    verifyAccountRecovery: code =>
+      requestResult<AccountRecoveryStatusResult>(
+        fetchWithAuth(`/recovery/verify`, {
+          method: 'POST',
+          body: JSON.stringify({ code }),
+        }),
+        'Failed to verify the recovery code.'
+      ),
+
+    getAccountRecoveryStatus: () =>
+      requestResult<AccountRecoveryStatusResult>(
+        fetchWithAuth(`/recovery/status`, { method: 'GET' }),
+        'Failed to load the account recovery status.'
+      ),
+
+    completeAccountRecovery: () =>
+      issuedRecoverySession(
+        fetchWithAuth(`/recovery/complete`, {
+          method: 'POST',
+          body: JSON.stringify({}),
+        }),
+        'Failed to complete account recovery.'
+      ),
+
+    cancelAccountRecovery: cancelToken =>
+      requestResult<MessageResult>(
+        fetchWithAuth(`/recovery/cancel`, {
+          method: 'POST',
+          body: JSON.stringify({ cancelToken }),
+        }),
+        'Failed to cancel account recovery.'
+      ),
+
+    listAccountRecoveryRequests: () =>
+      requestResult<AccountRecoveryRequestsResult>(
+        fetchWithAuth(`/recovery/requests`, { method: 'GET' }),
+        'Failed to load account recovery requests.'
+      ),
+
+    cancelAccountRecoveryRequest: id =>
+      requestResult<MessageResult>(
+        fetchWithAuth(`/recovery/requests/${encodeURIComponent(id)}`, {
+          method: 'DELETE',
+        }),
+        'Failed to cancel the account recovery request.'
+      ),
 
     updateCredential: input =>
       requestResult<CredentialUpdateResult>(

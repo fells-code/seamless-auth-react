@@ -16,6 +16,7 @@ import {
   PasskeyLoginData,
   PasskeyMetadata,
   PasskeyRegistrationData,
+  RecoverySessionResult,
   RegisterPasskeyOptions,
   SeamlessAuthClient,
   SeamlessAuthClientOptions,
@@ -57,6 +58,12 @@ export interface AuthSessionState {
   activeOrganization: Organization | null;
   stepUpStatus: StepUpStatus | null;
   isAuthenticated: boolean;
+  /**
+   * The session is a recovery session: it can only enroll a passkey or
+   * authenticator app until one is enrolled, so a UI sends the user there next.
+   * Known only to the client that redeemed the code or completed the recovery.
+   */
+  recoverySession: boolean;
   loading: boolean;
   hasSignedInBefore: boolean;
 }
@@ -67,6 +74,12 @@ export interface AuthSessionActions {
     passkeyAvailable: boolean
   ) => Promise<SeamlessAuthResult<LoginStartResult>>;
   handlePasskeyLogin: () => Promise<SeamlessAuthResult<PasskeyLoginData>>;
+  /** Signs in with a recovery code, on the sign-in `login` started. */
+  redeemRecoveryCode: (
+    code: string
+  ) => Promise<SeamlessAuthResult<RecoverySessionResult>>;
+  /** Completes an account recovery whose delay has passed. */
+  completeAccountRecovery: () => Promise<SeamlessAuthResult<RecoverySessionResult>>;
   registerPasskey: (
     input: PasskeyMetadata | RegisterPasskeyOptions
   ) => Promise<SeamlessAuthResult<PasskeyRegistrationData>>;
@@ -152,6 +165,7 @@ const SIGNED_OUT = {
   activeOrganization: null,
   stepUpStatus: null,
   isAuthenticated: false,
+  recoverySession: false,
 } satisfies Partial<AuthSessionState>;
 
 function signedIn(session: InitialSession) {
@@ -271,7 +285,11 @@ export function createAuthSession(options: AuthSessionOptions): AuthSession {
       return result;
     }
 
-    setState({ ...signedIn(result.data), loading: false });
+    setState({
+      ...signedIn(result.data),
+      recoverySession: client.isRecoverySession(),
+      loading: false,
+    });
 
     if (!state.hasSignedInBefore) {
       markSignedIn();
@@ -297,6 +315,10 @@ export function createAuthSession(options: AuthSessionOptions): AuthSession {
       client.login({ identifier, passkeyAvailable }),
 
     handlePasskeyLogin: () => refreshAfter(() => client.loginWithPasskey()),
+
+    redeemRecoveryCode: code => refreshAfter(() => client.redeemRecoveryCode(code)),
+
+    completeAccountRecovery: () => refreshAfter(() => client.completeAccountRecovery()),
 
     // Enrollment takes the signed-in session, so this belongs beside the other
     // credential actions rather than only on the client. Refreshing afterwards is what
