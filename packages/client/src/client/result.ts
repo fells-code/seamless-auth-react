@@ -51,10 +51,15 @@ export async function requestResult<T>(
 
   try {
     response = await request;
-  } catch {
+  } catch (cause) {
     return {
       data: null,
-      error: new SeamlessAuthError(fallbackMessage, NETWORK_ERROR_STATUS),
+      error: new SeamlessAuthError(
+        fallbackMessage,
+        NETWORK_ERROR_STATUS,
+        undefined,
+        cause
+      ),
     };
   }
 

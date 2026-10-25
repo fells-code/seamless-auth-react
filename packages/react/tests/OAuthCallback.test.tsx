@@ -21,6 +21,7 @@ jest.mock('react-router-dom', () => ({
 describe('OAuthCallback', () => {
   const navigate = jest.fn();
   const finishOAuthLogin = jest.fn();
+  const setSearchParams = jest.fn();
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -34,6 +35,7 @@ describe('OAuthCallback', () => {
     window.sessionStorage.setItem('seamless:oauth:provider', 'mock');
     (useSearchParams as jest.Mock).mockReturnValue([
       new URLSearchParams('code=abc&state=xyz'),
+      setSearchParams,
     ]);
 
     render(<OAuthCallback />);
@@ -49,6 +51,29 @@ describe('OAuthCallback', () => {
     expect(window.sessionStorage.getItem('seamless:oauth:provider')).toBeNull();
   });
 
+  test('drops the code and state from the URL once read', async () => {
+    finishOAuthLogin.mockResolvedValue({ data: { message: 'Success' }, error: null });
+    window.sessionStorage.setItem('seamless:oauth:provider', 'mock');
+    (useSearchParams as jest.Mock).mockReturnValue([
+      new URLSearchParams('code=abc&state=xyz'),
+      setSearchParams,
+    ]);
+
+    render(<OAuthCallback />);
+
+    expect(setSearchParams).toHaveBeenCalledTimes(1);
+    const [next, options] = setSearchParams.mock.calls[0];
+    expect(String(next)).toBe('');
+    expect(options).toEqual({ replace: true });
+    await waitFor(() =>
+      expect(finishOAuthLogin).toHaveBeenCalledWith({
+        providerId: 'mock',
+        code: 'abc',
+        state: 'xyz',
+      })
+    );
+  });
+
   // The destination was validated against the configured origins and signed into the
   // state by the auth server, so it comes back as a URL rather than a path.
   test('lands on the returnTo the flow asked for', async () => {
@@ -62,6 +87,7 @@ describe('OAuthCallback', () => {
     window.sessionStorage.setItem('seamless:oauth:provider', 'mock');
     (useSearchParams as jest.Mock).mockReturnValue([
       new URLSearchParams('code=abc&state=xyz'),
+      setSearchParams,
     ]);
 
     render(<OAuthCallback />);
@@ -83,6 +109,7 @@ describe('OAuthCallback', () => {
     window.sessionStorage.setItem('seamless:oauth:provider', 'mock');
     (useSearchParams as jest.Mock).mockReturnValue([
       new URLSearchParams('code=abc&state=xyz'),
+      setSearchParams,
     ]);
 
     render(<OAuthCallback />);
@@ -105,6 +132,7 @@ describe('OAuthCallback', () => {
     window.sessionStorage.setItem('seamless:oauth:provider', 'mock');
     (useSearchParams as jest.Mock).mockReturnValue([
       new URLSearchParams('code=abc&state=xyz'),
+      setSearchParams,
     ]);
 
     render(<OAuthCallback />);
@@ -125,6 +153,7 @@ describe('OAuthCallback', () => {
       window.sessionStorage.setItem('seamless:oauth:provider', 'mock');
       (useSearchParams as jest.Mock).mockReturnValue([
         new URLSearchParams('code=abc&state=xyz'),
+        setSearchParams,
       ]);
 
       render(<OAuthCallback />);
@@ -134,7 +163,10 @@ describe('OAuthCallback', () => {
   );
 
   test('shows an error when the callback params are missing', async () => {
-    (useSearchParams as jest.Mock).mockReturnValue([new URLSearchParams('')]);
+    (useSearchParams as jest.Mock).mockReturnValue([
+      new URLSearchParams(''),
+      setSearchParams,
+    ]);
 
     render(<OAuthCallback />);
 
@@ -148,6 +180,7 @@ describe('OAuthCallback', () => {
       window.sessionStorage.setItem('seamless:oauth:provider', 'mock');
       (useSearchParams as jest.Mock).mockReturnValue([
         new URLSearchParams('code=abc&state=xyz'),
+        setSearchParams,
       ]);
 
       render(<OAuthCallback />);

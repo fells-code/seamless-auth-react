@@ -4,7 +4,11 @@
  * See LICENSE file in the project root for full license information
  */
 
-import type { OAuthRedirectPort } from '../ports/oauthRedirect';
+import {
+  type OAuthRedirectOutcome,
+  type OAuthRedirectPort,
+  UnsafeAuthorizationUrlError,
+} from '../ports/oauthRedirect';
 import type { AuthSessionActions } from '../session/createAuthSession';
 import { oauthErrorMessage } from './messages';
 import { inAppPath } from './redirects';
@@ -70,7 +74,15 @@ export async function startOAuthSignIn(
     return { error: 'Could not start sign-in with this provider.' };
   }
 
-  const outcome = await deps.oauthRedirect.open(data.authorizationUrl, redirectUri);
+  let outcome: OAuthRedirectOutcome;
+  try {
+    outcome = await deps.oauthRedirect.open(data.authorizationUrl, redirectUri);
+  } catch (cause) {
+    if (cause instanceof UnsafeAuthorizationUrlError) {
+      return { error: 'Could not start sign-in with this provider.' };
+    }
+    throw cause;
+  }
 
   if (outcome.type === 'callback') {
     if (outcome.state !== data.state) {

@@ -12,7 +12,14 @@ import VerifyMagicLink from '@/views/VerifyMagicLink';
 import { useAuth } from '@/AuthProvider';
 import { useAuthClient } from '@/hooks/useAuthClient';
 
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import {
+  MemoryRouter,
+  Route,
+  Routes,
+  useLocation,
+  useNavigate,
+  useSearchParams,
+} from 'react-router-dom';
 
 jest.mock('@/hooks/useAuthClient');
 jest.mock('@/AuthProvider');
@@ -25,6 +32,7 @@ jest.mock('react-router-dom', () => ({
 
 describe('VerifyMagicLink', () => {
   const navigate = jest.fn();
+  const setSearchParams = jest.fn();
   const signedIn = { data: { user: { id: 'user-1' } }, error: null };
   const signedOut = { data: null, error: new Error('unauthenticated') };
   const refreshSession = jest.fn();
@@ -69,7 +77,10 @@ describe('VerifyMagicLink', () => {
   });
 
   test('shows error when token missing', async () => {
-    (useSearchParams as jest.Mock).mockReturnValue([new URLSearchParams()]);
+    (useSearchParams as jest.Mock).mockReturnValue([
+      new URLSearchParams(),
+      setSearchParams,
+    ]);
 
     render(<VerifyMagicLink />);
 
@@ -81,6 +92,7 @@ describe('VerifyMagicLink', () => {
   test('shows error when verification fails', async () => {
     (useSearchParams as jest.Mock).mockReturnValue([
       new URLSearchParams('?token=abc123'),
+      setSearchParams,
     ]);
 
     mockAuthClient.verifyMagicLink.mockResolvedValue({
@@ -96,6 +108,7 @@ describe('VerifyMagicLink', () => {
   test('successful verification shows success message', async () => {
     (useSearchParams as jest.Mock).mockReturnValue([
       new URLSearchParams('?token=abc123'),
+      setSearchParams,
     ]);
 
     mockAuthClient.verifyMagicLink.mockResolvedValue({
@@ -111,6 +124,7 @@ describe('VerifyMagicLink', () => {
   test('broadcasts login success message', async () => {
     (useSearchParams as jest.Mock).mockReturnValue([
       new URLSearchParams('?token=abc123'),
+      setSearchParams,
     ]);
 
     mockAuthClient.verifyMagicLink.mockResolvedValue({
@@ -130,6 +144,7 @@ describe('VerifyMagicLink', () => {
   test('redirects after success timeout', async () => {
     (useSearchParams as jest.Mock).mockReturnValue([
       new URLSearchParams('?token=abc123'),
+      setSearchParams,
     ]);
 
     mockAuthClient.verifyMagicLink.mockResolvedValue({
@@ -151,6 +166,7 @@ describe('VerifyMagicLink', () => {
   test('refreshes provider session on successful verification', async () => {
     (useSearchParams as jest.Mock).mockReturnValue([
       new URLSearchParams('?token=abc123'),
+      setSearchParams,
     ]);
 
     mockAuthClient.verifyMagicLink.mockResolvedValue({
@@ -168,6 +184,7 @@ describe('VerifyMagicLink', () => {
   test('does not refresh session when verification fails', async () => {
     (useSearchParams as jest.Mock).mockReturnValue([
       new URLSearchParams('?token=abc123'),
+      setSearchParams,
     ]);
 
     mockAuthClient.verifyMagicLink.mockResolvedValue({
@@ -185,6 +202,7 @@ describe('VerifyMagicLink', () => {
   test('cleans up broadcast channel and redirect timeout on unmount', async () => {
     (useSearchParams as jest.Mock).mockReturnValue([
       new URLSearchParams('?token=abc123'),
+      setSearchParams,
     ]);
 
     mockAuthClient.verifyMagicLink.mockResolvedValue({
@@ -214,6 +232,7 @@ describe('VerifyMagicLink', () => {
   test('spends the link once under Strict Mode and signs in', async () => {
     (useSearchParams as jest.Mock).mockReturnValue([
       new URLSearchParams('?token=abc123'),
+      setSearchParams,
     ]);
 
     let used = false;
@@ -237,6 +256,7 @@ describe('VerifyMagicLink', () => {
   test('does not ask for another session when this browser already has one', async () => {
     (useSearchParams as jest.Mock).mockReturnValue([
       new URLSearchParams('?token=abc123'),
+      setSearchParams,
     ]);
     mockAuthClient.verifyMagicLink.mockResolvedValue({
       data: { message: 'Success' },
@@ -254,6 +274,7 @@ describe('VerifyMagicLink', () => {
   test('collects the session when the link was opened in the requesting browser', async () => {
     (useSearchParams as jest.Mock).mockReturnValue([
       new URLSearchParams('?token=abc123'),
+      setSearchParams,
     ]);
     mockAuthClient.verifyMagicLink.mockResolvedValue({
       data: { message: 'Success' },
@@ -275,6 +296,7 @@ describe('VerifyMagicLink', () => {
   test('sends the reader back when the link was opened on another device', async () => {
     (useSearchParams as jest.Mock).mockReturnValue([
       new URLSearchParams('?token=abc123'),
+      setSearchParams,
     ]);
     mockAuthClient.verifyMagicLink.mockResolvedValue({
       data: { message: 'Success' },
@@ -302,6 +324,7 @@ describe('VerifyMagicLink', () => {
   test('reads the session in the background so the application keeps this screen mounted', async () => {
     (useSearchParams as jest.Mock).mockReturnValue([
       new URLSearchParams('?token=abc123'),
+      setSearchParams,
     ]);
     mockAuthClient.verifyMagicLink.mockResolvedValue({
       data: { message: 'Success' },
@@ -318,6 +341,7 @@ describe('VerifyMagicLink', () => {
     beforeEach(() => {
       (useSearchParams as jest.Mock).mockReturnValue([
         new URLSearchParams('?token=abc123'),
+        setSearchParams,
       ]);
       mockAuthClient.verifyMagicLink.mockResolvedValue(heldElsewhere);
     });
@@ -390,9 +414,49 @@ describe('VerifyMagicLink', () => {
     });
   });
 
+  test('drops the token from the URL and still confirms with it', async () => {
+    const actual = jest.requireActual('react-router-dom');
+    (useSearchParams as jest.Mock).mockImplementation(actual.useSearchParams);
+    mockAuthClient.verifyMagicLink.mockResolvedValue(heldElsewhere);
+    mockAuthClient.confirmMagicLink.mockResolvedValue({
+      data: { message: 'Success' },
+      error: null,
+    });
+
+    const Where = () => <div data-testid="where">{useLocation().search}</div>;
+
+    render(
+      <MemoryRouter initialEntries={['/verify-magiclink?token=abc123']}>
+        <Routes>
+          <Route
+            path="/verify-magiclink"
+            element={
+              <>
+                <VerifyMagicLink />
+                <Where />
+              </>
+            }
+          />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    fireEvent.click(
+      await screen.findByRole('button', { name: /yes, sign in that device/i })
+    );
+
+    expect(screen.getByTestId('where')).toHaveTextContent(/^$/);
+    expect(mockAuthClient.verifyMagicLink).toHaveBeenCalledTimes(1);
+    expect(await screen.findByRole('status')).toHaveTextContent(
+      /return to your other device/i
+    );
+    expect(mockAuthClient.confirmMagicLink).toHaveBeenCalledWith('abc123');
+  });
+
   test('shows spinner during verification', () => {
     (useSearchParams as jest.Mock).mockReturnValue([
       new URLSearchParams('?token=abc123'),
+      setSearchParams,
     ]);
 
     mockAuthClient.verifyMagicLink.mockResolvedValue({
