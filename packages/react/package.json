@@ -57,7 +57,7 @@
   },
   "dependencies": {
     "@seamless-auth/client": "^0.7.1",
-    "@seamless-auth/types": "^0.29.0",
+    "@seamless-auth/types": "^0.31.0",
     "@simplewebauthn/browser": "^13.1.0",
     "libphonenumber-js": "^1.12.7"
   },
