@@ -120,6 +120,12 @@ passkey step.
 Every method returns a `SeamlessAuthResult`: `{ data, error: null }` or
 `{ data: null, error }`. Nothing throws for a failed request.
 
+Account recovery comes from `@seamless-auth/client` as well: `useAuth()` carries
+`recoverySession`, `redeemRecoveryCode(code)` and `completeAccountRecovery()`, and the
+client has the recovery code and account recovery methods. After a passkey is enrolled
+from a recovery session the client refreshes the stored tokens, so the new access token
+no longer carries the recovery claim. See the client README for the full list.
+
 ### Passkeys
 
 Native passkeys need the relying party to be an associated domain of the app:

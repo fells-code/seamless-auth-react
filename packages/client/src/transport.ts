@@ -177,6 +177,11 @@ export interface Transport {
    */
   authorizedFetch: (input: string | URL, init?: RequestInit) => Promise<Response>;
   mode: AuthTransportMode;
+  /**
+   * Rotates the session through `POST /refresh`, so the next access token
+   * carries the session's current claims. Resolves to whether it succeeded.
+   */
+  refresh(): Promise<boolean>;
   /** Forgets the held session without calling the server. Bearer transport only; a no-op otherwise. */
   clearTokens(): Promise<void>;
 }
@@ -227,6 +232,13 @@ const ROUTE_RULES: readonly RouteRule[] = [
   { match: /^\/logout(\/all)?$/, identity: 'access', effect: 'end' },
   { match: /^\/users\/delete$/, identity: 'access', effect: 'end' },
   { match: /^\/organizations\/[^/]+\/switch$/, identity: 'access', effect: 'issue' },
+  { match: /^\/recovery-codes$/, identity: 'access' },
+  { match: /^\/recovery-codes\/redeem$/, identity: 'preAuth', effect: 'issue' },
+  { match: /^\/recovery\/(start|verify|status)$/, identity: 'preAuth' },
+  { match: /^\/recovery\/complete$/, identity: 'preAuth', effect: 'issue' },
+  // The owner may be signed out everywhere when they follow the notice's link.
+  { match: /^\/recovery\/cancel$/, identity: 'none' },
+  { match: /^\/recovery\/requests(\/[^/]+)?$/, identity: 'access' },
 ];
 
 const DEFAULT_RULE: RouteRule = { match: /.*/, identity: 'access' };
@@ -360,6 +372,13 @@ export function createTransport(options: TransportOptions): Transport {
         if (typeof url !== 'string') return url;
 
         return fetchImpl(url, withHeaders({ ...init, credentials: 'include' }, {}));
+      },
+      refresh: async () => {
+        const response = await fetchImpl(
+          buildUrl(options.apiHost, basePath, '/refresh'),
+          withHeaders({ method: 'POST', credentials: 'include' }, {})
+        );
+        return response.ok;
       },
       clearTokens: async () => undefined,
     };
@@ -612,6 +631,7 @@ export function createTransport(options: TransportOptions): Transport {
   return {
     mode,
     clearTokens,
+    refresh: refreshOnce,
     fetch: fetchUnderMount,
     // The transport header is the adapter's; an application's own API only
     // needs the bearer token, which requireAuth reads. A URL under the

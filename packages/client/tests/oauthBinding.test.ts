@@ -38,6 +38,7 @@ function buildSession() {
       data: { user, credentials: [] },
       error: null,
     }),
+    isRecoverySession: () => false,
   };
   const session = createAuthSession({
     apiHost: 'https://api.example.com',

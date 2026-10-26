@@ -127,6 +127,9 @@ export class SeamlessAuth implements AuthSessionActions {
   get stepUpStatus() {
     return this.#state.stepUpStatus;
   }
+  get recoverySession() {
+    return this.#state.recoverySession;
+  }
   get hasSignedInBefore() {
     return this.#state.hasSignedInBefore;
   }
@@ -209,6 +212,10 @@ export class SeamlessAuth implements AuthSessionActions {
   login: AuthSessionActions['login'] = (...args) => this.#session.actions.login(...args);
   handlePasskeyLogin: AuthSessionActions['handlePasskeyLogin'] = () =>
     this.#session.actions.handlePasskeyLogin();
+  redeemRecoveryCode: AuthSessionActions['redeemRecoveryCode'] = code =>
+    this.#session.actions.redeemRecoveryCode(code);
+  completeAccountRecovery: AuthSessionActions['completeAccountRecovery'] = () =>
+    this.#session.actions.completeAccountRecovery();
   registerPasskey: AuthSessionActions['registerPasskey'] = input =>
     this.#session.actions.registerPasskey(input);
   refreshSession: AuthSessionActions['refreshSession'] = options =>

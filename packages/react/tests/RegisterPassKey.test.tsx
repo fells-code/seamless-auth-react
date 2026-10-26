@@ -22,9 +22,12 @@ jest.mock('react-router-dom', () => ({
   useLocation: () => ({ state: mockLocationState }),
 }));
 
+let mockRecoverySession = false;
+
 jest.mock('@/AuthProvider', () => ({
   useAuth: () => ({
     refreshSession: mockRefreshSession,
+    recoverySession: mockRecoverySession,
   }),
 }));
 
@@ -51,6 +54,7 @@ beforeAll(() => {
 beforeEach(() => {
   jest.clearAllMocks();
   mockLocationState = null;
+  mockRecoverySession = false;
   (useAuthClient as jest.Mock).mockReturnValue({
     registerPasskey: mockRegisterPasskey,
   });
@@ -93,7 +97,10 @@ describe('RegisterPasskey', () => {
     });
 
     expect(mockRefreshSession).toHaveBeenCalled();
-    expect(mockNavigate).toHaveBeenCalledWith('/');
+    // Recovery codes are offered next, then the user continues where they were going.
+    expect(mockNavigate).toHaveBeenCalledWith('/recovery-codes', {
+      state: { returnTo: '/' },
+    });
   });
 
   // The button used to open a form asking for a name. Registration now goes
@@ -349,7 +356,9 @@ describe('RegisterPasskey destination', () => {
     fireEvent.click(await screen.findByText(/Register Passkey/i));
 
     await waitFor(() =>
-      expect(mockNavigate).toHaveBeenCalledWith('/dashboard?tab=billing')
+      expect(mockNavigate).toHaveBeenCalledWith('/recovery-codes', {
+        state: { returnTo: '/dashboard?tab=billing' },
+      })
     );
   });
 
@@ -373,4 +382,18 @@ describe('RegisterPasskey destination', () => {
       await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith('/'));
     }
   );
+});
+
+describe('RegisterPasskey from a recovery session', () => {
+  it('asks for a new passkey and offers no way to skip it', async () => {
+    mockRecoverySession = true;
+
+    render(<RegisterPasskey />);
+
+    expect(
+      await screen.findByRole('heading', { name: 'Add a New Passkey' })
+    ).toBeInTheDocument();
+    expect(screen.getByText(/recover your account/i)).toBeInTheDocument();
+    expect(screen.queryByText(/Skip for now/i)).not.toBeInTheDocument();
+  });
 });

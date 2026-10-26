@@ -68,6 +68,25 @@ describe('createSeamlessAuth', () => {
     expect(auth.user).toBeNull();
   });
 
+  it('reports a recovery session from a recovery code or a completed recovery', async () => {
+    const recovery = {
+      body: { message: 'Success', recovery: true, nextStep: 'enroll_passkey' },
+    };
+    const { auth } = setup({
+      'GET /users/me': signedIn,
+      'POST /recovery-codes/redeem': recovery,
+      'POST /recovery/complete': recovery,
+    });
+    await auth.whenSettled();
+    expect(auth.recoverySession).toBe(false);
+
+    await auth.redeemRecoveryCode('ABCDE-FGHIJ');
+    flushSync();
+    expect(auth.recoverySession).toBe(true);
+
+    await expect(auth.completeAccountRecovery()).resolves.toMatchObject({ error: null });
+  });
+
   it('starts settled from a session the server resolved', async () => {
     const { auth } = setup({ 'GET /users/me': signedIn }, { initialSession: { user } });
     expect(auth.loading).toBe(false);

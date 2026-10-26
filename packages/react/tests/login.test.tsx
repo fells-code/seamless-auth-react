@@ -381,4 +381,64 @@ describe('Login', () => {
     expect(mockAuthClient.register.mock.calls[0][0]).not.toHaveProperty('phone');
     expect(navigate).toHaveBeenCalledWith('/verify-email-otp');
   });
+
+  describe('recovery', () => {
+    const signInToFallback = async () => {
+      render(<Login />);
+
+      fireEvent.change(await screen.findByLabelText(/email address \/ phone number/i), {
+        target: { value: 'user@example.com' },
+      });
+      fireEvent.click(screen.getByRole('button', { name: 'Login' }));
+
+      await screen.findByTestId('fallback-options');
+    };
+
+    test('offers the recovery paths the instance reports', async () => {
+      mockAuthClient.getPublicSystemConfig.mockResolvedValue({
+        data: {
+          loginMethods: ['magic_link'],
+          recoveryCodes: true,
+          accountRecovery: true,
+        },
+        error: null,
+      });
+
+      await signInToFallback();
+
+      fireEvent.click(await screen.findByText('Use a recovery code'));
+      expect(navigate).toHaveBeenCalledWith('/recovery-code');
+
+      fireEvent.click(screen.getByText(/Recover your account/));
+      expect(navigate).toHaveBeenCalledWith('/account-recovery');
+    });
+
+    test('offers none where the instance has them off', async () => {
+      mockAuthClient.getPublicSystemConfig.mockResolvedValue({
+        data: { loginMethods: ['magic_link'] },
+        error: null,
+      });
+
+      await signInToFallback();
+
+      expect(screen.queryByText('Use a recovery code')).not.toBeInTheDocument();
+      expect(screen.queryByText(/Recover your account/)).not.toBeInTheDocument();
+    });
+
+    test('sends a recovery session straight to enrollment', async () => {
+      (useAuth as jest.Mock).mockReturnValue({
+        hasSignedInBefore: true,
+        login: jest.fn(),
+        handlePasskeyLogin: jest.fn(),
+        listOAuthProviders: jest.fn().mockResolvedValue({ providers: [] }),
+        recoverySession: true,
+      });
+
+      render(<Login />);
+
+      await waitFor(() =>
+        expect(navigate).toHaveBeenCalledWith('/register-passkey', { replace: true })
+      );
+    });
+  });
 });

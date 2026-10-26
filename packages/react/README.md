@@ -25,6 +25,10 @@ New to Seamless Auth? The [self-hosted quickstart](https://docs.seamlessauth.com
 - `getOAuthErrorCode()`, which reads the known OAuth callback failure codes off that error
 - `getWebAuthnErrorDetail()`, which reads the underlying failure of a passkey or step-up ceremony
 - `getPasskeyPolicyErrorCode()`, which reads the code the API refused a passkey registration with
+- `isStepUpRequired()`, `isEnrollmentRequired()` and `getRecoveryErrorCode()` for the recovery routes
+- `useRecoveryOptions()`, which reads whether the instance offers recovery codes and account recovery
+- `AccountSecurity`, `PasskeyManagement`, `RecoveryCodeSettings` and `RecoveryRequests`, prebuilt
+  account settings sections (see [Account recovery](#account-recovery))
 - types including `AuthContextType`, `Credential`, `User`, `OAuthProvider`, `StepUpStatus`, the `SeamlessAuthResult` wrapper, and the headless client input/result types
 
 ## Installation
@@ -250,6 +254,9 @@ the session.
   handlePasskeyLogin(): Promise<SeamlessAuthResult<PasskeyLoginData>>;
   updateCredential(credential: Credential): Promise<SeamlessAuthResult<Credential>>;
   deleteCredential(credentialId: string): Promise<SeamlessAuthResult<MessageResult>>;
+  recoverySession: boolean;
+  redeemRecoveryCode(code: string): Promise<SeamlessAuthResult<RecoverySessionResult>>;
+  completeAccountRecovery(): Promise<SeamlessAuthResult<RecoverySessionResult>>;
 }
 ```
 
@@ -1147,6 +1154,78 @@ const lastUsed = credential.lastUsedAt ? new Date(credential.lastUsedAt) : null;
 Removing a passkey is a sensitive change. Gate it behind a fresh step-up when the account has other
 factors, using `refreshStepUpStatus()` and `verifyStepUpWithPasskey()` from the step-up section.
 
+### Account recovery
+
+Auth API v0.20 adds two ways back into an account that lost its passkeys, and the client exposes
+both. Every method returns a `SeamlessAuthResult`.
+
+Recovery codes are single-use codes a signed-in user generates and saves:
+
+```ts
+const client = useAuthClient();
+
+await client.getRecoveryCodeStatus(); // { enabled, remaining, total, createdAt }
+const { data, error } = await client.generateRecoveryCodes(); // { codes, createdAt }, shown once
+```
+
+Replacing an existing set needs a fresh step-up. Without one the call fails with a `403` that
+`isStepUpRequired(error)` recognizes. `generateRecoveryCodesWithStepUp({ client, verifyStepUp })`
+runs `verifyStepUp` (for example `useAuth().verifyStepUpWithPasskey`) and tries again.
+
+Signing in with a code, or completing a self-service recovery, continues the sign-in `login()`
+started and issues a **recovery session**:
+
+```ts
+const { login, redeemRecoveryCode, recoverySession } = useAuth();
+
+await login(identifier, false);
+const { error } = await redeemRecoveryCode('ABCDE-FGHIJ');
+// recoverySession is now true
+```
+
+A recovery session can only enroll a passkey or authenticator app, manage recovery codes, read the
+user and sign out; everything else answers `403` with `enrollment_required`
+(`isEnrollmentRequired(error)`), and the server adapter's `requireAuth` refuses it by default. Send
+the user to enrollment next. After `registerPasskey()` or `verifyTotpEnrollment()` succeeds from a
+recovery session the client calls `POST /auth/refresh`, so the new access token no longer carries
+the recovery claim, and `recoverySession` goes back to false on the next `refreshSession()`. The
+flag lives in memory: after a reload the client cannot tell a recovery session from a normal one.
+
+Self-service recovery is off unless the deployment turns it on. `useRecoveryOptions()` reports
+`recoveryCodes` and `accountRecovery` from the public configuration, so offer each only where it
+works:
+
+```ts
+await client.startAccountRecovery('email'); // sends a six-digit code
+const { data } = await client.verifyAccountRecovery(code); // { state: 'pending', completesAt }
+await client.getAccountRecoveryStatus(); // 'ready' once completesAt has passed
+await completeAccountRecovery(); // from useAuth(): signs out every session, issues a recovery session
+```
+
+The waiting period outlasts the pre-auth token, so a user returns later, signs in again, and starts
+on the **same channel**: verifying the new code resumes the open request. `getRecoveryErrorCode()`
+reads `account_recovery_disabled`, `recovery_notice_failed` (the owner could not be told, so nothing
+was opened), `recovery_not_ready`, `invalid_recovery_code` and the rest, and `recoveryErrorMessage()`
+turns them into copy.
+
+Every notice links to `${FRONTEND_URL}/recovery/cancel#<token>`. `client.cancelAccountRecovery(token)`
+needs no session and answers the same whether or not the token matched. A signed-in owner can list
+and cancel open requests with `listAccountRecoveryRequests()` and `cancelAccountRecoveryRequest(id)`.
+
+For settings screens the package ships router-free sections built on the same primitives:
+
+```tsx
+import { AccountSecurity } from '@seamless-auth/react';
+
+// Or individually: PasskeyManagement, RecoveryCodeSettings, RecoveryRequests
+<AccountSecurity />;
+```
+
+`PasskeyManagement` lists passkeys with their name, kind and last use, renames and deletes them, adds
+another, and encourages a second passkey when there is only one. `RecoveryCodeSettings` shows how many
+codes are left and generates or replaces a set (asking for the passkey when the API wants a step-up).
+`RecoveryRequests` lists open recovery requests with a cancel button.
+
 ## Built-In Routes
 
 `AuthRoutes` serves these canonical paths:
@@ -1159,6 +1238,15 @@ factors, using `refreshStepUpStatus()` and `verifyStepUpWithPasskey()` from the 
 - `/oauth/callback`
 - `/register-passkey`
 - `/magic-link-sent`
+- `/recovery-code`, sign in with a recovery code
+- `/recovery-codes`, shown after a passkey is enrolled: generates and shows a first set (or a new one
+  when every code is spent), and continues once the user confirms they saved it
+- `/account-recovery`, self-service recovery: choose a channel, verify the code, wait, then finish
+- `/recovery/cancel`, where the link in a recovery notice lands
+
+The sign-in screen offers "Use a recovery code" and "Recover your account" beside the other methods,
+only where the public configuration reports `recoveryCodes` or `accountRecovery`. A recovery session
+goes straight to `/register-passkey`, which then cannot be skipped.
 
 These are optional UI wrappers over the same SDK primitives the package now exports for custom flows.
 
@@ -1182,6 +1270,9 @@ Two paths are unchanged because they are owned by contracts outside this package
   discarded.
 - `/oauth/callback` is registered with OAuth providers as an allowed redirect URI, so renaming it
   would break configured integrations.
+- `/recovery/cancel` is the link the auth API puts in every account recovery notice. The page reads
+  the token from the fragment, drops it from the address bar, then posts it. Mount `AuthRoutes` at the
+  root of `FRONTEND_URL` so the link resolves.
 
 ## Theming The Built-In UI
 
@@ -1296,6 +1387,11 @@ The built-in flows assume compatible endpoints for:
 - `/users/me`
 - `/users/credentials`
 - `/users/delete`
+- `POST /refresh` (after enrolling a factor from a recovery session)
+- `GET /recovery-codes`, `POST /recovery-codes` and `POST /recovery-codes/redeem`
+- `POST /recovery/start`, `POST /recovery/verify`, `GET /recovery/status`, `POST /recovery/complete`
+  and `POST /recovery/cancel`
+- `GET /recovery/requests` and `DELETE /recovery/requests/:id`
 - `/organizations`
 - `/organizations/:organizationId`
 - `/organizations/:organizationId/switch`

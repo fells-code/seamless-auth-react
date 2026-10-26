@@ -68,6 +68,7 @@ describe('createAuthSession', () => {
       activeOrganization: null,
       stepUpStatus: null,
       isAuthenticated: false,
+      recoverySession: false,
       loading: true,
       hasSignedInBefore: false,
     });
@@ -487,7 +488,7 @@ describe('createAuthSession', () => {
         data: { user, credentials: [] },
         error: null,
       });
-      const client = { getCurrentUser } as never;
+      const client = { getCurrentUser, isRecoverySession: () => false } as never;
 
       const session = createAuthSession({
         apiHost,

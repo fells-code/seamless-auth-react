@@ -14,6 +14,8 @@
  *   link, so it has to match that value exactly.
  * - `oauthCallback` is registered with OAuth providers as an allowed redirect
  *   URI, so renaming it would break configured integrations.
+ * - `recoveryCancel` is the link the auth API puts in every account recovery
+ *   notice (`${FRONTEND_URL}/recovery/cancel#<token>`).
  */
 export const authRoutePaths = {
   login: '/login',
@@ -24,4 +26,8 @@ export const authRoutePaths = {
   oauthCallback: '/oauth/callback',
   registerPasskey: '/register-passkey',
   magicLinkSent: '/magic-link-sent',
+  recoveryCode: '/recovery-code',
+  recoveryCodes: '/recovery-codes',
+  accountRecovery: '/account-recovery',
+  recoveryCancel: '/recovery/cancel',
 } as const;

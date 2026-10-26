@@ -13,6 +13,10 @@ import PhoneRegistration from '@/views/PhoneRegistration';
 import EmailRegistration from '@/views/EmailRegistration';
 import VerifyMagicLink from '@/views/VerifyMagicLink';
 import OAuthCallback from '@/views/OAuthCallback';
+import RecoveryCodeLogin from '@/views/RecoveryCodeLogin';
+import RecoveryCodes from '@/views/RecoveryCodes';
+import AccountRecovery from '@/views/AccountRecovery';
+import RecoveryCancel from '@/views/RecoveryCancel';
 import MagicLinkSent from './components/MagicLinkSent';
 import { authRoutePaths } from './authRoutePaths';
 
@@ -26,6 +30,10 @@ export const AuthRoutes = () => (
     <Route path={authRoutePaths.oauthCallback} element={<OAuthCallback />} />
     <Route path={authRoutePaths.registerPasskey} element={<PasskeyRegistration />} />
     <Route path={authRoutePaths.magicLinkSent} element={<MagicLinkSent />} />
+    <Route path={authRoutePaths.recoveryCode} element={<RecoveryCodeLogin />} />
+    <Route path={authRoutePaths.recoveryCodes} element={<RecoveryCodes />} />
+    <Route path={authRoutePaths.accountRecovery} element={<AccountRecovery />} />
+    <Route path={authRoutePaths.recoveryCancel} element={<RecoveryCancel />} />
     <Route path="*" element={<Navigate to={authRoutePaths.login} replace />} />
   </Routes>
 );

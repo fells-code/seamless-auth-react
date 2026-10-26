@@ -8,6 +8,7 @@ import { useAuth } from '@/AuthProvider';
 import React, { useEffect, useState } from 'react';
 import { useAuthClient } from '@/hooks/useAuthClient';
 import { useLoginMethods } from '@/hooks/useLoginMethods';
+import { useRecoveryOptions } from '@/hooks/useRecoveryOptions';
 import { usePasskeySupport } from '@/hooks/usePasskeySupport';
 import { useNavigate } from 'react-router-dom';
 import { authRoutePaths } from '@/authRoutePaths';
@@ -24,10 +25,11 @@ import {
 
 const Login: React.FC = () => {
   const navigate = useNavigate();
-  const { hasSignedInBefore, login, handlePasskeyLogin } = useAuth();
+  const { hasSignedInBefore, login, handlePasskeyLogin, recoverySession } = useAuth();
   const authClient = useAuthClient();
   const { passkeySupported } = usePasskeySupport();
   const { loginMethods: configuredMethods } = useLoginMethods();
+  const recoveryOptions = useRecoveryOptions();
   const [identifier, setIdentifier] = useState<string>('');
   const [email, setEmail] = useState<string>('');
   const [mode, setMode] = useState<'login' | 'register'>('register');
@@ -42,6 +44,13 @@ const Login: React.FC = () => {
       setMode('login');
     }
   }, [hasSignedInBefore]);
+
+  // A recovery session can do nothing but enroll a factor, so it goes straight there.
+  useEffect(() => {
+    if (recoverySession) {
+      navigate(authRoutePaths.registerPasskey, { replace: true });
+    }
+  }, [recoverySession, navigate]);
 
   const handleEmailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const email = e.target.value;
@@ -214,6 +223,30 @@ const Login: React.FC = () => {
                     loginMethods={loginMethods}
                   />
                 )}
+
+                {showFallbackOptions &&
+                  (recoveryOptions.recoveryCodes || recoveryOptions.accountRecovery) && (
+                    <div className={styles.recoveryOptions}>
+                      {recoveryOptions.recoveryCodes && (
+                        <button
+                          type="button"
+                          className={styles.linkButton}
+                          onClick={() => navigate(authRoutePaths.recoveryCode)}
+                        >
+                          Use a recovery code
+                        </button>
+                      )}
+                      {recoveryOptions.accountRecovery && (
+                        <button
+                          type="button"
+                          className={styles.linkButton}
+                          onClick={() => navigate(authRoutePaths.accountRecovery)}
+                        >
+                          Can&apos;t sign in? Recover your account
+                        </button>
+                      )}
+                    </div>
+                  )}
 
                 {identifierError && <p className={styles.error}>{identifierError}</p>}
               </div>

@@ -5,7 +5,17 @@
  */
 
 import { AuthContextType, AuthPorts, AuthProvider, useAuth } from '@/AuthProvider';
+import { AccountSecurity } from '@/components/AccountSecurity';
+import { PasskeyManagement } from '@/components/PasskeyManagement';
+import { RecoveryCodeSettings } from '@/components/RecoveryCodeSettings';
+import { RecoveryRequests } from '@/components/RecoveryRequests';
 import {
+  AccountRecoveryChannel,
+  AccountRecoveryRequest,
+  AccountRecoveryRequestsResult,
+  AccountRecoveryStartResult,
+  AccountRecoveryState,
+  AccountRecoveryStatusResult,
   createSeamlessAuthClient,
   CredentialUpdateResult,
   CreateOrganizationInput,
@@ -30,6 +40,9 @@ import {
   PasskeyAttachment,
   PasskeyMetadata,
   PasskeyRegistrationData,
+  RecoveryCodesResult,
+  RecoveryCodeStatus,
+  RecoverySessionResult,
   RegisterInput,
   RegisterPasskeyOptions,
   SeamlessAuthClient,
@@ -46,10 +59,14 @@ import {
 import {
   getOAuthErrorCode,
   getPasskeyPolicyErrorCode,
+  getRecoveryErrorCode,
   getWebAuthnErrorDetail,
+  isEnrollmentRequired,
+  isStepUpRequired,
   isUnauthenticated,
   OAuthErrorCode,
   PasskeyPolicyErrorCode,
+  RecoveryErrorCode,
   SeamlessAuthError,
   UntrustedOriginError,
   UntrustedRedirectError,
@@ -67,6 +84,7 @@ import { useAuthClient } from '@/hooks/useAuthClient';
 import { useAuthorizedFetch } from '@/hooks/useAuthorizedFetch';
 import { hasNonPasskeyLoginMethod, useLoginMethods } from '@/hooks/useLoginMethods';
 import { usePasskeySupport } from '@/hooks/usePasskeySupport';
+import { useRecoveryOptions } from '@/hooks/useRecoveryOptions';
 import { hasScopedRole, roleGrantsAccess } from '@seamless-auth/client';
 import {
   Credential,
@@ -86,17 +104,24 @@ import type {
 } from '@seamless-auth/client';
 
 export {
+  AccountSecurity,
   AuthProvider,
   createSeamlessAuthClient,
   encodePrfSalt,
   extractPasskeyPrfResult,
   getOAuthErrorCode,
   getPasskeyPolicyErrorCode,
+  getRecoveryErrorCode,
   getWebAuthnErrorDetail,
   hasNonPasskeyLoginMethod,
   hasScopedRole,
+  isEnrollmentRequired,
   isPasskeyPrfSupported,
+  isStepUpRequired,
   isUnauthenticated,
+  PasskeyManagement,
+  RecoveryCodeSettings,
+  RecoveryRequests,
   roleGrantsAccess,
   SeamlessAuthError,
   UntrustedOriginError,
@@ -106,8 +131,15 @@ export {
   useAuthorizedFetch,
   useLoginMethods,
   usePasskeySupport,
+  useRecoveryOptions,
 };
 export type {
+  AccountRecoveryChannel,
+  AccountRecoveryRequest,
+  AccountRecoveryRequestsResult,
+  AccountRecoveryStartResult,
+  AccountRecoveryState,
+  AccountRecoveryStatusResult,
   CredentialUpdateResult,
   AuthContextType,
   AuthPorts,
@@ -144,6 +176,10 @@ export type {
   PasskeyPrfResult,
   PasskeyRegistrationData,
   PublicSystemConfigResult,
+  RecoveryCodesResult,
+  RecoveryCodeStatus,
+  RecoveryErrorCode,
+  RecoverySessionResult,
   RefreshSessionOptions,
   RegisterInput,
   RegisterPasskeyOptions,

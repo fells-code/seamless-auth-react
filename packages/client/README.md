@@ -23,8 +23,8 @@ npm install @seamless-auth/client
 ## What is here
 
 - `createSeamlessAuthClient({ apiHost })`: the request choreography for login,
-  registration, OTP, magic link, passkey, OAuth, step-up, TOTP, credential and
-  organization flows against a Seamless Auth server adapter mounted at `/auth`.
+  registration, OTP, magic link, passkey, OAuth, step-up, TOTP, credential,
+  recovery code, account recovery and organization flows against a Seamless Auth server adapter mounted at `/auth`.
   Every method returns a `SeamlessAuthResult<T>`.
 - `createAuthSession({ apiHost, storage?, detectPreviousSignIn? })`: the session
   state machine (`getState`, `subscribe`, `actions`, `destroy`), designed to be
@@ -46,26 +46,40 @@ than redeclaring shapes.
 Each bundled screen in a binding is a thin view over one of these. A custom UI in
 any framework can call them directly.
 
-| Flow                                                                        | What it does                                                                                                       |
-| --------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
-| `beginSignIn(actions, { identifier, passkeySupported, configuredMethods })` | Starts a login and runs the passkey ceremony when it can. Resolves to `signed_in`, `choose_method` or `error`      |
-| `registerWithEmail(client, email)`                                          | Starts registration. The next step is the email code                                                               |
-| `requestOtp` / `verifyOtp`                                                  | Sends and checks a code for a channel (`email`, `phone`) and flow (`login`, `register`), and says where to go next |
-| `watchMagicLink({ client, refreshSession, onSignedIn })`                    | In the tab that asked for a link, waits for it to be used (cross-tab message or poll). Returns a stop function     |
-| `finishMagicLinkSignIn({ client, refreshSession })`                         | On the page the link lands on, after `client.verifyMagicLink(token)` succeeds                                      |
-| `getMagicLinkConfirmation(error)`, `magicLinkConfirmationPrompt(held)`      | When verifying fails because the link was opened on another device: who asked for it, and when                     |
-| `confirmMagicLinkSignIn({ client, token })`                                 | Approves that link once the reader agrees. Signs in the device that asked for it, not this one                     |
-| `startOAuthSignIn` / `completeOAuthCallback`                                | Starts a provider sign-in and finishes it on the redirect URI                                                      |
-| `enrollPasskey({ client, refreshSession }, attachment?)`                    | Enrols a passkey for the signed-in user, labelled with this device                                                 |
-| `loadLoginMethods`, `fallbackSignInOptions`, `hasNonPasskeyLoginMethod`     | What the instance allows, and what to offer a user                                                                 |
-| `detectPasskeySupport(port)`                                                | Whether this device can use a passkey                                                                              |
-| `safeReturnPath`, `inAppPath`                                               | Keep a destination inside the application                                                                          |
-| `isValidEmail`, `isValidPhoneNumber`, `parseUserAgent`, `formatCountdown`   | Small shared helpers                                                                                               |
+| Flow                                                                         | What it does                                                                                                       |
+| ---------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
+| `beginSignIn(actions, { identifier, passkeySupported, configuredMethods })`  | Starts a login and runs the passkey ceremony when it can. Resolves to `signed_in`, `choose_method` or `error`      |
+| `registerWithEmail(client, email)`                                           | Starts registration. The next step is the email code                                                               |
+| `requestOtp` / `verifyOtp`                                                   | Sends and checks a code for a channel (`email`, `phone`) and flow (`login`, `register`), and says where to go next |
+| `watchMagicLink({ client, refreshSession, onSignedIn })`                     | In the tab that asked for a link, waits for it to be used (cross-tab message or poll). Returns a stop function     |
+| `finishMagicLinkSignIn({ client, refreshSession })`                          | On the page the link lands on, after `client.verifyMagicLink(token)` succeeds                                      |
+| `getMagicLinkConfirmation(error)`, `magicLinkConfirmationPrompt(held)`       | When verifying fails because the link was opened on another device: who asked for it, and when                     |
+| `confirmMagicLinkSignIn({ client, token })`                                  | Approves that link once the reader agrees. Signs in the device that asked for it, not this one                     |
+| `startOAuthSignIn` / `completeOAuthCallback`                                 | Starts a provider sign-in and finishes it on the redirect URI                                                      |
+| `enrollPasskey({ client, refreshSession }, attachment?)`                     | Enrols a passkey for the signed-in user, labelled with this device                                                 |
+| `loadLoginMethods`, `fallbackSignInOptions`, `hasNonPasskeyLoginMethod`      | What the instance allows, and what to offer a user                                                                 |
+| `detectPasskeySupport(port)`                                                 | Whether this device can use a passkey                                                                              |
+| `safeReturnPath`, `inAppPath`                                                | Keep a destination inside the application                                                                          |
+| `loadRecoveryOptions(client)`                                                | Whether the instance offers recovery codes and self-service account recovery                                       |
+| `generateRecoveryCodesWithStepUp({ client, verifyStepUp })`                  | Generates a set of recovery codes, stepping up first when the API asks for it                                      |
+| `recoveryCancelTokenFromHash(hash)`, `cancelRecoveryFromLink(client, token)` | The cancel page a recovery notice links to                                                                         |
+| `recoveryErrorMessage(error)`, `recoveryCodesText(codes)`                    | Copy for recovery failures, and a set of codes as a text file                                                      |
+| `passkeyKind`, `passkeyDisplayName`                                          | How a passkey management screen labels a credential                                                                |
+| `isValidEmail`, `isValidPhoneNumber`, `parseUserAgent`, `formatCountdown`    | Small shared helpers                                                                                               |
 
 None of them store a token. In a browser the session lives in HttpOnly cookies the
 server adapter sets; the only things written to browser storage are the id of the
 OAuth provider in flight and that sign-in's state binding (`sessionStorage`), and a
 flag that this browser has signed in before (`localStorage`).
+
+### Recovery sessions
+
+`redeemRecoveryCode(code)` and `completeAccountRecovery()` issue a recovery session, which can only
+enroll a passkey or authenticator app until one is enrolled (other routes answer `403`
+`enrollment_required`, see `isEnrollmentRequired()`). `client.isRecoverySession()` and the session
+state's `recoverySession` report it. After `registerPasskey()` or `verifyTotpEnrollment()` succeeds
+from one, the client rotates the session through `POST /refresh` so the next access token no longer
+carries the recovery claim. The flag is held in memory, so it does not survive a reload.
 
 ### OAuth state binding
 
