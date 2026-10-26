@@ -11,6 +11,7 @@ export * from './messages';
 export * from './oauth';
 export * from './otp';
 export * from './passkeySupport';
+export * from './qrCode';
 export * from './recovery';
 export * from './redirects';
 export * from './signIn';
