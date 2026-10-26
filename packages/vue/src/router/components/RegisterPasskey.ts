@@ -38,8 +38,30 @@ export const SaRegisterPasskey = defineComponent({
     const message = ref('');
 
     // With passkey as the only enabled method, a user who skipped would have no
-    // way back into the account they just made.
-    const canSkip = computed(() => hasNonPasskeyLoginMethod(auth.loginMethods.value));
+    // way back into the account they just made. A recovery session cannot skip
+    // at all: it can do nothing else until a factor is enrolled.
+    const canSkip = computed(
+      () =>
+        !auth.recoverySession.value && hasNonPasskeyLoginMethod(auth.loginMethods.value)
+    );
+
+    const useAuthenticatorApp = () =>
+      navigation.toScreen(
+        'registerAuthenticator',
+        typeof returnTo === 'string' ? { returnTo } : undefined
+      );
+
+    const authenticatorAppButton = (primary: boolean) =>
+      h(
+        'button',
+        {
+          type: 'button',
+          class: primary ? 'sa-button' : 'sa-secondary',
+          disabled: busy(),
+          onClick: useAuthenticatorApp,
+        },
+        'Use an authenticator app'
+      );
 
     onMounted(() => {
       void auth.checkPasskeySupport();
@@ -77,9 +99,11 @@ export const SaRegisterPasskey = defineComponent({
       h(
         'p',
         { class: 'sa-description' },
-        canSkip.value
-          ? 'This device does not support passkeys. You can continue without one and add a passkey later from a device that does.'
-          : 'This device does not support passkeys, and this application requires one to sign in. Try again from a device or browser that supports them.'
+        auth.recoverySession.value
+          ? 'This device does not support passkeys. Set up an authenticator app to finish recovering your account.'
+          : canSkip.value
+            ? 'This device does not support passkeys. You can continue without one and add a passkey later from a device that does.'
+            : 'This device does not support passkeys, and this application requires one to sign in. Try again from a device or browser that supports them.'
       ),
       canSkip.value &&
         h(
@@ -87,6 +111,7 @@ export const SaRegisterPasskey = defineComponent({
           { type: 'button', class: 'sa-button', onClick: finishWithoutPasskey },
           'Continue'
         ),
+      authenticatorAppButton(!canSkip.value),
     ];
 
     const supported = () => [
@@ -94,7 +119,9 @@ export const SaRegisterPasskey = defineComponent({
       h(
         'p',
         { class: 'sa-description' },
-        'Your device supports passkeys! Register one to skip passwords forever.'
+        auth.recoverySession.value
+          ? 'Register a passkey or set up an authenticator app to finish recovering your account.'
+          : 'Your device supports passkeys! Register one to skip passwords forever.'
       ),
       h(
         'button',
@@ -116,6 +143,7 @@ export const SaRegisterPasskey = defineComponent({
         },
         'Use a security key instead'
       ),
+      auth.recoverySession.value && authenticatorAppButton(false),
       message.value &&
         h(
           'p',
