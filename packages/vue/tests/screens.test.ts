@@ -585,6 +585,7 @@ describe('passkey screens', () => {
     });
     expect(text()).toContain('requires one to sign in');
     expect(() => button('Continue')).toThrow();
+    expect(() => button('Use an authenticator app')).toThrow();
   });
 
   it('signs in with a passkey alone', async () => {

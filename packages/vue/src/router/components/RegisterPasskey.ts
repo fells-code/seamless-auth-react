@@ -111,7 +111,8 @@ export const SaRegisterPasskey = defineComponent({
           { type: 'button', class: 'sa-button', onClick: finishWithoutPasskey },
           'Continue'
         ),
-      authenticatorAppButton(!canSkip.value),
+      (auth.recoverySession.value || canSkip.value) &&
+        authenticatorAppButton(!canSkip.value),
     ];
 
     const supported = () => [
