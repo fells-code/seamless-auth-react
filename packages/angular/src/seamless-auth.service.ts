@@ -59,6 +59,11 @@ export class SeamlessAuth {
   readonly activeOrganization: Signal<AuthSessionState['activeOrganization']>;
   readonly stepUpStatus: Signal<AuthSessionState['stepUpStatus']>;
   readonly hasSignedInBefore: Signal<boolean>;
+  /**
+   * A recovery session can only enroll a passkey or an authenticator app until
+   * it does. The bundled `register-passkey` screen offers both.
+   */
+  readonly recoverySession: Signal<boolean>;
 
   /** The state as an observable. Emits the current value on subscribe. */
   readonly state$: Observable<AuthSessionState>;
@@ -138,6 +143,7 @@ export class SeamlessAuth {
     this.activeOrganization = computed(() => this.state().activeOrganization);
     this.stepUpStatus = computed(() => this.state().stepUpStatus);
     this.hasSignedInBefore = computed(() => this.state().hasSignedInBefore);
+    this.recoverySession = computed(() => this.state().recoverySession);
 
     this.state$ = new Observable<AuthSessionState>(subscriber => {
       subscriber.next(read());
