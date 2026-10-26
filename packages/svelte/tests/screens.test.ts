@@ -801,13 +801,25 @@ describe('authenticator app enrollment', () => {
 
   it('is offered when the device cannot register a passkey', async () => {
     await open('registerPasskey', {
+      'GET /system-config/public': { body: { loginMethods: ['passkey', 'email_otp'] } },
+    });
+    await waitSettled();
+
+    expect(text()).toContain('You can continue without one');
+    await click('Use an authenticator app');
+    expect(nav.current).toBe('registerAuthenticator');
+  });
+
+  // A passkey-only application refuses authenticator sign-in, so an app set up
+  // here could never sign the user in.
+  it('is not offered when the application requires a passkey', async () => {
+    await open('registerPasskey', {
       'GET /system-config/public': { body: { loginMethods: ['passkey'] } },
     });
     await waitSettled();
 
     expect(text()).toContain('requires one to sign in');
-    await click('Use an authenticator app');
-    expect(nav.current).toBe('registerAuthenticator');
+    expect(screen.queryByRole('button', { name: 'Use an authenticator app' })).toBeNull();
   });
 
   it('lets a recovery session finish with an authenticator app, and never skip', async () => {

@@ -90,9 +90,11 @@
           ? 'This device does not support passkeys. You can continue without one and add a passkey later from a device that does.'
           : 'This device does not support passkeys, and this application requires one to sign in. Try again from a device or browser that supports them.'}
     </p>
-    <button type="button" class="sa-secondary" onclick={useAuthenticator}>
-      Use an authenticator app
-    </button>
+    {#if auth.recoverySession || canSkip}
+      <button type="button" class="sa-secondary" onclick={useAuthenticator}>
+        Use an authenticator app
+      </button>
+    {/if}
     {#if canSkip}
       <button type="button" class="sa-button" onclick={finishWithoutPasskey}>Continue</button>
     {/if}

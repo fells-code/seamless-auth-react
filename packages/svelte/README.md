@@ -189,7 +189,7 @@ Mount each at its route. The paths below are what the screens navigate between b
 | `/authenticator-code`     | `SaAuthenticatorCode`         | Sign in with a code from an authenticator app               |
 
 The sign-in screen always offers "Use an authenticator app" among the other ways in, since `/login`
-never lists it. `SaRegisterPasskey` offers it when the device cannot register a passkey, and always
+never lists it. `SaRegisterPasskey` offers it when the device cannot register a passkey (unless the application signs in with passkeys only, where the API would refuse the app), and always
 to a recovery session, which cannot skip enrolment: adding either factor lifts the recovery
 restriction.
 
