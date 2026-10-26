@@ -1076,6 +1076,36 @@ describe('createSeamlessAuthClient', () => {
     });
   });
 
+  it('signs in with an authenticator code', async () => {
+    mockFetchWithAuth.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ message: 'Success' }),
+    });
+
+    const client = createSeamlessAuthClient({ apiHost: 'https://api.example.com' });
+
+    expect((await client.verifyTotpLogin('123456')).error).toBeNull();
+    expect(mockFetchWithAuth).toHaveBeenCalledWith('/totp/verify-login', {
+      method: 'POST',
+      body: JSON.stringify({ code: '123456' }),
+    });
+  });
+
+  it('reports a rejected authenticator sign-in code', async () => {
+    mockFetchWithAuth.mockResolvedValueOnce({
+      ok: false,
+      status: 401,
+      json: async () => ({ error: 'totp_verification_failed' }),
+    });
+
+    const client = createSeamlessAuthClient({ apiHost: 'https://api.example.com' });
+
+    await expect(client.verifyTotpLogin('000000')).resolves.toMatchObject({
+      data: null,
+      error: expect.objectContaining({ status: 401 }),
+    });
+  });
+
   describe('WebAuthn ceremony failures', () => {
     const CEREMONY_MESSAGE = 'The operation either timed out or was not allowed.';
     let consoleError: jest.SpyInstance;

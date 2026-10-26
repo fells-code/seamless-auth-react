@@ -366,6 +366,8 @@ export interface SeamlessAuthClient {
   verifyTotpEnrollment: (code: string) => Promise<SeamlessAuthResult<MessageResult>>;
   disableTotp: (code: string) => Promise<SeamlessAuthResult<MessageResult>>;
   verifyStepUpWithTotp: (code: string) => Promise<SeamlessAuthResult<StepUpStatus>>;
+  /** Signs in with an authenticator app code, on the sign-in `login()` started. */
+  verifyTotpLogin: (code: string) => Promise<SeamlessAuthResult<MessageResult>>;
   /**
    * Whether this client holds a recovery session: one a recovery code or a
    * completed account recovery issued, which has not enrolled a factor since.
@@ -1051,6 +1053,15 @@ export const createSeamlessAuthClient = (
           body: JSON.stringify({ code }),
         }),
         'Failed to disable the authenticator.'
+      ),
+
+    verifyTotpLogin: code =>
+      requestResult<MessageResult>(
+        fetchWithAuth(`/totp/verify-login`, {
+          method: 'POST',
+          body: JSON.stringify({ code }),
+        }),
+        'Failed to verify the authenticator code.'
       ),
 
     verifyStepUpWithTotp: async code => {

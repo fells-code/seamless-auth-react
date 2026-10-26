@@ -62,6 +62,7 @@ describe('resolveRouteRule', () => {
     ['/magic-link/check', 'preAuth', 'issue'],
     ['/otp/generate-login-email-otp', 'preAuth', undefined],
     ['/otp/verify-email-otp', 'preAuth', 'issue'],
+    ['/totp/verify-login', 'preAuth', 'issue'],
     ['/webAuthn/login/start', 'preAuth', undefined],
     ['/webAuthn/login/finish', 'preAuth', 'issue'],
     ['/refresh', 'none', 'issue'],

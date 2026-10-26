@@ -232,6 +232,7 @@ const ROUTE_RULES: readonly RouteRule[] = [
   { match: /^\/logout(\/all)?$/, identity: 'access', effect: 'end' },
   { match: /^\/users\/delete$/, identity: 'access', effect: 'end' },
   { match: /^\/organizations\/[^/]+\/switch$/, identity: 'access', effect: 'issue' },
+  { match: /^\/totp\/verify-login$/, identity: 'preAuth', effect: 'issue' },
   { match: /^\/recovery-codes$/, identity: 'access' },
   { match: /^\/recovery-codes\/redeem$/, identity: 'preAuth', effect: 'issue' },
   { match: /^\/recovery\/(start|verify|status)$/, identity: 'preAuth' },
