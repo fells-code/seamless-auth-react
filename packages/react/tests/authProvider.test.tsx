@@ -151,6 +151,60 @@ describe('AuthProvider', () => {
     expect(screen.getByTestId('hasScopedRoleAdminRead')).toHaveTextContent('true');
   });
 
+  describe('recovery session after a reload', () => {
+    const me = (recovery: boolean) =>
+      ({
+        ok: true,
+        json: async () => ({
+          user: { id: '1', email: 'test@example.com', phone: '', roles: [] },
+          credentials: [],
+          recovery,
+        }),
+      }) as any;
+
+    const renderCapture = async (
+      props: Partial<React.ComponentProps<typeof AuthProvider>>
+    ) => {
+      const captured: { auth: ReturnType<typeof useAuth> | null } = { auth: null };
+      const Capture = () => {
+        captured.auth = useAuth();
+        return null;
+      };
+
+      await act(async () => {
+        render(
+          <AuthProvider apiHost={apiHost} {...props}>
+            <Capture />
+          </AuthProvider>
+        );
+      });
+
+      return captured;
+    };
+
+    it('reports a recovery session when /users/me says so', async () => {
+      mockFetchWithAuthImpl.mockResolvedValueOnce(me(true));
+
+      const captured = await renderCapture({});
+
+      await waitFor(() => expect(captured.auth?.recoverySession).toBe(true));
+    });
+
+    it('clears a seeded recovery session when revalidation reports a normal one', async () => {
+      mockFetchWithAuthImpl.mockResolvedValueOnce(me(false));
+
+      const captured = await renderCapture({
+        initialSession: {
+          user: { id: '1', email: 'test@example.com', phone: '', roles: [] } as any,
+          recovery: true,
+        },
+      });
+
+      await waitFor(() => expect(captured.auth?.recoverySession).toBe(false));
+      expect(captured.auth?.isAuthenticated).toBe(true);
+    });
+  });
+
   it('supports scoped role checks without changing exact role checks', async () => {
     mockFetchWithAuthImpl.mockResolvedValueOnce({
       ok: true,

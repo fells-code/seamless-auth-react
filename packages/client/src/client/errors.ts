@@ -6,6 +6,7 @@
 
 import type {
   OAuthErrorCode as OAuthErrorCodeShape,
+  RecoveryErrorCode as RecoveryErrorCodeShape,
   WebAuthnErrorCode as WebAuthnErrorCodeShape,
 } from '@seamless-auth/types';
 
@@ -226,18 +227,8 @@ export function isEnrollmentRequired(error: unknown): boolean {
   return hasErrorCode(error, 403, 'enrollment_required');
 }
 
-/**
- * Machine codes the recovery code and account recovery routes answer with. Local
- * until `@seamless-auth/types` publishes them.
- */
-export type RecoveryErrorCode =
-  | 'invalid_recovery_code'
-  | 'recovery_codes_disabled'
-  | 'account_recovery_disabled'
-  | 'recovery_notice_failed'
-  | 'recovery_not_found'
-  | 'recovery_not_ready'
-  | 'cancel_token_required';
+/** Machine codes the recovery code and account recovery routes answer with. */
+export type RecoveryErrorCode = RecoveryErrorCodeShape;
 
 const RECOVERY_ERROR_CODES: Record<RecoveryErrorCode, true> = {
   invalid_recovery_code: true,
@@ -247,6 +238,7 @@ const RECOVERY_ERROR_CODES: Record<RecoveryErrorCode, true> = {
   recovery_not_found: true,
   recovery_not_ready: true,
   cancel_token_required: true,
+  enrollment_required: true,
 };
 
 /**

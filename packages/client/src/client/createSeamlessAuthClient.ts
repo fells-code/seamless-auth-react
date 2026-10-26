@@ -13,6 +13,8 @@ import type {
 
 import type {
   AccountRecoveryChannel as AccountRecoveryChannelShape,
+  AccountRecoveryRequest as AccountRecoveryRequestShape,
+  AccountRecoveryRequestsResponse,
   AccountRecoveryStartResponse,
   AccountRecoveryState as AccountRecoveryStateShape,
   AccountRecoveryStatus,
@@ -270,19 +272,10 @@ export type AccountRecoveryStartResult = AccountRecoveryStartResponse;
 /** Where a recovery request stands: `pending` until `completesAt`, then `ready`. */
 export type AccountRecoveryStatusResult = AccountRecoveryStatus;
 
-/**
- * An open recovery request on the signed-in account. Composed from the upstream
- * status and channel shapes because `@seamless-auth/types` 0.31.0 does not publish
- * the list response of `GET /recovery/requests`.
- */
-export type AccountRecoveryRequest = AccountRecoveryStatus & {
-  id: string;
-  channel: AccountRecoveryChannel;
-};
+/** An open recovery request on the signed-in account. */
+export type AccountRecoveryRequest = AccountRecoveryRequestShape;
 
-export interface AccountRecoveryRequestsResult {
-  requests: AccountRecoveryRequest[];
-}
+export type AccountRecoveryRequestsResult = AccountRecoveryRequestsResponse;
 
 export type LogoutScope = LogoutScopeShape;
 
@@ -376,7 +369,7 @@ export interface SeamlessAuthClient {
   /**
    * Whether this client holds a recovery session: one a recovery code or a
    * completed account recovery issued, which has not enrolled a factor since.
-   * Kept in memory, so it does not survive a reload.
+   * Also read from `getCurrentUser()`, so it is restored after a reload.
    */
   isRecoverySession: () => boolean;
   getRecoveryCodeStatus: () => Promise<SeamlessAuthResult<RecoveryCodeStatus>>;
@@ -607,11 +600,20 @@ export const createSeamlessAuthClient = (
         init
       ),
 
-    getCurrentUser: () =>
-      requestResult<CurrentUserResult>(
+    getCurrentUser: async () => {
+      const result = await requestResult<CurrentUserResult>(
         fetchWithAuth(`users/me`, { method: 'GET' }),
         'Failed to load the current user.'
-      ),
+      );
+
+      // An API older than the `recovery` field leaves it out, which must not clear
+      // a recovery session this client was issued.
+      if (!result.error && typeof result.data.recovery === 'boolean') {
+        recoverySession = result.data.recovery;
+      }
+
+      return result;
+    },
 
     login: input =>
       requestResult<LoginStartResult>(

@@ -11,7 +11,6 @@ import type {
 } from '../client/createSeamlessAuthClient';
 import {
   getRecoveryErrorCode,
-  isEnrollmentRequired,
   isStepUpRequired,
   type RecoveryErrorCode,
 } from '../client/errors';
@@ -56,6 +55,7 @@ export const RECOVERY_ERROR_MESSAGES: Record<RecoveryErrorCode, string> = {
     'This recovery request is still waiting. Come back once the waiting period ends.',
   cancel_token_required:
     'This cancel link is incomplete. Open the link from the notice again.',
+  enrollment_required: 'Add a new passkey to finish recovering your account.',
 };
 
 export const RECOVERY_GENERIC_ERROR = 'Something went wrong. Please try again.';
@@ -67,13 +67,7 @@ export function recoveryErrorMessage(
 ): string {
   const code = getRecoveryErrorCode(error);
 
-  if (code) return RECOVERY_ERROR_MESSAGES[code];
-
-  if (isEnrollmentRequired(error)) {
-    return 'Add a new passkey to finish recovering your account.';
-  }
-
-  return fallback;
+  return code ? RECOVERY_ERROR_MESSAGES[code] : fallback;
 }
 
 /**
