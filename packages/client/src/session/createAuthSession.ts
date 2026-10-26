@@ -61,7 +61,7 @@ export interface AuthSessionState {
   /**
    * The session is a recovery session: it can only enroll a passkey or
    * authenticator app until one is enrolled, so a UI sends the user there next.
-   * Known only to the client that redeemed the code or completed the recovery.
+   * Read from `/users/me`, so it survives a reload.
    */
   recoverySession: boolean;
   loading: boolean;
@@ -175,6 +175,7 @@ function signedIn(session: InitialSession) {
     organizations: session.organizations ?? [],
     activeOrganization: session.activeOrganization ?? null,
     isAuthenticated: true,
+    recoverySession: session.recovery === true,
   } satisfies Partial<AuthSessionState>;
 }
 

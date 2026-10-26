@@ -241,6 +241,18 @@ describe('enrollment from a recovery session', () => {
     expect(client.isRecoverySession()).toBe(true);
   });
 
+  it('refreshes after an enrollment from a session /users/me restored as recovery', async () => {
+    const client = buildClient();
+    mockFetch.mockResolvedValueOnce(ok({ user: { id: 'user-1' }, recovery: true }));
+    await client.getCurrentUser();
+    registerOnce();
+
+    await client.registerPasskey(metadata);
+
+    expect(mockRefresh).toHaveBeenCalledTimes(1);
+    expect(client.isRecoverySession()).toBe(false);
+  });
+
   it('forgets the recovery session on sign out', async () => {
     const client = buildClient();
     mockFetch.mockResolvedValueOnce(ok(recoverySession));
@@ -255,6 +267,98 @@ describe('enrollment from a recovery session', () => {
     mockFetch.mockResolvedValue(ok({ message: 'ok' }));
     await client.logoutAllSessions();
     expect(client.isRecoverySession()).toBe(false);
+  });
+});
+
+describe('recovery flag from /users/me', () => {
+  const me = (extra: object) => ok({ user: { id: 'user-1' }, credentials: [], ...extra });
+
+  it('sets the flag when /users/me reports a recovery session', async () => {
+    const client = buildClient();
+    mockFetch.mockResolvedValueOnce(me({ recovery: true }));
+
+    await client.getCurrentUser();
+
+    expect(client.isRecoverySession()).toBe(true);
+  });
+
+  it('clears the flag when /users/me reports a normal session', async () => {
+    const client = buildClient();
+    mockFetch.mockResolvedValueOnce(ok(recoverySession));
+    await client.redeemRecoveryCode('code');
+    mockFetch.mockResolvedValueOnce(me({ recovery: false }));
+
+    await client.getCurrentUser();
+
+    expect(client.isRecoverySession()).toBe(false);
+  });
+
+  it('keeps the flag when /users/me leaves the field out or fails', async () => {
+    const client = buildClient();
+    mockFetch.mockResolvedValueOnce(ok(recoverySession));
+    await client.redeemRecoveryCode('code');
+    mockFetch
+      .mockResolvedValueOnce(me({}))
+      .mockResolvedValueOnce(fail(500, { error: 'boom' }));
+
+    await client.getCurrentUser();
+    await client.getCurrentUser();
+
+    expect(client.isRecoverySession()).toBe(true);
+  });
+
+  it('hydrates the session store as recovery after a reload', async () => {
+    const session = createAuthSession({
+      apiHost: 'https://api.example.com',
+      storage: createMemoryStorage(),
+    });
+    mockFetch.mockResolvedValueOnce(me({ recovery: true }));
+
+    await session.actions.refreshSession();
+
+    expect(session.getState()).toMatchObject({
+      isAuthenticated: true,
+      recoverySession: true,
+    });
+  });
+
+  it('clears the store flag when a background revalidation reports a normal session', async () => {
+    const session = createAuthSession({
+      apiHost: 'https://api.example.com',
+      storage: createMemoryStorage(),
+      initialSession: { user: { id: 'user-1' } as never, recovery: true },
+    });
+    expect(session.getState().recoverySession).toBe(true);
+    mockFetch.mockResolvedValueOnce(me({ recovery: false }));
+
+    await session.actions.refreshSession({ background: true });
+
+    expect(session.getState().recoverySession).toBe(false);
+  });
+
+  it('refreshes after enrollment in a store restored as recovery', async () => {
+    const session = createAuthSession({
+      apiHost: 'https://api.example.com',
+      storage: createMemoryStorage(),
+    });
+    mockFetch.mockResolvedValueOnce(me({ recovery: true }));
+    await session.actions.refreshSession();
+    mockFetch
+      .mockResolvedValueOnce(ok({ challenge: 'c' }))
+      .mockResolvedValueOnce(ok({ message: 'Success' }))
+      .mockResolvedValueOnce(me({ recovery: false }));
+    (startRegistration as jest.Mock).mockResolvedValueOnce({ id: 'cred' });
+
+    const { error } = await session.actions.registerPasskey({
+      friendlyName: 'mac',
+      platform: 'mac',
+      browser: 'chrome',
+      deviceInfo: 'mac',
+    });
+
+    expect(error).toBeNull();
+    expect(mockRefresh).toHaveBeenCalledTimes(1);
+    expect(session.getState().recoverySession).toBe(false);
   });
 });
 

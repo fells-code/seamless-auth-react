@@ -79,7 +79,9 @@ enroll a passkey or authenticator app until one is enrolled (other routes answer
 `enrollment_required`, see `isEnrollmentRequired()`). `client.isRecoverySession()` and the session
 state's `recoverySession` report it. After `registerPasskey()` or `verifyTotpEnrollment()` succeeds
 from one, the client rotates the session through `POST /refresh` so the next access token no longer
-carries the recovery claim. The flag is held in memory, so it does not survive a reload.
+carries the recovery claim. `getCurrentUser()` also sets the flag from the `recovery` field of
+`/users/me`, so a session restored after a reload is still reported as one. An auth API that does not
+send the field leaves the flag as the redeeming client set it.
 
 ### OAuth state binding
 

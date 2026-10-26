@@ -1189,7 +1189,8 @@ user and sign out; everything else answers `403` with `enrollment_required`
 the user to enrollment next. After `registerPasskey()` or `verifyTotpEnrollment()` succeeds from a
 recovery session the client calls `POST /auth/refresh`, so the new access token no longer carries
 the recovery claim, and `recoverySession` goes back to false on the next `refreshSession()`. The
-flag lives in memory: after a reload the client cannot tell a recovery session from a normal one.
+flag is read from `/users/me` as well, so a recovery session restored after a reload (or passed as
+`initialSession` with `recovery: true`) still goes to enrollment.
 
 Self-service recovery is off unless the deployment turns it on. `useRecoveryOptions()` reports
 `recoveryCodes` and `accountRecovery` from the public configuration, so offer each only where it
