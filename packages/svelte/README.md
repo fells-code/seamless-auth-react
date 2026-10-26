@@ -175,16 +175,27 @@ Put `requireGuest` only on the screens that start a sign-in (`login`, `passkey-l
 Mount each at its route. The paths below are what the screens navigate between by default; pass
 `paths` to `createKitNavigator` if you mount them elsewhere.
 
-| Default path        | Component                     | Purpose                                                     |
-| ------------------- | ----------------------------- | ----------------------------------------------------------- |
-| `/login`            | `SaLogin`                     | Sign in with an email or phone number, or create an account |
-| `/passkey-login`    | `SaPasskeyLogin`              | Sign in with a passkey alone                                |
-| `/verify-email-otp` | `SaVerifyOtp channel="email"` | Check an email code                                         |
-| `/verify-phone-otp` | `SaVerifyOtp channel="phone"` | Check a text message code                                   |
-| `/magic-link-sent`  | `SaMagicLinkSent`             | Wait for an emailed link to be used                         |
-| `/verify-magiclink` | `SaVerifyMagicLink`           | Where the emailed link lands. The auth API builds this URL  |
-| `/oauth/callback`   | `SaOAuthCallback`             | The OAuth redirect URI to register with providers           |
-| `/register-passkey` | `SaRegisterPasskey`           | Offer passkey enrolment after sign-up                       |
+| Default path              | Component                     | Purpose                                                     |
+| ------------------------- | ----------------------------- | ----------------------------------------------------------- |
+| `/login`                  | `SaLogin`                     | Sign in with an email or phone number, or create an account |
+| `/passkey-login`          | `SaPasskeyLogin`              | Sign in with a passkey alone                                |
+| `/verify-email-otp`       | `SaVerifyOtp channel="email"` | Check an email code                                         |
+| `/verify-phone-otp`       | `SaVerifyOtp channel="phone"` | Check a text message code                                   |
+| `/magic-link-sent`        | `SaMagicLinkSent`             | Wait for an emailed link to be used                         |
+| `/verify-magiclink`       | `SaVerifyMagicLink`           | Where the emailed link lands. The auth API builds this URL  |
+| `/oauth/callback`         | `SaOAuthCallback`             | The OAuth redirect URI to register with providers           |
+| `/register-passkey`       | `SaRegisterPasskey`           | Offer passkey enrolment after sign-up                       |
+| `/register-authenticator` | `SaRegisterAuthenticator`     | Add an authenticator app instead of a passkey               |
+| `/authenticator-code`     | `SaAuthenticatorCode`         | Sign in with a code from an authenticator app               |
+
+The sign-in screen always offers "Use an authenticator app" among the other ways in, since `/login`
+never lists it. `SaRegisterPasskey` offers it when the device cannot register a passkey, and always
+to a recovery session, which cannot skip enrolment: adding either factor lifts the recovery
+restriction.
+
+`SaAuthenticatorAppSettings` is a router-free settings section for a signed-in page: it shows
+whether an authenticator app is set up, adds one (QR code, setup key with a copy button, first code)
+and turns it off with a current code.
 
 The building blocks are exported too: `SaOtpInput` (bind with `bind:value`), `SaFallbackOptions`,
 `SaOAuthProviderButtons`, `SaAuthLayout`, and `authRoutePaths`.
@@ -204,7 +215,8 @@ The screens never import a router. They navigate through an `AuthNavigator` set 
 
 Every screen is a thin view over a flow in `@seamless-auth/client` (`beginSignIn`,
 `registerWithEmail`, `verifyOtp`, `watchMagicLink`, `finishMagicLinkSignIn`,
-`confirmMagicLinkSignIn`, `startOAuthSignIn`, `completeOAuthCallback`, `enrollPasskey`, and helpers). A custom screen calls the same flows with the
+`confirmMagicLinkSignIn`, `startOAuthSignIn`, `completeOAuthCallback`, `enrollPasskey`,
+`signInWithTotp`, `qrCode`, and helpers). A custom screen calls the same flows with the
 session as its actions:
 
 ```ts
