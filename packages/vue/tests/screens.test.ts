@@ -921,6 +921,17 @@ describe('authenticator app enrollment', () => {
     expect(text()).toContain('JBSW Y3DP EHPK 3PXP');
   });
 
+  it('offers no link for a URL that is not otpauth', async () => {
+    await open('/register-authenticator', {
+      'POST /totp/enroll/start': {
+        body: { ...enrollmentStart.body, otpauthUrl: 'javascript:alert(1)' },
+      },
+    });
+
+    expect(text()).toContain('JBSW Y3DP EHPK 3PXP');
+    expect(wrapper.find('a').exists()).toBe(false);
+  });
+
   it('goes to signedInPath once added when nothing was handed over', async () => {
     await open(
       '/register-authenticator',

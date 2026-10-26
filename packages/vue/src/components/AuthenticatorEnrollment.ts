@@ -154,11 +154,13 @@ export const SaAuthenticatorEnrollment = defineComponent({
           'Copy key'
         ),
         copyMessage.value && h('p', { role: 'status' }, copyMessage.value),
-        h(
-          'a',
-          { class: 'sa-link', href: otpauthUrl },
-          'Open in an authenticator app on this device'
-        ),
+        // The URL comes from the server, so only an otpauth: one becomes a link.
+        otpauthUrl.startsWith('otpauth://') &&
+          h(
+            'a',
+            { class: 'sa-link', href: otpauthUrl },
+            'Open in an authenticator app on this device'
+          ),
         h('form', { onSubmit: verify }, [
           h('span', { class: 'sa-label' }, 'Code from your authenticator app'),
           h(SaOtpInput, {
