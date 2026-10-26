@@ -9,10 +9,13 @@
   import { setAuthNavigator, setSeamlessAuth, type SeamlessAuth } from '../src';
   import type { AuthNavigator } from '../src/navigation';
   import {
+    SaAuthenticatorAppSettings,
+    SaAuthenticatorCode,
     SaLogin,
     SaMagicLinkSent,
     SaOAuthCallback,
     SaPasskeyLogin,
+    SaRegisterAuthenticator,
     SaRegisterPasskey,
     SaVerifyMagicLink,
     SaVerifyOtp,
@@ -52,5 +55,11 @@
     <SaOAuthCallback />
   {:else if nav.current === 'registerPasskey'}
     <SaRegisterPasskey />
+  {:else if nav.current === 'registerAuthenticator'}
+    <SaRegisterAuthenticator />
+  {:else if nav.current === 'authenticatorCode'}
+    <SaAuthenticatorCode />
+  {:else if nav.current === 'settings'}
+    <SaAuthenticatorAppSettings />
   {/if}
 {/key}

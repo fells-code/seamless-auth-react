@@ -31,7 +31,7 @@ const ok = { body: { message: 'Success' } };
 let nav: ReturnType<typeof createFakeNavigator>['nav'];
 
 async function open(
-  start: AuthScreen,
+  start: AuthScreen | 'settings',
   routes: Record<string, AdapterReply | AdapterHandler>,
   options: {
     passkeys?: boolean;
@@ -629,6 +629,324 @@ describe('passkey screens', () => {
     await click('Use Passkey');
     expect(text()).toContain('Passkey sign-in could not be completed');
     expect(passkeys.get).not.toHaveBeenCalled();
+  });
+});
+
+const enrollment = {
+  body: {
+    message: 'Success',
+    secret: 'JBSWY3DPEHPK3PXPJBSWY3DP',
+    otpauthUrl:
+      'otpauth://totp/Example:ada%40example.com?secret=JBSWY3DPEHPK3PXPJBSWY3DP',
+    issuer: 'Example',
+    accountName: 'ada@example.com',
+    algorithm: 'SHA1',
+    digits: 6,
+    period: 30,
+  },
+};
+const totpRefused = { status: 401, body: { error: 'totp_verification_failed' } };
+
+describe('authenticator app sign-in', () => {
+  it('is offered with the other ways in, even though /login never lists it', async () => {
+    localStorage.setItem('seamlessauth_seen', 'true');
+    await open('login', {
+      'POST /login': { body: { loginMethods: ['passkey'] } },
+      'GET /system-config/public': { body: { loginMethods: ['passkey'] } },
+    });
+
+    await type('#identifier', 'ada@example.com');
+    await submit();
+
+    expect(text()).toContain('Choose a sign-in method');
+    expect(text()).not.toContain('Email Magic Link');
+    await click(/Use an authenticator app/);
+    expect(nav.current).toBe('authenticatorCode');
+    expect(heading()).toBe('Enter your authenticator code');
+  });
+
+  it('signs in with a code', async () => {
+    let session = signedOut;
+    const { adapter } = await open('authenticatorCode', {
+      'GET /users/me': () => session,
+      'POST /totp/verify-login': () => {
+        session = signedIn;
+        return ok;
+      },
+    });
+
+    await typeCode('123456');
+    await submit();
+
+    expect(bodyOf(adapter, 'POST', '/totp/verify-login')).toEqual({ code: '123456' });
+    expect(nav.current).toBe('app');
+  });
+
+  it('asks for a whole code before sending one', async () => {
+    const { adapter } = await open('authenticatorCode', {});
+    await submit();
+    expect(screen.getByRole('alert').textContent).toContain('Enter the 6-digit code');
+    expect(adapter.called('POST', '/totp/verify-login')).toHaveLength(0);
+  });
+
+  it('explains a wrong or reused code, a lockout and a rate limit', async () => {
+    let reply: AdapterReply = totpRefused;
+    await open('authenticatorCode', { 'POST /totp/verify-login': () => reply });
+
+    await typeCode('123456');
+    await submit();
+    expect(screen.getByRole('alert').textContent).toContain('Each code works once.');
+    expect(nav.current).toBe('authenticatorCode');
+
+    reply = { status: 423, body: { error: 'account_locked', retryAfterSeconds: 120 } };
+    await typeCode('234567');
+    await submit();
+    expect(screen.getByRole('alert').textContent).toContain('Try again in 2 minutes.');
+
+    reply = { status: 429, body: { error: 'too_many_requests' } };
+    await typeCode('345678');
+    await submit();
+    expect(screen.getByRole('alert').textContent).toContain('Too many attempts.');
+
+    await click('Back to login');
+    expect(nav.current).toBe('login');
+  });
+});
+
+describe('authenticator app enrollment', () => {
+  let clipboard: { writeText: ReturnType<typeof vi.fn> };
+
+  beforeEach(() => {
+    clipboard = { writeText: vi.fn().mockResolvedValue(undefined) };
+    Object.defineProperty(globalThis.navigator, 'clipboard', {
+      value: clipboard,
+      configurable: true,
+    });
+  });
+
+  it('shows a QR code and setup key, verifies the first code, and continues', async () => {
+    const { adapter } = await open(
+      'registerAuthenticator',
+      { 'POST /totp/enroll/start': enrollment, 'POST /totp/enroll/verify': ok },
+      { state: { returnTo: '/settings' } }
+    );
+    await waitSettled();
+
+    expect(heading()).toBe('Set up an authenticator app');
+    const qr = screen.getByRole('img', { name: 'QR code for your authenticator app' });
+    expect(qr.querySelector('rect')?.getAttribute('fill')).toBe('#ffffff');
+    expect(qr.querySelector('path')?.getAttribute('d')).toMatch(/^M/);
+    expect(text()).toContain('JBSW Y3DP EHPK 3PXP JBSW Y3DP');
+    expect(
+      screen.getByRole('link', { name: /Open in an authenticator app/ })
+    ).toHaveAttribute('href', enrollment.body.otpauthUrl);
+
+    await click('Copy setup key');
+    expect(clipboard.writeText).toHaveBeenCalledWith('JBSWY3DPEHPK3PXPJBSWY3DP');
+    expect(text()).toContain('Setup key copied.');
+
+    await typeCode('123456');
+    await submit();
+
+    expect(bodyOf(adapter, 'POST', '/totp/enroll/verify')).toEqual({ code: '123456' });
+    expect(heading()).toBe('Authenticator app added');
+    expect(screen.getByRole('status').textContent).toContain('sign in with a code');
+
+    await click('Continue');
+    expect(nav.current).toBe('app');
+    expect(nav.path).toBe('/settings');
+  });
+
+  it('reports a refused code and a failed copy, and lets the user go back', async () => {
+    clipboard.writeText.mockRejectedValue(new Error('denied'));
+    await open(
+      'registerAuthenticator',
+      { 'POST /totp/enroll/start': enrollment, 'POST /totp/enroll/verify': totpRefused },
+      { state: { returnTo: '/settings' } }
+    );
+    await waitSettled();
+
+    await click('Copy setup key');
+    expect(text()).toContain('Could not copy.');
+
+    await submit();
+    expect(screen.getByRole('alert').textContent).toContain('Enter the 6-digit code');
+
+    await typeCode('123456');
+    await submit();
+    expect(screen.getByRole('alert').textContent).toContain('That code did not work.');
+    expect(heading()).toBe('Set up an authenticator app');
+
+    await click('Back');
+    expect(nav.current).toBe('registerPasskey');
+    expect(nav.state).toEqual({ returnTo: '/settings' });
+  });
+
+  it('explains an enrollment that cannot start, and retries it', async () => {
+    let reply: AdapterReply = { status: 409, body: { error: 'secret_required' } };
+    await open('registerAuthenticator', { 'POST /totp/enroll/start': () => reply });
+    await waitSettled();
+
+    expect(screen.getByRole('alert').textContent).toContain(
+      'Authenticator apps are not available'
+    );
+
+    reply = {
+      body: { ...enrollment.body, otpauthUrl: 'javascript:alert(1)' },
+    };
+    await click('Try again');
+    expect(screen.getByRole('img', { name: /QR code/ })).toBeInTheDocument();
+    expect(screen.queryByRole('link')).toBeNull();
+  });
+
+  it('is offered when the device cannot register a passkey', async () => {
+    await open('registerPasskey', {
+      'GET /system-config/public': { body: { loginMethods: ['passkey'] } },
+    });
+    await waitSettled();
+
+    expect(text()).toContain('requires one to sign in');
+    await click('Use an authenticator app');
+    expect(nav.current).toBe('registerAuthenticator');
+  });
+
+  it('lets a recovery session finish with an authenticator app, and never skip', async () => {
+    let recovery = true;
+    const { auth } = await open(
+      'registerPasskey',
+      {
+        'GET /users/me': () => ({ body: { ...(signedIn.body as object), recovery } }),
+        'GET /system-config/public': { body: { loginMethods: ['passkey', 'email_otp'] } },
+        'POST /totp/enroll/start': enrollment,
+        'POST /totp/enroll/verify': () => {
+          recovery = false;
+          return ok;
+        },
+        'POST /refresh': ok,
+      },
+      { passkeys: true }
+    );
+    await waitSettled();
+
+    expect(auth.recoverySession).toBe(true);
+    expect(heading()).toBe('Secure Your Account with a Passkey');
+    expect(screen.queryByRole('button', { name: 'Skip for now' })).toBeNull();
+
+    await click('Use an authenticator app');
+    await waitSettled();
+    await typeCode('123456');
+    await submit();
+
+    expect(heading()).toBe('Authenticator app added');
+    expect(auth.recoverySession).toBe(false);
+  });
+
+  it('gives a recovery session on a device without passkeys a way forward', async () => {
+    await open('registerPasskey', {
+      'GET /users/me': { body: { ...(signedIn.body as object), recovery: true } },
+      'GET /system-config/public': { body: { loginMethods: ['passkey', 'email_otp'] } },
+    });
+    await waitSettled();
+
+    expect(text()).toContain(
+      'Set up an authenticator app to finish securing your account.'
+    );
+    expect(screen.queryByRole('button', { name: 'Continue' })).toBeNull();
+    expect(button('Use an authenticator app')).toBeInTheDocument();
+  });
+});
+
+describe('authenticator app settings', () => {
+  const status = (enabled: boolean) => ({
+    body: {
+      enabled,
+      verifiedAt: enabled ? '2026-10-01T12:00:00.000Z' : null,
+      lastUsedAt: enabled ? '2026-10-20T12:00:00.000Z' : null,
+    },
+  });
+
+  it('sets one up', async () => {
+    let enabled = false;
+    await open('settings', {
+      'GET /users/me': signedIn,
+      'GET /totp/status': () => status(enabled),
+      'POST /totp/enroll/start': enrollment,
+      'POST /totp/enroll/verify': () => {
+        enabled = true;
+        return ok;
+      },
+    });
+    await waitSettled();
+
+    expect(heading()).toBe('Authenticator app');
+    expect(text()).toContain('Not set up.');
+
+    await click('Set up authenticator app');
+    await waitSettled();
+    expect(screen.getByRole('img', { name: /QR code/ })).toBeInTheDocument();
+
+    await click('Cancel');
+    expect(text()).toContain('Not set up.');
+
+    await click('Set up authenticator app');
+    await waitSettled();
+    await typeCode('123456');
+    await submit();
+
+    expect(screen.getByRole('status').textContent).toContain('Authenticator app added.');
+    expect(text()).toContain('On, added ');
+    expect(text()).toContain('last used ');
+  });
+
+  it('turns one off with a current code', async () => {
+    let enabled = true;
+    let reply: AdapterReply = totpRefused;
+    const { adapter } = await open('settings', {
+      'GET /users/me': signedIn,
+      'GET /totp/status': () => status(enabled),
+      'POST /totp/disable': () => {
+        if (reply === ok) enabled = false;
+        return reply;
+      },
+    });
+    await waitSettled();
+
+    await click('Turn off');
+    await submit();
+    expect(screen.getByRole('alert').textContent).toContain('Enter the 6-digit code');
+    expect(adapter.called('POST', '/totp/disable')).toHaveLength(0);
+
+    await typeCode('123456');
+    await submit();
+    expect(screen.getByRole('alert').textContent).toContain('That code did not work.');
+
+    reply = ok;
+    await typeCode('234567');
+    await submit();
+
+    expect(bodyOf(adapter, 'POST', '/totp/disable')).toEqual({ code: '123456' });
+    expect(adapter.called('POST', '/totp/disable')).toHaveLength(2);
+    expect(screen.getByRole('status').textContent).toContain(
+      'Authenticator app turned off.'
+    );
+    expect(text()).toContain('Not set up.');
+  });
+
+  it('retries a status that will not load', async () => {
+    let reply: AdapterReply = { status: 500 };
+    await open('settings', {
+      'GET /users/me': signedIn,
+      'GET /totp/status': () => reply,
+    });
+    await waitSettled();
+
+    expect(screen.getByRole('alert').textContent).toContain(
+      'Could not load your authenticator app.'
+    );
+
+    reply = status(false);
+    await click('Try again');
+    expect(text()).toContain('Not set up.');
   });
 });
 

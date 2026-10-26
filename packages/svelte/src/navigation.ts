@@ -19,6 +19,8 @@ export const authRoutePaths = {
   verifyMagicLink: '/verify-magiclink',
   oauthCallback: '/oauth/callback',
   registerPasskey: '/register-passkey',
+  registerAuthenticator: '/register-authenticator',
+  authenticatorCode: '/authenticator-code',
   magicLinkSent: '/magic-link-sent',
 } as const;
 

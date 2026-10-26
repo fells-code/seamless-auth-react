@@ -18,6 +18,7 @@
     onEmailOtp,
     onPhoneOtp,
     onPasskeyRetry,
+    onAuthenticatorApp,
   }: {
     identifier: string;
     /** Null while the methods are unknown; the options then stay permissive. */
@@ -26,6 +27,11 @@
     onEmailOtp?: () => void;
     onPhoneOtp: () => void;
     onPasskeyRetry?: () => void;
+    /**
+     * Offered whenever it is passed: `/login` never lists the authenticator
+     * app, and the API answers a code for any identifier alike.
+     */
+    onAuthenticatorApp?: () => void;
   } = $props();
 
   const options = $derived(
@@ -36,7 +42,7 @@
   );
 </script>
 
-{#if hasFallbackSignInOption(options)}
+{#if hasFallbackSignInOption(options) || onAuthenticatorApp}
   <div class="sa-fallback">
     <div class="sa-fallback-header">Choose a sign-in method</div>
     <p class="sa-fallback-description">Choose another secure sign-in method.</p>
@@ -58,6 +64,12 @@
         <button type="button" class="sa-action" onclick={onPhoneOtp}>
           <span class="sa-action-title">Text Message Code</span>
           <span class="sa-action-subtext">Receive a one-time code via SMS</span>
+        </button>
+      {/if}
+      {#if onAuthenticatorApp}
+        <button type="button" class="sa-action" onclick={onAuthenticatorApp}>
+          <span class="sa-action-title">Use an authenticator app</span>
+          <span class="sa-action-subtext">Enter a code from your authenticator app</span>
         </button>
       {/if}
     </div>
