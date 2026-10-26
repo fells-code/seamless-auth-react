@@ -6,6 +6,7 @@
 
 import { AuthContextType, AuthPorts, AuthProvider, useAuth } from '@/AuthProvider';
 import { AccountSecurity } from '@/components/AccountSecurity';
+import { AuthenticatorAppSettings } from '@/components/AuthenticatorAppSettings';
 import { PasskeyManagement } from '@/components/PasskeyManagement';
 import { RecoveryCodeSettings } from '@/components/RecoveryCodeSettings';
 import { RecoveryRequests } from '@/components/RecoveryRequests';
@@ -87,6 +88,14 @@ import { usePasskeySupport } from '@/hooks/usePasskeySupport';
 import { useRecoveryOptions } from '@/hooks/useRecoveryOptions';
 import { hasScopedRole, roleGrantsAccess } from '@seamless-auth/client';
 import {
+  formatTotpSecret,
+  qrCode,
+  type QrCode,
+  signInWithTotp,
+  TOTP_CODE_LENGTH,
+  totpErrorMessage,
+} from '@seamless-auth/client';
+import {
   Credential,
   Organization,
   OrganizationMembership,
@@ -105,10 +114,12 @@ import type {
 
 export {
   AccountSecurity,
+  AuthenticatorAppSettings,
   AuthProvider,
   createSeamlessAuthClient,
   encodePrfSalt,
   extractPasskeyPrfResult,
+  formatTotpSecret,
   getOAuthErrorCode,
   getPasskeyPolicyErrorCode,
   getRecoveryErrorCode,
@@ -120,10 +131,14 @@ export {
   isStepUpRequired,
   isUnauthenticated,
   PasskeyManagement,
+  qrCode,
   RecoveryCodeSettings,
   RecoveryRequests,
   roleGrantsAccess,
   SeamlessAuthError,
+  signInWithTotp,
+  TOTP_CODE_LENGTH,
+  totpErrorMessage,
   UntrustedOriginError,
   UntrustedRedirectError,
   useAuth,
@@ -176,6 +191,7 @@ export type {
   PasskeyPrfResult,
   PasskeyRegistrationData,
   PublicSystemConfigResult,
+  QrCode,
   RecoveryCodesResult,
   RecoveryCodeStatus,
   RecoveryErrorCode,
