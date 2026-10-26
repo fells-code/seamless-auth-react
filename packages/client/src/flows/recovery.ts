@@ -148,7 +148,7 @@ export async function generateRecoveryCodesWithStepUp(deps: {
   if (stepUp.error) {
     return {
       kind: 'error',
-      message: 'Confirm it is you with your passkey to replace your recovery codes.',
+      message: 'Confirm it is you to replace your recovery codes.',
     };
   }
 
