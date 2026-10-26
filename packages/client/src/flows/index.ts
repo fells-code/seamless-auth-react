@@ -14,4 +14,5 @@ export * from './passkeySupport';
 export * from './recovery';
 export * from './redirects';
 export * from './signIn';
+export * from './totp';
 export * from './validation';

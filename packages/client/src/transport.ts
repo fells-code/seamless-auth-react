@@ -244,6 +244,23 @@ const ROUTE_RULES: readonly RouteRule[] = [
 
 const DEFAULT_RULE: RouteRule = { match: /.*/, identity: 'access' };
 
+const FACTOR_REJECTIONS = new Set([
+  'totp_verification_failed',
+  'totp_disable_failed',
+  'step_up_failed',
+  'invalid_recovery_code',
+]);
+
+async function isFactorRejection(response: Response): Promise<boolean> {
+  try {
+    const body: unknown = await response.clone().json();
+    const code = (body as { error?: unknown } | null)?.error;
+    return typeof code === 'string' && FACTOR_REJECTIONS.has(code);
+  } catch {
+    return false;
+  }
+}
+
 export function resolveRouteRule(path: string): RouteRule {
   return ROUTE_RULES.find(rule => rule.match.test(path)) ?? DEFAULT_RULE;
 }
@@ -591,7 +608,9 @@ export function createTransport(options: TransportOptions): Transport {
   }
 
   // An expired access token is the one 401 this layer can do something about.
-  // Retried once; a second 401 is the caller's to handle.
+  // Retried once; a second 401 is the caller's to handle. A 401 that names a
+  // rejected factor (a wrong TOTP or recovery code) is the answer, not an expired
+  // token, and resending the same code would only spend another attempt.
   async function sendWithRefresh(
     url: string,
     init: RequestInit | undefined,
@@ -600,7 +619,12 @@ export function createTransport(options: TransportOptions): Transport {
   ) {
     let response = await send(url, init, identity, markTransport);
 
-    if (response.status === 401 && identity === 'access' && (await readTokens())) {
+    if (
+      response.status === 401 &&
+      identity === 'access' &&
+      !(await isFactorRejection(response)) &&
+      (await readTokens())
+    ) {
       if (await refreshOnce()) {
         response = await send(url, init, identity, markTransport);
       }
