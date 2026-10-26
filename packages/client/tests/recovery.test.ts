@@ -526,7 +526,7 @@ describe('recovery flows', () => {
         generateRecoveryCodesWithStepUp({ client, verifyStepUp })
       ).resolves.toMatchObject({
         kind: 'error',
-        message: expect.stringMatching(/passkey/),
+        message: 'Confirm it is you to replace your recovery codes.',
       });
       expect(client.generateRecoveryCodes).toHaveBeenCalledTimes(1);
     });
