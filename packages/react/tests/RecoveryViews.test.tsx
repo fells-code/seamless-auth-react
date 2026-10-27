@@ -55,6 +55,7 @@ const renderAt = (
 
 const client = {
   getRecoveryCodeStatus: jest.fn(),
+  getTotpStatus: jest.fn(),
   generateRecoveryCodes: jest.fn(),
   startAccountRecovery: jest.fn(),
   verifyAccountRecovery: jest.fn(),
@@ -65,12 +66,17 @@ const auth = {
   redeemRecoveryCode: jest.fn(),
   completeAccountRecovery: jest.fn(),
   verifyStepUpWithPasskey: jest.fn(),
+  verifyStepUpWithTotp: jest.fn(),
+  credentials: [],
 };
 
 beforeEach(() => {
   jest.clearAllMocks();
   (useAuthClient as jest.Mock).mockReturnValue(client);
   (useAuth as jest.Mock).mockReturnValue(auth);
+  client.getTotpStatus.mockResolvedValue(
+    success({ enabled: false, verifiedAt: null, lastUsedAt: null })
+  );
 });
 
 describe('RecoveryCodeLogin', () => {
@@ -234,6 +240,35 @@ describe('RecoveryCodes', () => {
 
     expect(await screen.findByText('NEW')).toBeInTheDocument();
     expect(auth.verifyStepUpWithPasskey).toHaveBeenCalledTimes(1);
+  });
+
+  it('steps up with an authenticator code when the account has one', async () => {
+    client.getTotpStatus.mockResolvedValue(
+      success({ enabled: true, verifiedAt: 'x', lastUsedAt: null })
+    );
+    client.getRecoveryCodeStatus.mockResolvedValue(
+      success({ enabled: true, remaining: 0, total: 10, createdAt: 'x' })
+    );
+    client.generateRecoveryCodes
+      .mockResolvedValueOnce(failure(403, { error: 'step_up_required' }))
+      .mockResolvedValueOnce(
+        success({ message: 'Success', codes: ['NEW'], createdAt: 'x' })
+      );
+    auth.verifyStepUpWithTotp.mockResolvedValue(success({ fresh: true }));
+
+    renderCodes();
+
+    fireEvent.click(
+      await screen.findByRole('button', { name: 'Generate recovery codes' })
+    );
+    fireEvent.change(await screen.findByLabelText('Digit 1'), {
+      target: { value: '123456' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Confirm' }));
+
+    expect(await screen.findByText('NEW')).toBeInTheDocument();
+    expect(auth.verifyStepUpWithTotp).toHaveBeenCalledWith('123456');
+    expect(auth.verifyStepUpWithPasskey).not.toHaveBeenCalled();
   });
 
   it('lets the user skip when generating fails', async () => {

@@ -11,6 +11,7 @@ import { useAuth } from '@/AuthProvider';
 import { useAuthClient } from '@/hooks/useAuthClient';
 import { usePasskeySupport } from '@/hooks/usePasskeySupport';
 import { AccountSecurity } from '@/components/AccountSecurity';
+import { AuthenticatorAppSettings } from '@/components/AuthenticatorAppSettings';
 import { PasskeyManagement } from '@/components/PasskeyManagement';
 import { RecoveryCodeSettings } from '@/components/RecoveryCodeSettings';
 import { RecoveryRequests } from '@/components/RecoveryRequests';
@@ -38,10 +39,17 @@ const passkey = (id: string, extra: Record<string, unknown> = {}) => ({
 
 const client = {
   getRecoveryCodeStatus: jest.fn(),
+  getTotpStatus: jest.fn(),
   generateRecoveryCodes: jest.fn(),
   listAccountRecoveryRequests: jest.fn(),
   cancelAccountRecoveryRequest: jest.fn(),
+  startTotpEnrollment: jest.fn(),
+  verifyTotpEnrollment: jest.fn(),
+  disableTotp: jest.fn(),
 };
+const totpOff = { enabled: false, verifiedAt: null, lastUsedAt: null };
+const enterCode = (code: string) =>
+  fireEvent.change(screen.getByLabelText('Digit 1'), { target: { value: code } });
 let auth: Record<string, unknown>;
 
 beforeEach(() => {
@@ -52,7 +60,10 @@ beforeEach(() => {
     deleteCredential: jest.fn().mockResolvedValue(success({ message: 'ok' })),
     registerPasskey: jest.fn().mockResolvedValue(success({ credentialId: 'n' })),
     verifyStepUpWithPasskey: jest.fn().mockResolvedValue(success({ fresh: true })),
+    verifyStepUpWithTotp: jest.fn().mockResolvedValue(success({ fresh: true })),
+    refreshSession: jest.fn().mockResolvedValue(success({})),
   };
+  client.getTotpStatus.mockResolvedValue(success(totpOff));
   (useAuth as jest.Mock).mockImplementation(() => auth);
   (useAuthClient as jest.Mock).mockReturnValue(client);
   (usePasskeySupport as jest.Mock).mockReturnValue({
@@ -231,6 +242,78 @@ describe('RecoveryCodeSettings', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent(/Confirm it is you/);
   });
 
+  describe('with an authenticator app', () => {
+    const replaceWithStepUp = async () => {
+      client.getTotpStatus.mockResolvedValue(
+        success({ enabled: true, verifiedAt: 'x', lastUsedAt: null })
+      );
+      client.getRecoveryCodeStatus.mockResolvedValue(
+        success({ enabled: true, remaining: 5, total: 10, createdAt: null })
+      );
+      client.generateRecoveryCodes
+        .mockResolvedValueOnce(failure(403, { error: 'step_up_required' }))
+        .mockResolvedValueOnce(
+          success({ message: 'Success', codes: ['TOTP-1'], createdAt: 'x' })
+        );
+
+      render(<RecoveryCodeSettings />);
+
+      fireEvent.click(
+        await screen.findByRole('button', { name: 'Replace recovery codes' })
+      );
+      expect(
+        await screen.findByRole('group', { name: 'Confirm it is you' })
+      ).toBeInTheDocument();
+    };
+
+    it('asks for a code, and explains a refused one before accepting the next', async () => {
+      (auth.verifyStepUpWithTotp as jest.Mock)
+        .mockResolvedValueOnce(failure(401, { error: 'totp_verification_failed' }))
+        .mockResolvedValueOnce(success({ fresh: true }));
+      await replaceWithStepUp();
+
+      expect(screen.getByRole('button', { name: 'Confirm' })).toBeDisabled();
+      expect(screen.queryByText('Use your passkey instead')).not.toBeInTheDocument();
+      enterCode('111111');
+      fireEvent.click(screen.getByRole('button', { name: 'Confirm' }));
+
+      expect(await screen.findByRole('alert')).toHaveTextContent(/Each code works once/);
+      expect(screen.getByLabelText('Digit 1')).toHaveValue('');
+
+      enterCode('222222');
+      fireEvent.click(screen.getByRole('button', { name: 'Confirm' }));
+
+      expect(await screen.findByText('TOTP-1')).toBeInTheDocument();
+      expect(auth.verifyStepUpWithTotp).toHaveBeenLastCalledWith('222222');
+      expect(auth.verifyStepUpWithPasskey).not.toHaveBeenCalled();
+    });
+
+    it('can use the passkey instead', async () => {
+      auth.credentials = [passkey('1')];
+      await replaceWithStepUp();
+
+      fireEvent.click(screen.getByRole('button', { name: 'Use your passkey instead' }));
+
+      expect(await screen.findByText('TOTP-1')).toBeInTheDocument();
+      expect(auth.verifyStepUpWithPasskey).toHaveBeenCalledTimes(1);
+    });
+
+    it('stays quiet when the prompt is cancelled', async () => {
+      await replaceWithStepUp();
+
+      fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+
+      await waitFor(() =>
+        expect(
+          screen.getByRole('button', { name: 'Replace recovery codes' })
+        ).toBeEnabled()
+      );
+      expect(screen.queryByRole('group', { name: 'Confirm it is you' })).toBeNull();
+      expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+      expect(client.generateRecoveryCodes).toHaveBeenCalledTimes(1);
+    });
+  });
+
   it('says when recovery codes are off, or cannot be read', async () => {
     client.getRecoveryCodeStatus.mockResolvedValueOnce(
       success({ enabled: false, remaining: 0, total: 0, createdAt: null })
@@ -301,6 +384,148 @@ describe('RecoveryRequests', () => {
   });
 });
 
+describe('AuthenticatorAppSettings', () => {
+  const enrollment = {
+    message: 'ok',
+    secret: 'JBSWY3DPEHPK3PXPJBSW',
+    otpauthUrl: 'otpauth://totp/App:user%40example.com?secret=JBSWY3DPEHPK3PXPJBSW',
+    issuer: 'App',
+    accountName: 'user@example.com',
+  };
+
+  it('sets up an authenticator app with a QR code, a setup key and a first code', async () => {
+    client.startTotpEnrollment.mockResolvedValue(success(enrollment));
+    client.verifyTotpEnrollment
+      .mockResolvedValueOnce(failure(401, { error: 'totp_verification_failed' }))
+      .mockResolvedValueOnce(success({ message: 'ok' }));
+    const writeText = jest.fn().mockResolvedValue(undefined);
+    Object.assign(navigator, { clipboard: { writeText } });
+
+    render(<AuthenticatorAppSettings />);
+
+    expect(
+      await screen.findByText('No authenticator app is set up.')
+    ).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Set up authenticator app' }));
+
+    expect(
+      await screen.findByRole('img', { name: 'QR code for your authenticator app' })
+    ).toBeInTheDocument();
+    expect(screen.getByText('JBSW Y3DP EHPK 3PXP JBSW')).toBeInTheDocument();
+    expect(
+      screen.getByRole('link', { name: /Open in an authenticator app/ })
+    ).toHaveAttribute('href', enrollment.otpauthUrl);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Copy key' }));
+    expect(await screen.findByText('Copied to the clipboard.')).toBeInTheDocument();
+    expect(writeText).toHaveBeenCalledWith(enrollment.secret);
+
+    enterCode('123456');
+    fireEvent.click(screen.getByRole('button', { name: 'Verify code' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent(/did not work/);
+
+    client.getTotpStatus.mockResolvedValue(
+      success({ enabled: true, verifiedAt: '2026-10-01T00:00:00.000Z', lastUsedAt: null })
+    );
+    enterCode('654321');
+    fireEvent.click(screen.getByRole('button', { name: 'Verify code' }));
+
+    expect(await screen.findByText('Authenticator app added.')).toBeInTheDocument();
+    expect(client.verifyTotpEnrollment).toHaveBeenLastCalledWith('654321');
+    expect(auth.refreshSession).toHaveBeenCalled();
+    expect(
+      await screen.findByText(/Turned on since .*Not used yet\./)
+    ).toBeInTheDocument();
+  });
+
+  it('says when copying is unavailable, and offers no link for a non-otpauth URL', async () => {
+    client.startTotpEnrollment.mockResolvedValue(
+      success({ ...enrollment, otpauthUrl: 'javascript:alert(1)' })
+    );
+    Object.assign(navigator, {
+      clipboard: { writeText: jest.fn().mockRejectedValue(new Error('denied')) },
+    });
+
+    render(<AuthenticatorAppSettings />);
+
+    fireEvent.click(
+      await screen.findByRole('button', { name: 'Set up authenticator app' })
+    );
+    fireEvent.click(await screen.findByRole('button', { name: 'Copy key' }));
+
+    expect(await screen.findByText(/Type the key in instead/)).toBeInTheDocument();
+    expect(screen.queryByRole('link')).not.toBeInTheDocument();
+    expect(screen.queryByRole('img')).not.toBeInTheDocument();
+  });
+
+  it('explains a server that cannot enroll, retries, and can be cancelled', async () => {
+    client.startTotpEnrollment
+      .mockResolvedValueOnce(failure(409, { error: 'secret_required' }))
+      .mockResolvedValueOnce(failure(500));
+
+    render(<AuthenticatorAppSettings />);
+
+    fireEvent.click(
+      await screen.findByRole('button', { name: 'Set up authenticator app' })
+    );
+    expect(await screen.findByRole('alert')).toHaveTextContent(/not available/);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
+    await waitFor(() =>
+      expect(screen.getByRole('alert')).toHaveTextContent(/could not start/)
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+    expect(
+      screen.getByRole('button', { name: 'Set up authenticator app' })
+    ).toBeInTheDocument();
+  });
+
+  it('turns the authenticator app off with a current code', async () => {
+    client.getTotpStatus.mockResolvedValue(
+      success({
+        enabled: true,
+        verifiedAt: '2026-10-01T00:00:00.000Z',
+        lastUsedAt: '2026-10-20T00:00:00.000Z',
+      })
+    );
+    client.disableTotp
+      .mockResolvedValueOnce(
+        failure(423, { error: 'account_locked', retryAfterSeconds: 60 })
+      )
+      .mockResolvedValueOnce(success({ message: 'ok' }));
+
+    render(<AuthenticatorAppSettings />);
+
+    expect(await screen.findByText(/Last used/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Turn off' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Turn off' }));
+
+    enterCode('123456');
+    fireEvent.click(screen.getByRole('button', { name: 'Turn off authenticator app' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('Try again in 1 minute.');
+
+    client.getTotpStatus.mockResolvedValue(success(totpOff));
+    enterCode('654321');
+    fireEvent.click(screen.getByRole('button', { name: 'Turn off authenticator app' }));
+
+    expect(await screen.findByText('Authenticator app turned off.')).toBeInTheDocument();
+    expect(client.disableTotp).toHaveBeenLastCalledWith('654321');
+    expect(
+      await screen.findByText('No authenticator app is set up.')
+    ).toBeInTheDocument();
+  });
+
+  it('reports a status that cannot be read', async () => {
+    client.getTotpStatus.mockResolvedValue(failure(500));
+
+    render(<AuthenticatorAppSettings />);
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(/Could not load/);
+  });
+});
+
 describe('AccountSecurity', () => {
   it('renders every section', async () => {
     client.getRecoveryCodeStatus.mockResolvedValue(
@@ -311,6 +536,9 @@ describe('AccountSecurity', () => {
     render(<AccountSecurity />);
 
     expect(screen.getByRole('heading', { name: 'Passkeys' })).toBeInTheDocument();
+    expect(
+      screen.getByRole('heading', { name: 'Authenticator app' })
+    ).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Recovery codes' })).toBeInTheDocument();
     expect(
       screen.getByRole('heading', { name: 'Account recovery requests' })

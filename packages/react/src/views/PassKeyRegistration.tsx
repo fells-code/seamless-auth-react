@@ -47,6 +47,9 @@ const PasskeyRegistration: React.FC = () => {
   // is enrolled.
   const canSkip = !recoverySession && hasNonPasskeyLoginMethod(loginMethods);
 
+  const setUpAuthenticatorApp = () =>
+    navigate(authRoutePaths.registerAuthenticator, { state: { returnTo: destination } });
+
   const finishWithoutPasskey = async () => {
     await refreshSession();
     navigate(destination);
@@ -86,9 +89,11 @@ const PasskeyRegistration: React.FC = () => {
           <div className={styles.supported}>
             <h2 className={styles.title}>Passkeys are not available here</h2>
             <p className={styles.description}>
-              {canSkip
-                ? 'This device does not support passkeys. You can continue without one and add a passkey later from a device that does.'
-                : 'This device does not support passkeys, and this application requires one to sign in. Try again from a device or browser that supports them.'}
+              {recoverySession
+                ? 'This device does not support passkeys. Set up an authenticator app to finish recovering your account, or try again from a device that supports passkeys.'
+                : canSkip
+                  ? 'This device does not support passkeys. You can continue without one and add a passkey later from a device that does.'
+                  : 'This device does not support passkeys, and this application requires one to sign in. Try again from a device or browser that supports them.'}
             </p>
 
             {canSkip && (
@@ -98,6 +103,15 @@ const PasskeyRegistration: React.FC = () => {
                 className={styles.button}
               >
                 Continue
+              </button>
+            )}
+            {(recoverySession || canSkip) && (
+              <button
+                type="button"
+                onClick={setUpAuthenticatorApp}
+                className={canSkip ? styles.secondary : styles.button}
+              >
+                Use an authenticator app
               </button>
             )}
           </div>
@@ -136,6 +150,17 @@ const PasskeyRegistration: React.FC = () => {
             >
               Use a security key instead
             </button>
+
+            {recoverySession && (
+              <button
+                type="button"
+                onClick={setUpAuthenticatorApp}
+                disabled={status === 'loading'}
+                className={styles.secondary}
+              >
+                Use an authenticator app
+              </button>
+            )}
 
             {message && (
               <p

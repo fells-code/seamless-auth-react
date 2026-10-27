@@ -27,8 +27,10 @@ New to Seamless Auth? The [self-hosted quickstart](https://docs.seamlessauth.com
 - `getPasskeyPolicyErrorCode()`, which reads the code the API refused a passkey registration with
 - `isStepUpRequired()`, `isEnrollmentRequired()` and `getRecoveryErrorCode()` for the recovery routes
 - `useRecoveryOptions()`, which reads whether the instance offers recovery codes and account recovery
-- `AccountSecurity`, `PasskeyManagement`, `RecoveryCodeSettings` and `RecoveryRequests`, prebuilt
-  account settings sections (see [Account recovery](#account-recovery))
+- `signInWithTotp()`, `totpErrorMessage()`, `formatTotpSecret()`, `qrCode()` and `TOTP_CODE_LENGTH`
+  for custom authenticator app screens (see [TOTP](#totp-authenticator-apps))
+- `AccountSecurity`, `PasskeyManagement`, `AuthenticatorAppSettings`, `RecoveryCodeSettings` and
+  `RecoveryRequests`, prebuilt account settings sections (see [Account recovery](#account-recovery))
 - types including `AuthContextType`, `Credential`, `User`, `OAuthProvider`, `StepUpStatus`, the `SeamlessAuthResult` wrapper, and the headless client input/result types
 
 ## Installation
@@ -452,7 +454,26 @@ await authClient.disableTotp('123456');
 
 These methods follow the standard result convention: check `error`, then read `data`. Enrolling TOTP is a sensitive change; gate it behind a fresh step-up when appropriate.
 
-> TOTP is not currently a login second factor. The Seamless Auth API issues a full session on the first factor and does not gate login on TOTP, so TOTP applies to step-up verification, not to the login flow.
+`qrCode(otpauthUrl)` returns `{ size, path }` for an SVG (`<svg viewBox="0 0 {size} {size}"><path d={path} /></svg>`, quiet zone included), and `formatTotpSecret(secret)` groups the secret in fours for manual entry. Keep the QR code on a light background in a dark theme so it still scans.
+
+A user with an authenticator app can also sign in with it, on the sign-in `login()` started:
+
+```ts
+import { signInWithTotp } from '@seamless-auth/react';
+
+await login(identifier, false);
+const { error } = await signInWithTotp({ client: authClient, refreshSession }, '123456');
+```
+
+`/login` never lists `totp` in `loginMethods`, and the API answers `/totp/verify-login` the same for
+an address with no account, so offering the option on every sign-in reveals nothing. A wrong code and
+a reused one are both refused with `totp_verification_failed`; `totpErrorMessage(error)` turns that,
+a lockout (`423`), a rate limit (`429`) and `login_method_disabled` (passkey-only accounts and
+phishing-resistant policies) into copy.
+
+The bundled screens cover all of this: `/register-authenticator` enrolls an app, `/authenticator-code`
+signs in with one, and `AuthenticatorAppSettings` shows the status, enrolls inline and turns the app
+off with a current code.
 
 ### WebAuthn PRF
 
@@ -1218,13 +1239,16 @@ For settings screens the package ships router-free sections built on the same pr
 ```tsx
 import { AccountSecurity } from '@seamless-auth/react';
 
-// Or individually: PasskeyManagement, RecoveryCodeSettings, RecoveryRequests
+// Or individually: PasskeyManagement, AuthenticatorAppSettings, RecoveryCodeSettings, RecoveryRequests
 <AccountSecurity />;
 ```
 
 `PasskeyManagement` lists passkeys with their name, kind and last use, renames and deletes them, adds
-another, and encourages a second passkey when there is only one. `RecoveryCodeSettings` shows how many
-codes are left and generates or replaces a set (asking for the passkey when the API wants a step-up).
+another, and encourages a second passkey when there is only one. `AuthenticatorAppSettings` shows
+whether an authenticator app is set up, enrolls one inline (QR code, setup key, first code) and turns
+it off with a current code. `RecoveryCodeSettings` shows how many codes are left and generates or
+replaces a set. When the API wants a step-up first it asks for a code from the authenticator app if
+one is set up (with the passkey as an alternative), and for the passkey otherwise.
 `RecoveryRequests` lists open recovery requests with a cancel button.
 
 ## Built-In Routes
@@ -1238,16 +1262,21 @@ codes are left and generates or replaces a set (asking for the passkey when the 
 - `/verify-magic-link`
 - `/oauth/callback`
 - `/register-passkey`
+- `/register-authenticator`, set up an authenticator app: QR code, setup key with a copy button and an
+  `otpauth://` link, then the first code. Continues to `/recovery-codes` like a passkey does
 - `/magic-link-sent`
+- `/authenticator-code`, sign in with a code from an authenticator app
 - `/recovery-code`, sign in with a recovery code
-- `/recovery-codes`, shown after a passkey is enrolled: generates and shows a first set (or a new one
-  when every code is spent), and continues once the user confirms they saved it
+- `/recovery-codes`, shown after a passkey or authenticator app is enrolled: generates and shows a
+  first set (or a new one when every code is spent), and continues once the user confirms they saved it
 - `/account-recovery`, self-service recovery: choose a channel, verify the code, wait, then finish
 - `/recovery/cancel`, where the link in a recovery notice lands
 
-The sign-in screen offers "Use a recovery code" and "Recover your account" beside the other methods,
-only where the public configuration reports `recoveryCodes` or `accountRecovery`. A recovery session
-goes straight to `/register-passkey`, which then cannot be skipped.
+The sign-in screen offers "Use an authenticator app" beside the other methods on every sign-in in
+progress, and "Use a recovery code" and "Recover your account" only where the public configuration
+reports `recoveryCodes` or `accountRecovery`. A recovery session goes straight to `/register-passkey`,
+which then cannot be skipped but offers an authenticator app instead (the way forward on a device
+without passkeys).
 
 These are optional UI wrappers over the same SDK primitives the package now exports for custom flows.
 

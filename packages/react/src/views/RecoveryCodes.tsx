@@ -8,22 +8,22 @@ import { generateRecoveryCodesWithStepUp, safeReturnPath } from '@seamless-auth/
 import React, { useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 
-import { useAuth } from '@/AuthProvider';
 import RecoveryCodeList from '@/components/RecoveryCodeList';
 import { useAuthClient } from '@/hooks/useAuthClient';
+import { useStepUpPrompt } from '@/hooks/useStepUpPrompt';
 import styles from '@/styles/recovery.module.css';
 
 type Step = 'loading' | 'show' | 'offer';
 
 /**
- * Offered straight after a passkey is enrolled. A user with no set gets one
+ * Offered straight after a passkey or authenticator app is enrolled. A user with no set gets one
  * generated and shown here; a user whose codes are all spent is offered a new
  * set. Anyone else, or an instance with recovery codes off, moves straight on.
  */
 const RecoveryCodes: React.FC = () => {
   const navigate = useNavigate();
   const authClient = useAuthClient();
-  const { verifyStepUpWithPasskey } = useAuth();
+  const stepUp = useStepUpPrompt();
   const destination = safeReturnPath(
     (useLocation().state as { returnTo?: unknown } | null)?.returnTo
   );
@@ -45,13 +45,13 @@ const RecoveryCodes: React.FC = () => {
 
     const outcome = await generateRecoveryCodesWithStepUp({
       client: authClient,
-      verifyStepUp: verifyStepUpWithPasskey,
+      verifyStepUp: stepUp.verifyStepUp,
     });
 
     setBusy(false);
 
     if (outcome.kind === 'error') {
-      setError(outcome.message);
+      if (!stepUp.cancelled()) setError(outcome.message);
       return false;
     }
 
@@ -97,6 +97,8 @@ const RecoveryCodes: React.FC = () => {
         )}
 
         {step === 'show' && <RecoveryCodeList codes={codes} onDone={finish} />}
+
+        {stepUp.prompt}
 
         {step === 'offer' && (
           <div className={styles.form}>
