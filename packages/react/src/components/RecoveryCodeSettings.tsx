@@ -11,18 +11,19 @@ import {
 } from '@seamless-auth/client';
 import React, { useCallback, useEffect, useState } from 'react';
 
-import { useAuth } from '@/AuthProvider';
 import RecoveryCodeList from '@/components/RecoveryCodeList';
 import { useAuthClient } from '@/hooks/useAuthClient';
+import { useStepUpPrompt } from '@/hooks/useStepUpPrompt';
 import styles from '@/styles/accountSecurity.module.css';
 
 /**
  * How many recovery codes are left, and a way to generate a new set. Replacing a
- * set asks for the user's passkey first, which the API requires.
+ * set asks the user to confirm it is them first (passkey or authenticator app),
+ * which the API requires.
  */
 export const RecoveryCodeSettings: React.FC = () => {
   const authClient = useAuthClient();
-  const { verifyStepUpWithPasskey } = useAuth();
+  const stepUp = useStepUpPrompt();
   const [status, setStatus] = useState<RecoveryCodeStatus | null>(null);
   const [codes, setCodes] = useState<string[] | null>(null);
   const [error, setError] = useState('');
@@ -49,13 +50,13 @@ export const RecoveryCodeSettings: React.FC = () => {
 
     const outcome = await generateRecoveryCodesWithStepUp({
       client: authClient,
-      verifyStepUp: verifyStepUpWithPasskey,
+      verifyStepUp: stepUp.verifyStepUp,
     });
 
     setBusy(false);
 
     if (outcome.kind === 'error') {
-      setError(outcome.message);
+      if (!stepUp.cancelled()) setError(outcome.message);
       return;
     }
 
@@ -117,10 +118,11 @@ export const RecoveryCodeSettings: React.FC = () => {
               </button>
               {hasSet && (
                 <p className={styles.meta}>
-                  Replacing your codes stops the old ones working. You will be asked for
-                  your passkey first.
+                  Replacing your codes stops the old ones working. You will be asked to
+                  confirm it is you first.
                 </p>
               )}
+              {stepUp.prompt}
             </>
           )}
         </>
