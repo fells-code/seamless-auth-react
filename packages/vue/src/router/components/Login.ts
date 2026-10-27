@@ -219,9 +219,13 @@ export const SaLogin = defineComponent({
             identifier: identifier.value,
             loginMethods: loginMethods.value,
             offerPasskeyRetry: auth.passkeySupported.value,
+            // The API answers a code for any identifier, so offering it reveals
+            // nothing about whether the account has an authenticator app.
+            offerAuthenticatorApp: true,
             onMagicLink: sendMagicLink,
             onEmailOtp: sendEmailOtp,
             onPhoneOtp: sendPhoneOtp,
+            onAuthenticatorApp: () => navigation.toScreen('authenticatorCode'),
             onPasskeyRetry: retryPasskey,
           }),
         identifierError.value && h('p', { class: 'sa-error' }, identifierError.value),

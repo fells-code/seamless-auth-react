@@ -26,8 +26,9 @@ export const SaFallbackOptions = defineComponent({
     loginMethods: { type: Array as PropType<LoginMethod[] | null>, default: null },
     offerEmailOtp: { type: Boolean, default: true },
     offerPasskeyRetry: { type: Boolean, default: false },
+    offerAuthenticatorApp: { type: Boolean, default: false },
   },
-  emits: ['magicLink', 'emailOtp', 'phoneOtp', 'passkeyRetry'],
+  emits: ['magicLink', 'emailOtp', 'phoneOtp', 'authenticatorApp', 'passkeyRetry'],
   setup(props, { emit }) {
     const options = computed(() =>
       fallbackSignInOptions(props.identifier, props.loginMethods, {
@@ -38,7 +39,7 @@ export const SaFallbackOptions = defineComponent({
 
     return () => {
       const offered = options.value;
-      if (!hasFallbackSignInOption(offered)) return null;
+      if (!hasFallbackSignInOption(offered) && !props.offerAuthenticatorApp) return null;
 
       return h('div', { class: 'sa-fallback' }, [
         h('div', { class: 'sa-fallback-header' }, 'Choose a sign-in method'),
@@ -59,6 +60,12 @@ export const SaFallbackOptions = defineComponent({
           offered.phoneOtp &&
             action('Text Message Code', 'Receive a one-time code via SMS', () =>
               emit('phoneOtp')
+            ),
+          props.offerAuthenticatorApp &&
+            action(
+              'Use an authenticator app',
+              'Enter a code from your authenticator app',
+              () => emit('authenticatorApp')
             ),
         ]),
         offered.passkeyRetry &&
