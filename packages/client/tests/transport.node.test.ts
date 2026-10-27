@@ -62,6 +62,7 @@ describe('resolveRouteRule', () => {
     ['/magic-link/check', 'preAuth', 'issue'],
     ['/otp/generate-login-email-otp', 'preAuth', undefined],
     ['/otp/verify-email-otp', 'preAuth', 'issue'],
+    ['/totp/verify-login', 'preAuth', 'issue'],
     ['/webAuthn/login/start', 'preAuth', undefined],
     ['/webAuthn/login/finish', 'preAuth', 'issue'],
     ['/refresh', 'none', 'issue'],
@@ -542,6 +543,50 @@ describe('bearer transport', () => {
     await transport.fetch('/login', { method: 'POST', body: '{}' });
 
     expect(calls.filter(c => c.url.endsWith('/refresh'))).toHaveLength(0);
+  });
+
+  it.each([
+    ['/totp/enroll/verify', 'totp_verification_failed'],
+    ['/totp/verify-mfa', 'totp_verification_failed'],
+    ['/totp/disable', 'totp_disable_failed'],
+    ['/step-up/webauthn/finish', 'step_up_failed'],
+  ])('does not resend a rejected code to %s', async (path, error) => {
+    const storage = createMemoryTokenStorage();
+    await storage.set({ accessToken: 'access', refreshToken: 'refresh' });
+    const { calls, fetchImpl } = scriptedFetch(() => jsonResponse(401, { error }));
+
+    const response = await bearer(fetchImpl, storage).fetch(path, {
+      method: 'POST',
+      body: JSON.stringify({ code: '123456' }),
+    });
+
+    expect(response.status).toBe(401);
+    expect(await response.json()).toEqual({ error });
+    expect(calls).toHaveLength(1);
+    expect(await storage.get()).toEqual({
+      accessToken: 'access',
+      refreshToken: 'refresh',
+    });
+  });
+
+  it('still refreshes a 401 whose body is not JSON', async () => {
+    const storage = createMemoryTokenStorage();
+    await storage.set({ accessToken: 'access-old', refreshToken: 'refresh-old' });
+    const { calls, fetchImpl } = scriptedFetch(call => {
+      if (call.url.endsWith('/refresh')) {
+        return jsonResponse(200, { token: 'access-new', refreshToken: 'refresh-new' });
+      }
+      return headersOf(call).Authorization === 'Bearer access-new'
+        ? jsonResponse(200, {})
+        : new Response('Unauthorized', { status: 401 });
+    });
+
+    const response = await bearer(fetchImpl, storage).fetch('/users/me', {
+      method: 'GET',
+    });
+
+    expect(response.status).toBe(200);
+    expect(calls.filter(c => c.url.endsWith('/refresh'))).toHaveLength(1);
   });
 
   it('does not refresh a 401 when there is no session to refresh', async () => {
