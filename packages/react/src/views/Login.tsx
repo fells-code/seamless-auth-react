@@ -224,29 +224,40 @@ const Login: React.FC = () => {
                   />
                 )}
 
-                {showFallbackOptions &&
-                  (recoveryOptions.recoveryCodes || recoveryOptions.accountRecovery) && (
-                    <div className={styles.recoveryOptions}>
-                      {recoveryOptions.recoveryCodes && (
-                        <button
-                          type="button"
-                          className={styles.linkButton}
-                          onClick={() => navigate(authRoutePaths.recoveryCode)}
-                        >
-                          Use a recovery code
-                        </button>
-                      )}
-                      {recoveryOptions.accountRecovery && (
-                        <button
-                          type="button"
-                          className={styles.linkButton}
-                          onClick={() => navigate(authRoutePaths.accountRecovery)}
-                        >
-                          Can&apos;t sign in? Recover your account
-                        </button>
-                      )}
-                    </div>
-                  )}
+                {/*
+                  Offered on every sign-in in progress: /login never lists totp, and
+                  the API answers the code step the same for an account that does
+                  not exist, so showing it reveals nothing.
+                */}
+                {showFallbackOptions && (
+                  <div className={styles.recoveryOptions}>
+                    <button
+                      type="button"
+                      className={styles.linkButton}
+                      onClick={() => navigate(authRoutePaths.authenticatorCode)}
+                    >
+                      Use an authenticator app
+                    </button>
+                    {recoveryOptions.recoveryCodes && (
+                      <button
+                        type="button"
+                        className={styles.linkButton}
+                        onClick={() => navigate(authRoutePaths.recoveryCode)}
+                      >
+                        Use a recovery code
+                      </button>
+                    )}
+                    {recoveryOptions.accountRecovery && (
+                      <button
+                        type="button"
+                        className={styles.linkButton}
+                        onClick={() => navigate(authRoutePaths.accountRecovery)}
+                      >
+                        Can&apos;t sign in? Recover your account
+                      </button>
+                    )}
+                  </div>
+                )}
 
                 {identifierError && <p className={styles.error}>{identifierError}</p>}
               </div>

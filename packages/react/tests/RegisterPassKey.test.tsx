@@ -269,6 +269,29 @@ describe('RegisterPasskey skip control', () => {
 
     expect(await screen.findByText(/requires one to sign in/i)).toBeInTheDocument();
     expect(screen.queryByText(/^Continue$/i)).not.toBeInTheDocument();
+    expect(screen.queryByText('Use an authenticator app')).not.toBeInTheDocument();
+  });
+
+  it('offers an authenticator app to an unsupported device that may skip', async () => {
+    (usePasskeySupport as jest.Mock).mockReturnValue({
+      passkeySupported: false,
+      loading: false,
+    });
+    mockLocationState = { returnTo: '/dashboard' };
+
+    render(<RegisterPasskey />);
+
+    fireEvent.click(await screen.findByText('Use an authenticator app'));
+    expect(mockNavigate).toHaveBeenCalledWith('/register-authenticator', {
+      state: { returnTo: '/dashboard' },
+    });
+  });
+
+  it('offers no authenticator app outside a recovery session when passkeys work', async () => {
+    render(<RegisterPasskey />);
+
+    await screen.findByText(/Secure Your Account/i);
+    expect(screen.queryByText('Use an authenticator app')).not.toBeInTheDocument();
   });
 
   it('requests a cross-platform authenticator from the security key path', async () => {
@@ -395,5 +418,35 @@ describe('RegisterPasskey from a recovery session', () => {
     ).toBeInTheDocument();
     expect(screen.getByText(/recover your account/i)).toBeInTheDocument();
     expect(screen.queryByText(/Skip for now/i)).not.toBeInTheDocument();
+  });
+
+  it('offers an authenticator app instead', async () => {
+    mockRecoverySession = true;
+
+    render(<RegisterPasskey />);
+
+    fireEvent.click(await screen.findByText('Use an authenticator app'));
+    expect(mockNavigate).toHaveBeenCalledWith('/register-authenticator', {
+      state: { returnTo: '/' },
+    });
+  });
+
+  it('makes the authenticator app the way forward on a device without passkeys', async () => {
+    mockRecoverySession = true;
+    (usePasskeySupport as jest.Mock).mockReturnValue({
+      passkeySupported: false,
+      loading: false,
+    });
+
+    render(<RegisterPasskey />);
+
+    expect(
+      await screen.findByText(/Set up an authenticator app to finish/)
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/^Continue$/i)).not.toBeInTheDocument();
+    fireEvent.click(screen.getByText('Use an authenticator app'));
+    expect(mockNavigate).toHaveBeenCalledWith('/register-authenticator', {
+      state: { returnTo: '/' },
+    });
   });
 });

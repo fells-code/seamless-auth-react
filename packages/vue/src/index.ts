@@ -4,6 +4,7 @@
  * See LICENSE file in the project root for full license information
  */
 
+export { SaAuthenticatorAppSettings } from './components/AuthenticatorAppSettings';
 export type { SeamlessAuthConfig, SeamlessAuthPorts } from './config';
 export { createSeamlessAuth, SEAMLESS_AUTH_KEY, useSeamlessAuth } from './plugin';
 export type { SeamlessAuth } from './plugin';
@@ -33,5 +34,6 @@ export type {
   SeamlessAuthClient,
   SeamlessAuthResult,
   StepUpStatus,
+  TotpStatus,
   User,
 } from '@seamless-auth/client';

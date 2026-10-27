@@ -51,6 +51,11 @@ export interface SeamlessAuth extends AuthSessionActions {
   activeOrganization: ComputedRef<AuthSessionState['activeOrganization']>;
   stepUpStatus: ComputedRef<AuthSessionState['stepUpStatus']>;
   hasSignedInBefore: ComputedRef<boolean>;
+  /**
+   * The session can only enroll a passkey or authenticator app until one is
+   * enrolled, as after a recovery code or an account recovery.
+   */
+  recoverySession: ComputedRef<boolean>;
 
   /**
    * Sign-in methods this instance has enabled, once `loadLoginMethods()` has
@@ -153,6 +158,7 @@ function createSeamlessAuthInstance(config: SeamlessAuthConfig): SeamlessAuth & 
     activeOrganization: computed(() => state.value.activeOrganization),
     stepUpStatus: computed(() => state.value.stepUpStatus),
     hasSignedInBefore: computed(() => state.value.hasSignedInBefore),
+    recoverySession: computed(() => state.value.recoverySession),
     loginMethods: readonly(loginMethods) as Readonly<Ref<LoginMethod[] | null>>,
     loginMethodsLoading: readonly(loginMethodsLoading),
     passkeySupported: readonly(passkeySupported),

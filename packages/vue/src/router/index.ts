@@ -4,6 +4,7 @@
  * See LICENSE file in the project root for full license information
  */
 
+export { SaAuthenticatorCode } from './components/AuthenticatorCode';
 export { SaAuthLayout } from './components/AuthLayout';
 export { SaFallbackOptions } from './components/FallbackOptions';
 export { SaLogin } from './components/Login';
@@ -12,6 +13,7 @@ export { SaOAuthCallback } from './components/OAuthCallback';
 export { SaOAuthProviderButtons } from './components/OAuthProviderButtons';
 export { SaOtpInput } from './components/OtpInput';
 export { SaPasskeyLogin } from './components/PasskeyLogin';
+export { SaRegisterAuthenticator } from './components/RegisterAuthenticator';
 export { SaRegisterPasskey } from './components/RegisterPasskey';
 export { SaVerifyMagicLink } from './components/VerifyMagicLink';
 export { SaVerifyOtp } from './components/VerifyOtp';

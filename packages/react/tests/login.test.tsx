@@ -425,6 +425,25 @@ describe('Login', () => {
       expect(screen.queryByText(/Recover your account/)).not.toBeInTheDocument();
     });
 
+    test('offers an authenticator app on every sign-in in progress', async () => {
+      mockAuthClient.getPublicSystemConfig.mockResolvedValue({
+        data: { loginMethods: ['magic_link'] },
+        error: null,
+      });
+
+      await signInToFallback();
+
+      fireEvent.click(screen.getByText('Use an authenticator app'));
+      expect(navigate).toHaveBeenCalledWith('/authenticator-code');
+    });
+
+    test('offers no authenticator app before a sign-in has started', async () => {
+      render(<Login />);
+
+      await screen.findByLabelText(/email address \/ phone number/i);
+      expect(screen.queryByText('Use an authenticator app')).not.toBeInTheDocument();
+    });
+
     test('sends a recovery session straight to enrollment', async () => {
       (useAuth as jest.Mock).mockReturnValue({
         hasSignedInBefore: true,
