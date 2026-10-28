@@ -11,11 +11,11 @@ import type { AuthNavigator, AuthScreen } from '../src/navigation';
  * `location` is what the address bar would show.
  */
 export function createFakeNavigator(start: {
-  screen: AuthScreen | 'app';
+  screen: AuthScreen | 'app' | 'settings';
   query?: string;
 }) {
   const nav = $state({
-    current: start.screen as AuthScreen | 'app',
+    current: start.screen as AuthScreen | 'app' | 'settings',
     path: '/',
     state: {} as Record<string, unknown>,
     query: new URLSearchParams(start.query ?? ''),

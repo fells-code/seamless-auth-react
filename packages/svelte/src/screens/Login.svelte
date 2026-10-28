@@ -203,6 +203,7 @@
             onEmailOtp={sendEmailOtp}
             onPhoneOtp={sendPhoneOtp}
             onPasskeyRetry={auth.passkeySupported ? retryPasskey : undefined}
+            onAuthenticatorApp={() => navigator.toScreen('authenticatorCode')}
           />
         {/if}
 

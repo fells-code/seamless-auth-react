@@ -32,8 +32,11 @@
   let message = $state('');
 
   // With passkey as the only enabled method, a user who skipped would have no
-  // way back into the account they just made.
-  const canSkip = $derived(hasNonPasskeyLoginMethod(auth.loginMethods));
+  // way back into the account they just made. A recovery session stays
+  // restricted until it adds a factor, so it cannot skip either.
+  const canSkip = $derived(
+    !auth.recoverySession && hasNonPasskeyLoginMethod(auth.loginMethods)
+  );
   const busy = $derived(status === 'loading');
 
   onMount(() => {
@@ -60,6 +63,12 @@
     await finish();
   }
 
+  const useAuthenticator = () =>
+    navigator.toScreen(
+      'registerAuthenticator',
+      typeof returnTo === 'string' ? { returnTo } : undefined
+    );
+
   async function finishWithoutPasskey() {
     await auth.refreshSession();
     await finish();
@@ -75,10 +84,17 @@
   {:else if !auth.passkeySupported}
     <h2 class="sa-heading">Passkeys are not available here</h2>
     <p class="sa-description">
-      {canSkip
-        ? 'This device does not support passkeys. You can continue without one and add a passkey later from a device that does.'
-        : 'This device does not support passkeys, and this application requires one to sign in. Try again from a device or browser that supports them.'}
+      {auth.recoverySession
+        ? 'This device does not support passkeys. Set up an authenticator app to finish securing your account.'
+        : canSkip
+          ? 'This device does not support passkeys. You can continue without one and add a passkey later from a device that does.'
+          : 'This device does not support passkeys, and this application requires one to sign in. Try again from a device or browser that supports them.'}
     </p>
+    {#if auth.recoverySession || canSkip}
+      <button type="button" class="sa-secondary" onclick={useAuthenticator}>
+        Use an authenticator app
+      </button>
+    {/if}
     {#if canSkip}
       <button type="button" class="sa-button" onclick={finishWithoutPasskey}>Continue</button>
     {/if}
@@ -98,6 +114,11 @@
     >
       Use a security key instead
     </button>
+    {#if auth.recoverySession}
+      <button type="button" class="sa-secondary" disabled={busy} onclick={useAuthenticator}>
+        Use an authenticator app
+      </button>
+    {/if}
     {#if message}
       <p class={status === 'success' ? 'sa-success' : 'sa-error'} role="status">{message}</p>
     {/if}

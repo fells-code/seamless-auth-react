@@ -15,6 +15,8 @@ export {
 export { authRoutePaths } from './navigation.js';
 export type { AuthNavigator, AuthScreen } from './navigation.js';
 
+export { default as SaAuthenticatorAppSettings } from './screens/AuthenticatorAppSettings.svelte';
+export { default as SaAuthenticatorCode } from './screens/AuthenticatorCode.svelte';
 export { default as SaAuthLayout } from './screens/AuthLayout.svelte';
 export { default as SaFallbackOptions } from './screens/FallbackOptions.svelte';
 export { default as SaLogin } from './screens/Login.svelte';
@@ -23,6 +25,7 @@ export { default as SaOAuthCallback } from './screens/OAuthCallback.svelte';
 export { default as SaOAuthProviderButtons } from './screens/OAuthProviderButtons.svelte';
 export { default as SaOtpInput } from './screens/OtpInput.svelte';
 export { default as SaPasskeyLogin } from './screens/PasskeyLogin.svelte';
+export { default as SaRegisterAuthenticator } from './screens/RegisterAuthenticator.svelte';
 export { default as SaRegisterPasskey } from './screens/RegisterPasskey.svelte';
 export { default as SaVerifyMagicLink } from './screens/VerifyMagicLink.svelte';
 export { default as SaVerifyOtp } from './screens/VerifyOtp.svelte';
@@ -52,5 +55,6 @@ export type {
   SeamlessAuthClient,
   SeamlessAuthResult,
   StepUpStatus,
+  TotpStatus,
   User,
 } from '@seamless-auth/client';
