@@ -1,5 +1,38 @@
 # @seamless-auth/client
 
+## 0.8.0
+
+### Minor Changes
+
+- 44854d0: Add the auth API v0.20 recovery primitives to the client and the session store.
+  - Recovery codes: `getRecoveryCodeStatus()`, `generateRecoveryCodes()` and `redeemRecoveryCode(code)`. Replacing an existing set needs a fresh step-up; the `403` it answers without one is recognized by `isStepUpRequired()`, and `generateRecoveryCodesWithStepUp()` runs the step-up and tries again.
+  - Self-service account recovery: `startAccountRecovery(channel)`, `verifyAccountRecovery(code)`, `getAccountRecoveryStatus()`, `completeAccountRecovery()`, `cancelAccountRecovery(cancelToken)`, and for a signed-in owner `listAccountRecoveryRequests()` and `cancelAccountRecoveryRequest(id)`.
+  - Recovery sessions: redeeming a code or completing a recovery issues a session that can only enroll a factor. `isRecoverySession()` on the client and `recoverySession` in the session state report it, and the session actions `redeemRecoveryCode` and `completeAccountRecovery` sign in with it. After a passkey registration or TOTP enrollment made from a recovery session the client refreshes the session (`POST /refresh`), so the new access token drops the recovery claim the adapters' guards refuse.
+  - Flows for every binding: `loadRecoveryOptions()`, `recoveryCancelTokenFromHash()`, `cancelRecoveryFromLink()`, `recoveryErrorMessage()`, `recoveryCodesText()`, `passkeyKind()` and `passkeyDisplayName()`, plus `getRecoveryErrorCode()` and `isEnrollmentRequired()`.
+  - Bearer transport routes each recovery route with the credential the auth API's adapter manifest gives it.
+
+  Needs an auth API with account recovery (v0.20) and a server adapter that proxies its manifest routes.
+
+- 8dbd3d8: Adds shared authenticator app (TOTP) flow helpers for the bundled screens: `signInWithTotp()`, `totpErrorMessage()`, `formatTotpSecret()` and `TOTP_CODE_LENGTH`.
+
+  The bearer transport no longer refreshes and resends a request whose `401` names a rejected factor (`totp_verification_failed`, `totp_disable_failed`, `step_up_failed`, `invalid_recovery_code`). That `401` is the answer to a wrong code, not an expired token, and resending the same code only spent another attempt against the rate limit and lockout.
+
+  `generateRecoveryCodesWithStepUp()` now reports a failed step-up as "Confirm it is you to replace your recovery codes." instead of naming the passkey, since the step-up can also be an authenticator app code.
+
+- 8dbd3d8: Adds `verifyTotpLogin(code)`, which signs in with an authenticator app code on the sign-in `login()` started (`POST /totp/verify-login`). The bearer transport sends it on the pre-auth token and stores the session it issues.
+- 8dbd3d8: Adds `qrCode(text)`, which turns the `otpauth://` URL from authenticator app enrollment into a QR code a phone camera can scan, with no extra dependency. It returns the symbol's `size` in modules (quiet zone included) and SVG `path` data, so any binding can render it as `<svg viewBox="0 0 {size} {size}"><path d="{path}" /></svg>`. It throws a `RangeError` for text too long for a QR code. `qrMatrix(text)` returns the raw module grid for custom rendering.
+
+### Patch Changes
+
+- e5e6680: The bearer redirect guard now works on React Native. Its `fetch` follows redirects itself and never sets `response.redirected`, so a response that a redirect took to another origin was handed back as if it came from the API. A bearer request now rejects with `UntrustedRedirectError` whenever the response's final URL differs from the one requested and is not on `apiHost` or `trustedOrigins`. On React Native this detects such a redirect after it happened rather than preventing it, so the token may already have been sent on the followed hop.
+- e5e6680: The bearer `POST /refresh` no longer follows a redirect. It is sent with `redirect: 'manual'`, and any `3xx` answer, a redirect the browser hides, or a response that a platform followed to an origin outside `apiHost` and `trustedOrigins` (as React Native's `fetch` does) is refused with `UntrustedRedirectError`. The held session is cleared, because it can no longer be renewed through that server. Before, a redirect on the refresh route resent the refresh token to the redirect target.
+- e5e6680: The OAuth redirect ports now open only an `https` authorization URL, or `http` on `localhost`, `127.0.0.1` or `[::1]` for local development. The browser port (`createBrowserOAuthRedirect`) and the React Native port (`createWebBrowserOAuthRedirect`) throw the new `UnsafeAuthorizationUrlError` for anything else, such as a `javascript:` or `data:` URL in any letter case or with embedded tabs, and never navigate to it. `startOAuthSignIn`, which every bundled sign-in screen uses, reports that as a provider that could not start. A custom `OAuthRedirectPort` can use the new `assertNavigableAuthorizationUrl(url)`. Auth API 0.19.4 already refuses to store or return such a URL, so this guards against an older or misconfigured server.
+- e5e6680: A client method whose request throws now keeps the thrown error as `error.cause`. Every such failure used to arrive as the same status `0` error with nothing to tell them apart, so an app could not distinguish an `UntrustedOriginError`, an `UntrustedRedirectError` or a refused refresh from a network failure. Check `error.cause instanceof UntrustedRedirectError` (or another error class) to show a more specific message. The `message` and `status` are unchanged.
+- dc52b23: Update `@seamless-auth/types` to 0.31.0, the contract for auth server v0.20.
+- a5956b0: Update `@seamless-auth/types` to 0.33.0. `AccountRecoveryRequest`, `AccountRecoveryRequestsResult` and `RecoveryErrorCode` now alias the upstream shapes, and `RecoveryErrorCode` gains `enrollment_required`.
+
+  The recovery session flag is now read from the `recovery` field of `/users/me` as well, so `isRecoverySession()` and the session state's `recoverySession` survive a reload, a background revalidation and `initialSession`. A restored recovery session is sent to enrollment by the bundled sign-in screen, and the session is refreshed after a passkey or TOTP enrollment made from it.
+
 ## 0.7.1
 
 ### Patch Changes

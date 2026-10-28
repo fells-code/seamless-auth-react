@@ -1,5 +1,47 @@
 # @seamless-auth/react
 
+## 0.19.0
+
+### Minor Changes
+
+- 44854d0: The prebuilt UI covers account recovery from auth API v0.20.
+  - `AuthRoutes` serves `/recovery-code` (sign in with a recovery code), `/recovery-codes` (shown after a passkey is enrolled, to generate and save a first set, or a new one once every code is spent), `/account-recovery` (self-service recovery through a verified email or phone, with its waiting period) and `/recovery/cancel`, where the link in every recovery notice lands. That page takes the token from the URL fragment, drops it from the address bar and cancels the request. Mount `AuthRoutes` at the root of the deployment's `FRONTEND_URL` so the link resolves.
+  - The sign-in screen offers "Use a recovery code" and "Recover your account" only where `GET /system-config/public` reports `recoveryCodes` or `accountRecovery`. A recovery session goes straight to passkey enrollment, which it cannot skip.
+  - New router-free settings sections: `PasskeyManagement` (list with name, kind and last use, rename, delete, add another, and a nudge towards a second passkey), `RecoveryCodeSettings` (codes left, generate or replace with a step-up), `RecoveryRequests` (open recovery requests with cancel), and `AccountSecurity`, which renders all three.
+  - `useAuth()` adds `recoverySession`, `redeemRecoveryCode` and `completeAccountRecovery`, and the package re-exports `useRecoveryOptions`, `isStepUpRequired`, `isEnrollmentRequired`, `getRecoveryErrorCode` and the recovery types.
+
+  Needs an auth API with account recovery (v0.20) and a server adapter that proxies its manifest routes, including `POST /auth/refresh`.
+
+- dbd4294: The prebuilt UI covers authenticator apps (TOTP).
+  - `AuthenticatorRegistration` at `/register-authenticator` sets up an authenticator app: a QR code of the `otpauth://` URL (drawn as an inline SVG, no new dependency), the setup key in groups of four with a copy button, an `otpauth://` link for a phone, and the first code. It then continues to `/recovery-codes` as passkey enrollment does.
+  - `/authenticator-code` signs in with a code from the app, on the sign-in `/login` started. The sign-in screen offers "Use an authenticator app" on every sign-in in progress, because `/login` never lists `totp` and the API answers the code step the same for an address with no account. Wrong or reused codes, lockouts, rate limits and passkey-only accounts each get their own message.
+  - A recovery session's passkey step offers "Use an authenticator app", which is the way forward on a device without passkeys. Verifying the first code lifts the recovery restriction, and the session is refreshed before the screen moves on.
+  - Replacing recovery codes, in `RecoveryCodeSettings` and on `/recovery-codes`, asks for a current code from the authenticator app when the API wants a step-up and the account has one, with the passkey as an alternative.
+  - New router-free settings section `AuthenticatorAppSettings` (status, inline enrollment, turn off with a current code), which `AccountSecurity` now renders between passkeys and recovery codes.
+  - The package re-exports `signInWithTotp`, `totpErrorMessage`, `formatTotpSecret`, `qrCode`, `TOTP_CODE_LENGTH` and the `QrCode` type for custom screens.
+
+  Needs an auth API with `POST /totp/verify-login` and a server adapter that proxies it.
+
+### Patch Changes
+
+- e5e6680: The bundled magic link and OAuth callback screens now remove the `token`, `code` and `state` from the address bar once they have read them, replacing the history entry, so the one-time values no longer stay in browser history or travel in a `Referer`. The Vue, Angular and Svelte screens already did this.
+- dc52b23: Update `@seamless-auth/types` to 0.31.0, the contract for auth server v0.20.
+- a5956b0: Update `@seamless-auth/types` to 0.33.0. `AccountRecoveryRequest`, `AccountRecoveryRequestsResult` and `RecoveryErrorCode` now alias the upstream shapes, and `RecoveryErrorCode` gains `enrollment_required`.
+
+  The recovery session flag is now read from the `recovery` field of `/users/me` as well, so `isRecoverySession()` and the session state's `recoverySession` survive a reload, a background revalidation and `initialSession`. A restored recovery session is sent to enrollment by the bundled sign-in screen, and the session is refreshed after a passkey or TOTP enrollment made from it.
+
+- Updated dependencies [e5e6680]
+- Updated dependencies [e5e6680]
+- Updated dependencies [e5e6680]
+- Updated dependencies [44854d0]
+- Updated dependencies [e5e6680]
+- Updated dependencies [8dbd3d8]
+- Updated dependencies [8dbd3d8]
+- Updated dependencies [8dbd3d8]
+- Updated dependencies [dc52b23]
+- Updated dependencies [a5956b0]
+  - @seamless-auth/client@0.8.0
+
 ## 0.18.1
 
 ### Patch Changes
