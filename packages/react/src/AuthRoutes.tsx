@@ -16,6 +16,8 @@ import OAuthCallback from '@/views/OAuthCallback';
 import RecoveryCodeLogin from '@/views/RecoveryCodeLogin';
 import RecoveryCodes from '@/views/RecoveryCodes';
 import AccountRecovery from '@/views/AccountRecovery';
+import AuthenticatorCodeLogin from '@/views/AuthenticatorCodeLogin';
+import AuthenticatorRegistration from '@/views/AuthenticatorRegistration';
 import RecoveryCancel from '@/views/RecoveryCancel';
 import MagicLinkSent from './components/MagicLinkSent';
 import { authRoutePaths } from './authRoutePaths';
@@ -29,8 +31,13 @@ export const AuthRoutes = () => (
     <Route path={authRoutePaths.verifyMagicLink} element={<VerifyMagicLink />} />
     <Route path={authRoutePaths.oauthCallback} element={<OAuthCallback />} />
     <Route path={authRoutePaths.registerPasskey} element={<PasskeyRegistration />} />
+    <Route
+      path={authRoutePaths.registerAuthenticator}
+      element={<AuthenticatorRegistration />}
+    />
     <Route path={authRoutePaths.magicLinkSent} element={<MagicLinkSent />} />
     <Route path={authRoutePaths.recoveryCode} element={<RecoveryCodeLogin />} />
+    <Route path={authRoutePaths.authenticatorCode} element={<AuthenticatorCodeLogin />} />
     <Route path={authRoutePaths.recoveryCodes} element={<RecoveryCodes />} />
     <Route path={authRoutePaths.accountRecovery} element={<AccountRecovery />} />
     <Route path={authRoutePaths.recoveryCancel} element={<RecoveryCancel />} />

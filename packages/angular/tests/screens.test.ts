@@ -15,7 +15,7 @@ import {
   type OAuthRedirectPort,
 } from '@seamless-auth/client';
 
-import { provideSeamlessAuth } from '../src';
+import { provideSeamlessAuth, SeamlessAuth } from '../src';
 import { SaOtpInput, seamlessAuthRoutes } from '../routes/src';
 import {
   confirmationRequired,
@@ -737,5 +737,305 @@ describe('mounted under a parent path', () => {
     await harness.navigateByUrl('/account/oauth/callback?code=c&state=s');
     await settle();
     expect(url()).toBe('/account/register-passkey');
+  });
+});
+
+const recoverySession: AdapterReply = {
+  body: { ...(signedIn.body as object), recovery: true },
+};
+
+const enrollment = {
+  body: {
+    message: 'Success',
+    secret: 'JBSWY3DPEHPK3PXPJBSW',
+    otpauthUrl: 'otpauth://totp/Seamless:ada%40example.com?secret=JBSWY3DPEHPK3PXPJBSW',
+  },
+};
+
+describe('authenticator app sign-in', () => {
+  it('is offered once a sign-in is in progress, and finishes it with a code', async () => {
+    localStorage.setItem('seamlessauth_seen', 'true');
+    let session = signedOut;
+    const { adapter } = await open('/login', {
+      'GET /users/me': () => session,
+      'POST /login': { body: { loginMethods: ['magic_link'] } },
+      'POST /totp/verify-login': () => {
+        session = signedIn;
+        return ok;
+      },
+    });
+
+    type('#identifier', 'ada@example.com');
+    await settle();
+    await click('Login');
+    await click(/Use an authenticator app/);
+
+    expect(url()).toBe('/authenticator-code');
+    expect(heading()).toBe('Enter Authenticator Code');
+
+    typeCode('123456');
+    await click('Verify & Continue');
+
+    expect(bodyOf(adapter, 'POST', '/totp/verify-login')).toEqual({ code: '123456' });
+    expect(url()).toBe('/');
+    expect(text()).toContain('You are signed in');
+  });
+
+  it('is offered even when no other fallback is', async () => {
+    localStorage.setItem('seamlessauth_seen', 'true');
+    await open('/login', { 'POST /login': { body: { loginMethods: ['passkey'] } } });
+    type('#identifier', 'ada@example.com');
+    await settle();
+    await click('Login');
+    expect(text()).toContain('Use an authenticator app');
+    expect(text()).not.toContain('Email Magic Link');
+  });
+
+  it('refuses an incomplete code without asking the API', async () => {
+    const { adapter } = await open('/authenticator-code', {});
+    await click('Verify & Continue');
+    expect(text()).toContain('Enter the 6-digit code from your authenticator app.');
+    expect(adapter.called('POST', '/totp/verify-login')).toHaveLength(0);
+  });
+
+  it('explains a wrong or reused code and clears the boxes', async () => {
+    await open('/authenticator-code', {
+      'POST /totp/verify-login': {
+        status: 401,
+        body: { error: 'totp_verification_failed' },
+      },
+    });
+    typeCode('123456');
+    await settle();
+    await click('Verify & Continue');
+
+    expect(text()).toContain('That code did not work.');
+    expect(text()).toContain('Each code works once.');
+    const boxes = Array.from(
+      root().querySelectorAll<HTMLInputElement>('[aria-label^="Digit"]')
+    );
+    expect(boxes.map(box => box.value).join('')).toBe('');
+    expect(url()).toBe('/authenticator-code');
+  });
+
+  it('reports a lockout with its wait', async () => {
+    await open('/authenticator-code', {
+      'POST /totp/verify-login': {
+        status: 423,
+        body: { error: 'account_locked', retryAfterSeconds: 120 },
+      },
+    });
+    typeCode('123456');
+    await click('Verify & Continue');
+    expect(text()).toContain('Too many failed attempts. Try again in 2 minutes.');
+  });
+
+  it('goes back to the login screen', async () => {
+    await open('/authenticator-code', {});
+    await click('Back to login');
+    expect(url()).toBe('/login');
+  });
+});
+
+describe('authenticator app enrollment', () => {
+  let writeText: jest.Mock;
+
+  beforeEach(() => {
+    writeText = jest.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, 'clipboard', {
+      value: { writeText },
+      configurable: true,
+    });
+  });
+
+  it('shows the QR code, the setup key and a link, then verifies the first code', async () => {
+    const { adapter } = await open('/register-authenticator', {
+      'GET /users/me': signedIn,
+      'POST /totp/enroll/start': enrollment,
+      'POST /totp/enroll/verify': ok,
+    });
+
+    expect(heading()).toBe('Set Up an Authenticator App');
+    const qr = root().querySelector('svg[role="img"]');
+    expect(qr?.getAttribute('aria-label')).toBe('QR code for your authenticator app');
+    const size = Number(qr?.getAttribute('viewBox')?.split(' ')[2]);
+    expect(size).toBeGreaterThan(20);
+    expect(qr?.querySelector('rect')?.getAttribute('fill')).toBe('#ffffff');
+    expect(qr?.querySelector('path')?.getAttribute('d')).toMatch(/^M/);
+
+    expect(text()).toContain('JBSW Y3DP EHPK 3PXP JBSW');
+    const link = Array.from(root().querySelectorAll('a')).find(a =>
+      a.textContent?.includes('Open in authenticator app')
+    );
+    expect(link?.getAttribute('href')).toBe(enrollment.body.otpauthUrl);
+
+    await click('Copy setup key');
+    expect(writeText).toHaveBeenCalledWith('JBSWY3DPEHPK3PXPJBSW');
+    expect(text()).toContain('Setup key copied.');
+
+    typeCode('654321');
+    await click('Verify Code');
+
+    expect(bodyOf(adapter, 'POST', '/totp/enroll/verify')).toEqual({ code: '654321' });
+    expect(heading()).toBe('Authenticator App Added');
+    await click('Continue');
+    expect(url()).toBe('/');
+  });
+
+  it('says so when the setup key cannot be copied, and links nothing but otpauth', async () => {
+    writeText.mockRejectedValue(new Error('denied'));
+    await open('/register-authenticator', {
+      'GET /users/me': signedIn,
+      'POST /totp/enroll/start': {
+        body: { ...enrollment.body, otpauthUrl: 'javascript:alert(1)' },
+      },
+    });
+
+    expect(text()).not.toContain('Open in authenticator app');
+    await click('Copy setup key');
+    expect(text()).toContain('Could not copy the setup key.');
+  });
+
+  it('refuses an incomplete code and explains a wrong one', async () => {
+    const { adapter } = await open('/register-authenticator', {
+      'GET /users/me': signedIn,
+      'POST /totp/enroll/start': enrollment,
+      'POST /totp/enroll/verify': {
+        status: 401,
+        body: { error: 'totp_verification_failed' },
+      },
+    });
+
+    await click('Verify Code');
+    expect(text()).toContain('Enter the 6-digit code from your authenticator app.');
+    expect(adapter.called('POST', '/totp/enroll/verify')).toHaveLength(0);
+
+    typeCode('111111');
+    await click('Verify Code');
+    expect(text()).toContain('That code did not work.');
+    expect(heading()).toBe('Set Up an Authenticator App');
+  });
+
+  it('reports a setup that could not start, and tries again', async () => {
+    let attempts = 0;
+    await open('/register-authenticator', {
+      'GET /users/me': signedIn,
+      'POST /totp/enroll/start': () =>
+        ++attempts === 1
+          ? { status: 409, body: { error: 'secret_required' } }
+          : enrollment,
+    });
+
+    expect(text()).toContain(
+      'Authenticator apps are not available for this application yet.'
+    );
+    await click('Try again');
+    expect(text()).toContain('JBSW Y3DP');
+  });
+
+  it('lifts a recovery session and continues to the destination it was handed', async () => {
+    let session = recoverySession;
+    await open(
+      '/register-authenticator',
+      {
+        'GET /users/me': () => session,
+        'POST /totp/enroll/start': enrollment,
+        'POST /totp/enroll/verify': () => {
+          session = signedIn;
+          return ok;
+        },
+        'POST /refresh': ok,
+      },
+      { passkeys: true, state: { returnTo: '/settings' } }
+    );
+
+    expect(text()).toContain('You are signed in to recover your account.');
+    typeCode('222222');
+    await click('Verify Code');
+
+    expect(TestBed.inject(SeamlessAuth).recoverySession()).toBe(false);
+    await click('Continue');
+    expect(url()).toBe('/settings');
+  });
+
+  it('goes back to passkey enrollment where the device supports one', async () => {
+    await open(
+      '/register-authenticator',
+      {
+        'GET /users/me': signedIn,
+        'POST /totp/enroll/start': enrollment,
+        'GET /system-config/public': { body: { loginMethods: ['passkey', 'email_otp'] } },
+      },
+      { passkeys: true, state: { returnTo: '/settings' } }
+    );
+    await click('Use a passkey instead');
+    expect(url()).toBe('/register-passkey');
+    expect(TestBed.inject(Location).getState()).toMatchObject({ returnTo: '/settings' });
+  });
+});
+
+describe('passkey enrollment offers an authenticator app', () => {
+  it('to a recovery session, which cannot skip', async () => {
+    await open(
+      '/register-passkey',
+      {
+        'GET /users/me': recoverySession,
+        'GET /system-config/public': { body: { loginMethods: ['passkey', 'email_otp'] } },
+        'POST /totp/enroll/start': enrollment,
+      },
+      { passkeys: true }
+    );
+
+    expect(heading()).toBe('Add a New Passkey');
+    expect(text()).not.toContain('Skip for now');
+    await click('Use an authenticator app');
+    expect(url()).toBe('/register-authenticator');
+  });
+
+  it('to a recovery session on a device without passkeys', async () => {
+    await open('/register-passkey', {
+      'GET /users/me': recoverySession,
+      'GET /system-config/public': { body: { loginMethods: ['passkey'] } },
+    });
+    expect(text()).toContain(
+      'Add an authenticator app to finish recovering your account.'
+    );
+    expect(() => button('Continue')).toThrow();
+    expect(button('Use an authenticator app').className).toBe('sa-button');
+  });
+
+  it('on a device without passkeys, alongside continuing', async () => {
+    await open(
+      '/register-passkey',
+      {
+        'GET /users/me': signedIn,
+        'GET /system-config/public': { body: { loginMethods: ['passkey', 'email_otp'] } },
+      },
+      { state: { returnTo: '/settings' } }
+    );
+    expect(button('Use an authenticator app').className).toBe('sa-secondary');
+    await click('Use an authenticator app');
+    expect(url()).toBe('/register-authenticator');
+    expect(TestBed.inject(Location).getState()).toMatchObject({ returnTo: '/settings' });
+  });
+
+  it('not where a passkey is the only way in and recovery is not under way', async () => {
+    await open('/register-passkey', {
+      'GET /users/me': signedIn,
+      'GET /system-config/public': { body: { loginMethods: ['passkey'] } },
+    });
+    expect(text()).not.toContain('Use an authenticator app');
+  });
+
+  it('not to an ordinary sign-up on a device with passkeys', async () => {
+    await open(
+      '/register-passkey',
+      {
+        'GET /users/me': signedIn,
+        'GET /system-config/public': { body: { loginMethods: ['passkey', 'email_otp'] } },
+      },
+      { passkeys: true }
+    );
+    expect(text()).not.toContain('Use an authenticator app');
   });
 });

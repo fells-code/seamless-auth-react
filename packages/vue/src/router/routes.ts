@@ -7,10 +7,12 @@
 import type { Component } from 'vue';
 import type { RouteRecordRaw } from 'vue-router';
 
+import { SaAuthenticatorCode } from './components/AuthenticatorCode';
 import { SaLogin } from './components/Login';
 import { SaMagicLinkSent } from './components/MagicLinkSent';
 import { SaOAuthCallback } from './components/OAuthCallback';
 import { SaPasskeyLogin } from './components/PasskeyLogin';
+import { SaRegisterAuthenticator } from './components/RegisterAuthenticator';
 import { SaRegisterPasskey } from './components/RegisterPasskey';
 import { SaVerifyMagicLink } from './components/VerifyMagicLink';
 import { SaVerifyOtp } from './components/VerifyOtp';
@@ -56,5 +58,7 @@ export function createSeamlessAuthRoutes(
     route('verifyMagicLink', SaVerifyMagicLink),
     route('oauthCallback', SaOAuthCallback),
     route('registerPasskey', SaRegisterPasskey),
+    route('registerAuthenticator', SaRegisterAuthenticator),
+    route('authenticatorCode', SaAuthenticatorCode),
   ];
 }

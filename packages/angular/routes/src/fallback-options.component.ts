@@ -47,6 +47,14 @@ import {
               <span class="sa-action-subtext">Receive a one-time code via SMS</span>
             </button>
           }
+          @if (offerAuthenticator()) {
+            <button type="button" class="sa-action" (click)="authenticator.emit()">
+              <span class="sa-action-title">Use an authenticator app</span>
+              <span class="sa-action-subtext"
+                >Enter the code from your authenticator app</span
+              >
+            </button>
+          }
         </div>
 
         @if (options().passkeyRetry) {
@@ -65,11 +73,17 @@ export class SaFallbackOptions {
   readonly loginMethods = input<LoginMethod[] | null>(null);
   readonly offerEmailOtp = input(true);
   readonly offerPasskeyRetry = input(false);
+  /**
+   * Offer an authenticator app code. Only while a sign-in is in progress: the
+   * code finishes the sign-in `login()` started.
+   */
+  readonly offerAuthenticator = input(false);
 
   readonly magicLink = output<void>();
   readonly emailOtp = output<void>();
   readonly phoneOtp = output<void>();
   readonly passkeyRetry = output<void>();
+  readonly authenticator = output<void>();
 
   readonly options = computed(() =>
     fallbackSignInOptions(this.identifier(), this.loginMethods(), {
@@ -78,5 +92,7 @@ export class SaFallbackOptions {
     })
   );
 
-  readonly visible = computed(() => hasFallbackSignInOption(this.options()));
+  readonly visible = computed(
+    () => this.offerAuthenticator() || hasFallbackSignInOption(this.options())
+  );
 }

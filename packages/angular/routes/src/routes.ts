@@ -6,11 +6,13 @@
 
 import type { Routes } from '@angular/router';
 
+import { SaAuthenticatorCode } from './authenticator-code.component';
 import { SaLogin } from './login.component';
 import { SaMagicLinkSent } from './magic-link-sent.component';
 import { SaOAuthCallback } from './oauth-callback.component';
 import { SaPasskeyLogin } from './passkey-login.component';
 import { authRoutePaths } from './paths';
+import { SaRegisterAuthenticator } from './register-authenticator.component';
 import { SaRegisterPasskey } from './register-passkey.component';
 import { SaVerifyMagicLink } from './verify-magic-link.component';
 import { SaVerifyOtp } from './verify-otp.component';
@@ -43,4 +45,6 @@ export const seamlessAuthRoutes: Routes = [
   { path: authRoutePaths.verifyMagicLink, component: SaVerifyMagicLink },
   { path: authRoutePaths.oauthCallback, component: SaOAuthCallback },
   { path: authRoutePaths.registerPasskey, component: SaRegisterPasskey },
+  { path: authRoutePaths.registerAuthenticator, component: SaRegisterAuthenticator },
+  { path: authRoutePaths.authenticatorCode, component: SaAuthenticatorCode },
 ];

@@ -20,6 +20,12 @@ jest.mock('@/views/RecoveryCodeLogin', () => () => <div>Recovery Code Page</div>
 jest.mock('@/views/RecoveryCodes', () => () => <div>Recovery Codes Page</div>);
 jest.mock('@/views/AccountRecovery', () => () => <div>Account Recovery Page</div>);
 jest.mock('@/views/RecoveryCancel', () => () => <div>Recovery Cancel Page</div>);
+jest.mock('@/views/AuthenticatorRegistration', () => () => (
+  <div>Register Authenticator Page</div>
+));
+jest.mock('@/views/AuthenticatorCodeLogin', () => () => (
+  <div>Authenticator Code Page</div>
+));
 
 // Reports where the router ended up, so alias redirects can be asserted on the
 // resulting location rather than only on the rendered screen.
@@ -78,6 +84,8 @@ describe('AuthRoutes canonical paths', () => {
     [authRoutePaths.recoveryCodes, 'Recovery Codes Page'],
     [authRoutePaths.accountRecovery, 'Account Recovery Page'],
     [authRoutePaths.recoveryCancel, 'Recovery Cancel Page'],
+    [authRoutePaths.registerAuthenticator, 'Register Authenticator Page'],
+    [authRoutePaths.authenticatorCode, 'Authenticator Code Page'],
   ];
 
   it.each(cases)('renders %s', (path, expected) => {

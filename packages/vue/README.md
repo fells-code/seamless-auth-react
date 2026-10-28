@@ -105,7 +105,7 @@ async function signOut() {
 ## `useSeamlessAuth()` API
 
 Read-only refs: `state`, `user`, `isAuthenticated`, `loading`, `credentials`, `organizations`,
-`activeOrganization`, `stepUpStatus`, `hasSignedInBefore`, plus `loginMethods`,
+`activeOrganization`, `stepUpStatus`, `hasSignedInBefore`, `recoverySession`, plus `loginMethods`,
 `loginMethodsLoading`, `passkeySupported`, and `passkeySupportLoading`.
 
 Actions, each resolving to a `SeamlessAuthResult<T>` (`{ data, error }`) that never throws for an HTTP
@@ -139,24 +139,39 @@ a convenience for navigation, not access control: your server still checks every
 and so on) to spread into your router. They reach each other by name, so any `basePath` works. There
 is no catch-all among them, so they never swallow your own unknown paths.
 
-| Path               | Component           | Purpose                                                     |
-| ------------------ | ------------------- | ----------------------------------------------------------- |
-| `login`            | `SaLogin`           | Sign in with an email or phone number, or create an account |
-| `passkey-login`    | `SaPasskeyLogin`    | Sign in with a passkey alone                                |
-| `verify-email-otp` | `SaVerifyOtp`       | Check an email code                                         |
-| `verify-phone-otp` | `SaVerifyOtp`       | Check a text message code                                   |
-| `magic-link-sent`  | `SaMagicLinkSent`   | Wait for an emailed link to be used                         |
-| `verify-magiclink` | `SaVerifyMagicLink` | Where the emailed link lands. The auth API builds this URL  |
-| `oauth/callback`   | `SaOAuthCallback`   | The OAuth redirect URI to register with providers           |
-| `register-passkey` | `SaRegisterPasskey` | Offer passkey enrolment after sign-up                       |
+| Path                     | Component                 | Purpose                                                     |
+| ------------------------ | ------------------------- | ----------------------------------------------------------- |
+| `login`                  | `SaLogin`                 | Sign in with an email or phone number, or create an account |
+| `passkey-login`          | `SaPasskeyLogin`          | Sign in with a passkey alone                                |
+| `verify-email-otp`       | `SaVerifyOtp`             | Check an email code                                         |
+| `verify-phone-otp`       | `SaVerifyOtp`             | Check a text message code                                   |
+| `magic-link-sent`        | `SaMagicLinkSent`         | Wait for an emailed link to be used                         |
+| `verify-magiclink`       | `SaVerifyMagicLink`       | Where the emailed link lands. The auth API builds this URL  |
+| `oauth/callback`         | `SaOAuthCallback`         | The OAuth redirect URI to register with providers           |
+| `register-passkey`       | `SaRegisterPasskey`       | Offer passkey enrolment after sign-up                       |
+| `register-authenticator` | `SaRegisterAuthenticator` | Add an authenticator app, with a QR code and setup key      |
+| `authenticator-code`     | `SaAuthenticatorCode`     | Finish a sign-in with a code from an authenticator app      |
 
 The building blocks are exported too: `SaOtpInput` (bind with `v-model`), `SaFallbackOptions`,
 `SaOAuthProviderButtons`, `SaAuthLayout`, `authRoutePaths`, `authRouteName`, and
 `useAuthNavigation`.
 
 Put `guestGuard` only on the screens that start a sign-in (`login`, `passkey-login`,
-`magic-link-sent`). A user can already have a session when `register-passkey`, `oauth/callback`, or
-`verify-magiclink` renders, and the guard would send them on before they finish.
+`magic-link-sent`, `authenticator-code`). A user can already have a session when `register-passkey`,
+`register-authenticator`, `oauth/callback`, or `verify-magiclink` renders, and the guard would send
+them on before they finish.
+
+A recovery session (`recoverySession`, after a recovery code or an account recovery) can only enroll
+a factor, so `register-passkey` does not let it skip and always offers an authenticator app as well.
+
+### Settings
+
+`SaAuthenticatorAppSettings` comes from the package root and needs no router. It shows whether the
+account has an authenticator app, sets one up, and turns it off with a current code:
+
+```ts
+import { SaAuthenticatorAppSettings } from '@seamless-auth/vue';
+```
 
 The magic link and OAuth callback screens remove the token or code from the URL once they have read
 it, so a single-use secret does not stay in history or travel in a `Referer`.
@@ -165,7 +180,7 @@ it, so a single-use secret does not stay in history or travel in a `Referer`.
 
 Every screen is a thin view over a flow in `@seamless-auth/client` (`beginSignIn`,
 `registerWithEmail`, `verifyOtp`, `watchMagicLink`, `finishMagicLinkSignIn`,
-`confirmMagicLinkSignIn`, `startOAuthSignIn`, `completeOAuthCallback`, `enrollPasskey`, and helpers). A custom screen calls the same flows with the
+`confirmMagicLinkSignIn`, `startOAuthSignIn`, `completeOAuthCallback`, `enrollPasskey`, `signInWithTotp`, and helpers). A custom screen calls the same flows with the
 session as its actions:
 
 ```ts
