@@ -5,6 +5,9 @@
  */
 
 export { SaAuthLayout } from './auth-layout.component';
+export { SaAuthenticatorAppSettings } from './authenticator-app-settings.component';
+export { SaAuthenticatorCode } from './authenticator-code.component';
+export { SaAuthenticatorEnrollment } from './authenticator-enrollment.component';
 export { SaFallbackOptions } from './fallback-options.component';
 export { SaLogin } from './login.component';
 export { SaMagicLinkSent } from './magic-link-sent.component';
@@ -15,6 +18,7 @@ export { SaOtpInput } from './otp-input.component';
 export { SaPasskeyLogin } from './passkey-login.component';
 export { authRoutePaths } from './paths';
 export type { AuthRoutePath } from './paths';
+export { SaRegisterAuthenticator } from './register-authenticator.component';
 export { SaRegisterPasskey } from './register-passkey.component';
 export { seamlessAuthRoutes } from './routes';
 export { SaVerifyMagicLink } from './verify-magic-link.component';

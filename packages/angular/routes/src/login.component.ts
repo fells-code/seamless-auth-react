@@ -61,10 +61,12 @@ import { authRoutePaths } from './paths';
                 [identifier]="identifier()"
                 [loginMethods]="loginMethods()"
                 [offerPasskeyRetry]="auth.passkeySupported()"
+                [offerAuthenticator]="true"
                 (magicLink)="sendMagicLink()"
                 (emailOtp)="sendEmailOtp()"
                 (phoneOtp)="sendPhoneOtp()"
                 (passkeyRetry)="retryPasskey()"
+                (authenticator)="useAuthenticator()"
               />
             }
 
@@ -259,6 +261,12 @@ export class SaLogin {
     }
 
     await this.navigation.toApp();
+  }
+
+  // `/login` never lists an authenticator app, and the API answers its sign-in
+  // route the same for every address, so offering it reveals nothing.
+  useAuthenticator() {
+    return this.navigation.toScreen(authRoutePaths.authenticatorCode);
   }
 
   async sendMagicLink() {

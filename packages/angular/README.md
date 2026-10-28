@@ -142,7 +142,7 @@ export class AccountMenu {
 ## `SeamlessAuth` API
 
 Signals: `state`, `user`, `isAuthenticated`, `loading`, `credentials`, `organizations`,
-`activeOrganization`, `stepUpStatus`, `hasSignedInBefore`, plus `loginMethods`,
+`activeOrganization`, `stepUpStatus`, `hasSignedInBefore`, `recoverySession`, plus `loginMethods`,
 `loginMethodsLoading`, `passkeySupported` and `passkeySupportLoading`.
 
 Observables: `state$`, `user$`, `isAuthenticated$`. Each emits the current value on subscribe.
@@ -165,19 +165,51 @@ them. Mount the routes wherever you like; the screens move between each other re
 parent route, so `{ path: 'account', children: seamlessAuthRoutes }` works too. There is no wildcard
 route in the array, so mounting it at the root does not swallow your own unknown paths.
 
-| Path               | Component           | Purpose                                                     |
-| ------------------ | ------------------- | ----------------------------------------------------------- |
-| `login`            | `SaLogin`           | Sign in with an email or phone number, or create an account |
-| `passkey-login`    | `SaPasskeyLogin`    | Sign in with a passkey alone                                |
-| `verify-email-otp` | `SaVerifyOtp`       | Check an email code (`data.channel: 'email'`)               |
-| `verify-phone-otp` | `SaVerifyOtp`       | Check a text message code (`data.channel: 'phone'`)         |
-| `magic-link-sent`  | `SaMagicLinkSent`   | Wait for an emailed link to be used                         |
-| `verify-magiclink` | `SaVerifyMagicLink` | Where the emailed link lands. The auth API builds this URL  |
-| `oauth/callback`   | `SaOAuthCallback`   | The OAuth redirect URI to register with providers           |
-| `register-passkey` | `SaRegisterPasskey` | Offer passkey enrolment after sign-up                       |
+| Path                     | Component                 | Purpose                                                     |
+| ------------------------ | ------------------------- | ----------------------------------------------------------- |
+| `login`                  | `SaLogin`                 | Sign in with an email or phone number, or create an account |
+| `passkey-login`          | `SaPasskeyLogin`          | Sign in with a passkey alone                                |
+| `verify-email-otp`       | `SaVerifyOtp`             | Check an email code (`data.channel: 'email'`)               |
+| `verify-phone-otp`       | `SaVerifyOtp`             | Check a text message code (`data.channel: 'phone'`)         |
+| `magic-link-sent`        | `SaMagicLinkSent`         | Wait for an emailed link to be used                         |
+| `verify-magiclink`       | `SaVerifyMagicLink`       | Where the emailed link lands. The auth API builds this URL  |
+| `oauth/callback`         | `SaOAuthCallback`         | The OAuth redirect URI to register with providers           |
+| `register-passkey`       | `SaRegisterPasskey`       | Offer passkey enrolment after sign-up                       |
+| `register-authenticator` | `SaRegisterAuthenticator` | Add an authenticator app instead of a passkey               |
+| `authenticator-code`     | `SaAuthenticatorCode`     | Finish a sign-in with an authenticator app code             |
 
 The building blocks are exported too: `SaOtpInput` (bind with `[(value)]`), `SaFallbackOptions`,
-`SaOAuthProviderButtons`, `SaAuthLayout`, `authRoutePaths`, and `injectAuthNavigation`.
+`SaOAuthProviderButtons`, `SaAuthLayout`, `SaAuthenticatorEnrollment` (QR code, setup key and first
+code, emitting `enrolled`), `authRoutePaths`, and `injectAuthNavigation`.
+
+### Authenticator apps
+
+Once a sign-in is under way, the login screen's other options include "Use an authenticator app",
+which opens `authenticator-code`. It is offered for every address, because the auth API answers that
+route the same way whether or not the account has an app.
+
+`register-passkey` offers "Use an authenticator app" to a recovery session, which can do nothing
+else until it enrolls a passkey or an app, and on a device that cannot register a passkey. The
+`register-authenticator` screen shows a QR code (drawn as SVG, with no extra dependency), the setup key
+with a copy button, and an `otpauth://` link, then verifies the first code and continues where
+`register-passkey` would. Enrolling an app ends a recovery session's restriction.
+
+For an account settings page, `SaAuthenticatorAppSettings` needs no router. It shows whether an app
+is set up, adds one, and turns it off with a current code from the app. Pass `[card]="false"` to
+render it in your own layout:
+
+```ts
+import { SaAuthenticatorAppSettings } from '@seamless-auth/angular/routes';
+
+@Component({
+  imports: [SaAuthenticatorAppSettings],
+  template: `<sa-authenticator-app-settings [card]="false" />`,
+})
+export class SecuritySettings {}
+```
+
+The screens do not prompt for step-up yet, so an authenticator app is not yet offered as a step-up
+method there. `verifyStepUpWithTotp` is available on the service for a custom prompt.
 
 Do not put `guestGuard` on `register-passkey`: a user who signed up has a session by the time it
 renders, and the guard would send them on before they could add a passkey.
@@ -186,7 +218,8 @@ renders, and the guard would send them on before they could add a passkey.
 
 Every screen is a thin view over a flow in `@seamless-auth/client` (`beginSignIn`,
 `registerWithEmail`, `verifyOtp`, `watchMagicLink`, `finishMagicLinkSignIn`,
-`confirmMagicLinkSignIn`, `startOAuthSignIn`, `completeOAuthCallback`, `enrollPasskey`, and helpers). A custom screen calls the same flows with the
+`confirmMagicLinkSignIn`, `startOAuthSignIn`, `completeOAuthCallback`, `enrollPasskey`,
+`signInWithTotp`, and helpers such as `qrCode`, `formatTotpSecret` and `totpErrorMessage`). A custom screen calls the same flows with the
 service as its actions:
 
 ```ts
