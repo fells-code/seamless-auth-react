@@ -1,5 +1,33 @@
 # @seamless-auth/svelte
 
+## 0.3.0
+
+### Minor Changes
+
+- 44854d0: The session exposes `recoverySession`, `redeemRecoveryCode(code)` and `completeAccountRecovery()` from `@seamless-auth/client`, for a custom account recovery screen.
+- 0ec590c: The bundled screens cover authenticator apps (TOTP).
+  - `SaRegisterAuthenticator` (`/register-authenticator`) adds an authenticator app: a QR code drawn in the page with no extra dependency, the setup key with a copy button and an `otpauth://` link, and the first code to confirm it. It ends on a success state, then continues where passkey enrolment does.
+  - `SaAuthenticatorCode` (`/authenticator-code`) signs in with a code from the app, and explains a wrong or reused code, a lockout and a rate limit.
+  - `SaLogin` offers "Use an authenticator app" with the other sign-in options. `SaRegisterPasskey` offers it when the device cannot register a passkey (unless the application signs in with passkeys only, where the API would refuse the app), and always to a recovery session, which can no longer skip enrolment. Enrolling an authenticator app lifts the recovery restriction.
+  - `SaAuthenticatorAppSettings` is a router-free settings section: status, set up, and turn off with a current code.
+  - `authRoutePaths` gains `registerAuthenticator` and `authenticatorCode`, and the package re-exports the `TotpStatus` type.
+
+  Mount the two new screens at their paths (or pass `paths` to `createKitNavigator`). Needs a server adapter that proxies the auth API's `/totp/*` routes.
+
+### Patch Changes
+
+- Updated dependencies [e5e6680]
+- Updated dependencies [e5e6680]
+- Updated dependencies [e5e6680]
+- Updated dependencies [44854d0]
+- Updated dependencies [e5e6680]
+- Updated dependencies [8dbd3d8]
+- Updated dependencies [8dbd3d8]
+- Updated dependencies [8dbd3d8]
+- Updated dependencies [dc52b23]
+- Updated dependencies [a5956b0]
+  - @seamless-auth/client@0.8.0
+
 ## 0.2.1
 
 ### Patch Changes

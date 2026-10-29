@@ -1,5 +1,0 @@
----
-'@seamless-auth/angular': minor
----
-
-Add authenticator app (TOTP) screens to the Angular binding. Once a sign-in is under way, the login screen offers "Use an authenticator app", which opens the new `authenticator-code` screen (`SaAuthenticatorCode`) and explains a wrong or reused code, a lockout and rate limiting. The new `register-authenticator` screen (`SaRegisterAuthenticator`) shows a QR code, the setup key with a copy button and an `otpauth://` link, verifies the first code, and continues where `register-passkey` does. `register-passkey` offers it to a recovery session, which can no longer skip enrollment, and on a device that cannot register a passkey; enrolling an app lifts the recovery restriction. `SaAuthenticatorAppSettings` is a router-independent settings component that shows whether an app is set up, adds one, and turns it off with a current code. `SaAuthenticatorEnrollment` is exported for custom screens, `SaFallbackOptions` gains an `offerAuthenticator` input and an `authenticator` output, and the `SeamlessAuth` service gains a `recoverySession` signal.
