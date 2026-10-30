@@ -22,7 +22,7 @@ jobs:
       # Pushes the release PR branch, tags, and GitHub Releases.
       contents: write
       pull-requests: write
-      # npm provenance.
+      # npm trusted publishing (OIDC), which also signs provenance.
       id-token: write
     env:
       HUSKY: 0
@@ -37,7 +37,6 @@ jobs:
         uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
         with:
           node-version-file: '.nvmrc'
-          cache: npm
           registry-url: https://registry.npmjs.org/
 
       - name: Use an npm that supports trusted publishing
