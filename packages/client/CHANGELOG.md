@@ -1,5 +1,12 @@
 # @seamless-auth/client
 
+## 0.8.1
+
+### Patch Changes
+
+- 194af06: The source repository is now `fells-code/seamless-auth-js`. Package `repository`, `bugs` and `homepage` links point at the new name, and releases are published with npm trusted publishing and provenance from that repository.
+- b04166c: Publish from the renamed seamless-auth-js repository through npm trusted publishing, so provenance points at the new repository. Refreshes the lockfile for non-breaking dependency advisories. No runtime changes.
+
 ## 0.8.0
 
 ### Minor Changes
