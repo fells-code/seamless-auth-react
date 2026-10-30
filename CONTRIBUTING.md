@@ -37,7 +37,7 @@ Fork the repository and clone it locally:
 git clone https://github.com/fells-code/seamless-auth-api.git
 
 # Clone the react SDK
-git clone https://github.com/fells-code/seamless-auth-react.git
+git clone https://github.com/fells-code/seamless-auth-js.git
 ```
 
 ---
@@ -112,7 +112,7 @@ npm create vite@latest seamless-auth-dev
 
 ## 4. Link the React Package
 
-From the `seamless-auth-react` repository:
+From the `seamless-auth-js` repository:
 
 ```bash
 npm install
@@ -171,7 +171,7 @@ createRoot(document.getElementById('root')!).render(
 
 ## 6. Run the SDK in Watch Mode
 
-Inside `seamless-auth-react`:
+Inside `seamless-auth-js`:
 
 ```bash
 npm run build -- --watch
@@ -187,7 +187,7 @@ If all went well you should have a directory structure like this
 .
 ├── seamless-auth-api
 ├── seamless-auth-dev
-└── seamless-auth-react
+└── seamless-auth-js
 ```
 
 Navigating to `http://localhost:5173` give you the seamless auth login page.

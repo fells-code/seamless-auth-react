@@ -1,8 +1,8 @@
 # @seamless-auth/svelte
 
 [![npm version](https://img.shields.io/npm/v/@seamless-auth/svelte.svg?label=%40seamless-auth%2Fsvelte)](https://www.npmjs.com/package/@seamless-auth/svelte)
-[![CI](https://github.com/fells-code/seamless-auth-react/actions/workflows/ci.yml/badge.svg)](https://github.com/fells-code/seamless-auth-react/actions/workflows/ci.yml)
-[![license](https://img.shields.io/github/license/fells-code/seamless-auth-react)](./LICENSE)
+[![CI](https://github.com/fells-code/seamless-auth-js/actions/workflows/ci.yml/badge.svg)](https://github.com/fells-code/seamless-auth-js/actions/workflows/ci.yml)
+[![license](https://img.shields.io/github/license/fells-code/seamless-auth-js)](./LICENSE)
 
 Svelte bindings for Seamless Auth: a rune-based session with every auth action, SvelteKit `load`
 guards, and optional sign-in screens. It is a thin binding over
