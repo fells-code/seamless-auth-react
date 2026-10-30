@@ -27,15 +27,15 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/fells-code/seamless-auth-react.git",
+    "url": "https://github.com/fells-code/seamless-auth-js.git",
     "directory": "packages/client"
   },
   "author": "Fells Code, LLC",
   "license": "Apache-2.0",
   "bugs": {
-    "url": "https://github.com/fells-code/seamless-auth-react/issues"
+    "url": "https://github.com/fells-code/seamless-auth-js/issues"
   },
-  "homepage": "https://github.com/fells-code/seamless-auth-react/tree/main/packages/client#readme",
+  "homepage": "https://github.com/fells-code/seamless-auth-js/tree/main/packages/client#readme",
   "publishConfig": {
     "access": "public",
     "registry": "https://registry.npmjs.org/",

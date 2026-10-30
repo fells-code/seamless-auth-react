@@ -14,7 +14,7 @@ concurrency:
 
 jobs:
   release:
-    if: github.repository == 'fells-code/seamless-auth-react'
+    if: github.repository == 'fells-code/seamless-auth-js'
     name: Version or Publish Package
     runs-on: ubuntu-latest
     permissions:
