@@ -1,10 +1,10 @@
 # @seamless-auth/react
 
 [![npm version](https://img.shields.io/npm/v/@seamless-auth/react.svg?label=%40seamless-auth%2Freact)](https://www.npmjs.com/package/@seamless-auth/react)
-[![CI](https://github.com/fells-code/seamless-auth-react/actions/workflows/ci.yml/badge.svg)](https://github.com/fells-code/seamless-auth-react/actions/workflows/ci.yml)
-[![Release](https://github.com/fells-code/seamless-auth-react/actions/workflows/release.yml/badge.svg)](https://github.com/fells-code/seamless-auth-react/actions/workflows/release.yml)
-[![coverage](https://img.shields.io/codecov/c/github/fells-code/seamless-auth-react)](https://app.codecov.io/gh/fells-code/seamless-auth-react)
-[![license](https://img.shields.io/github/license/fells-code/seamless-auth-react)](./LICENSE)
+[![CI](https://github.com/fells-code/seamless-auth-js/actions/workflows/ci.yml/badge.svg)](https://github.com/fells-code/seamless-auth-js/actions/workflows/ci.yml)
+[![Release](https://github.com/fells-code/seamless-auth-js/actions/workflows/release.yml/badge.svg)](https://github.com/fells-code/seamless-auth-js/actions/workflows/release.yml)
+[![coverage](https://img.shields.io/codecov/c/github/fells-code/seamless-auth-js)](https://app.codecov.io/gh/fells-code/seamless-auth-js)
+[![license](https://img.shields.io/github/license/fells-code/seamless-auth-js)](./LICENSE)
 
 `@seamless-auth/react` is a React SDK for Seamless Auth. It gives you a provider for auth state, a headless client and hooks for custom auth UIs, and optional prebuilt auth routes when you want a faster drop-in flow.
 

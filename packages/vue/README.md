@@ -1,8 +1,8 @@
 # @seamless-auth/vue
 
 [![npm version](https://img.shields.io/npm/v/@seamless-auth/vue.svg?label=%40seamless-auth%2Fvue)](https://www.npmjs.com/package/@seamless-auth/vue)
-[![CI](https://github.com/fells-code/seamless-auth-react/actions/workflows/ci.yml/badge.svg)](https://github.com/fells-code/seamless-auth-react/actions/workflows/ci.yml)
-[![license](https://img.shields.io/github/license/fells-code/seamless-auth-react)](./LICENSE)
+[![CI](https://github.com/fells-code/seamless-auth-js/actions/workflows/ci.yml/badge.svg)](https://github.com/fells-code/seamless-auth-js/actions/workflows/ci.yml)
+[![license](https://img.shields.io/github/license/fells-code/seamless-auth-js)](./LICENSE)
 
 Vue bindings for Seamless Auth: a plugin and a `useSeamlessAuth()` composable for session state and
 auth actions, `vue-router` guards, and optional sign-in screens. It is a thin binding over
