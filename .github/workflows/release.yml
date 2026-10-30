@@ -17,6 +17,7 @@ jobs:
     if: github.repository == 'fells-code/seamless-auth-js'
     name: Version or Publish Package
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     permissions:
       # Pushes the release PR branch, tags, and GitHub Releases.
       contents: write
@@ -37,6 +38,9 @@ jobs:
         with:
           node-version-file: '.nvmrc'
           registry-url: https://registry.npmjs.org/
+
+      - name: Use an npm that supports trusted publishing
+        run: npm install -g npm@^11.5.1
 
       # The job holds an OIDC token and publish credentials, so no dependency
       # runs an install script here. No package needs one to build or test.
