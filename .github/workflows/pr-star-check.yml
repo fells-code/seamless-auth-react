@@ -11,9 +11,14 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   require-star:
     runs-on: ubuntu-latest
+    timeout-minutes: 5
 
     steps:
       - name: Check contributor has starred repository
