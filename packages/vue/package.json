@@ -1,6 +1,6 @@
 {
   "name": "@seamless-auth/vue",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "Vue bindings for Seamless Auth: a plugin and composable for session state, route guards, and optional sign-in screens.",
   "type": "module",
   "exports": {
@@ -63,7 +63,7 @@
     }
   },
   "dependencies": {
-    "@seamless-auth/client": "^0.8.0"
+    "@seamless-auth/client": "^0.8.1"
   },
   "sideEffects": [
     "*.css"
